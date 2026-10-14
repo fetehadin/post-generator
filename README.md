@@ -109,7 +109,8 @@ Billing and teams · automatic posting to X and LinkedIn · trend feeds · AI im
 | Publishing | Telegram Bot API · X web intent · LinkedIn composer | Zero platform API fees |
 | Scheduling | Worker container (sends due posts every minute) | Always-on server, no external cron needed |
 | Hosting | **Contabo VPS** · Docker Compose · Caddy (auto HTTPS) | Always on, no cold starts, one server for API, worker, database and frontend |
-| Quality | pytest · Vitest · Ruff · pre-commit · GitHub Actions | Same formatting, tests on every PR |
+| Quality | pytest · Vitest · Ruff · Gitleaks · GitHub Actions | Same formatting, tests and a secret scan on every PR |
+| CI/CD | GitHub Actions → SSH deploy to the server | Merge to `main` = deployed, with rollback on failure |
 | Local dev | Docker Compose | One command for the database |
 
 ---
@@ -133,7 +134,8 @@ post-generator/
 ├── docs/
 │   ├── SRS.md          Requirements — the source of truth
 │   ├── BUILD_PLAN.md   Phases, task split, cycles, tools
-│   └── API.md          Backend ↔ frontend contract
+│   ├── API.md          Backend ↔ frontend contract
+│   └── CI_CD.md        Pipeline, branch protection, deploy setup
 ├── .claude/            Claude Code settings, hooks and skills
 ├── CLAUDE.md           Rules for agentic development
 ├── deploy/             Production setup for the Contabo server (Phase 2)
@@ -243,6 +245,7 @@ Full detail in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
 | [Software Requirements Specification](docs/SRS.md) | Every requirement with a yes/no test, the data model, platform rules |
 | [Build Plan](docs/BUILD_PLAN.md) | Build order, who does what, the cycle, tools by phase |
 | [API Contract](docs/API.md) | Endpoints and JSON shapes |
+| [CI/CD](docs/CI_CD.md) | Checks on every pull request, deploys to the server, GitHub setup |
 | [Contributing](CONTRIBUTING.md) | Branches, commits, reviews, definition of done |
 
 ---
