@@ -33,3 +33,7 @@ coverage/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Claude Code personal files
+CLAUDE.local.md
+.claude/settings.local.json

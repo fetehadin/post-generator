@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Product** | Voxlace (working name) |
-| **Version** | 1.0 — final V1 scope |
+| **Version** | 1.1 — final V1 scope |
 | **Date** | 13 October 2026 |
 | **Authors** | Fetehadin Negash, Nezira |
 | **Status** | Locked. Changes go through a pull request that edits this file. |
@@ -68,7 +68,8 @@ V1 must prove one thing: **people actually publish the drafts it writes, with li
 A new, standalone, multi-user web app (SaaS from day one, without billing). It depends on:
 
 - **Google Gemini API** for embeddings and generation, with one extra free provider as a generation fallback.
-- **A managed login provider** (Supabase Auth recommended).
+- **A managed login provider** (Supabase Auth, used for login only; data stays in our own Postgres).
+- **One Contabo VPS** the team already owns, running everything in Docker.
 - **PostgreSQL + pgvector** for all data, including embeddings.
 - **The Telegram Bot API** for channel publishing.
 - **Static export files** the user uploads. No live reads from X or LinkedIn.
@@ -80,7 +81,8 @@ flowchart LR
     API --> DB[(Postgres + pgvector)]
     API -->|embed / generate| AI[Gemini + fallback provider]
     API -->|sendMessage| TG[Telegram Bot API]
-    CRON[Cron service] -->|every few minutes| API
+    W[Worker] -->|every minute: due posts| DB
+    W -->|sendMessage| TG
     FE -->|pre-filled link| X[X composer]
     FE -->|copy + open| LI[LinkedIn composer]
 ```
@@ -97,15 +99,15 @@ flowchart LR
 ### 2.3 Operating environment
 
 - Modern desktop browsers (Chrome, Firefox, Safari, Edge — latest two versions). Mobile layout should work but is not tuned.
-- Backend: Python 3.12+, FastAPI. Frontend: React + Vite on Node LTS.
-- Database: PostgreSQL with pgvector (local `pgvector/pgvector:pg18` image; hosted Supabase).
-- Hosting: free tiers only. Free hosts sleep when idle.
+- Backend: Python 3.12+, FastAPI. Frontend: React + Vite + TypeScript on Node LTS.
+- Database: PostgreSQL with pgvector (`pgvector/pgvector:pg18` image, locally and on the server).
+- Hosting: one Contabo VPS running Docker Compose: Caddy (HTTPS + static frontend), API, worker, Postgres. Always on.
 
 ### 2.4 Constraints
 
 | # | Constraint |
 |---|---|
-| C-1 | **Zero cost.** Free-tier hosting, free-tier AI, no paid platform APIs. |
+| C-1 | **No new cost.** The Contabo server the team already pays for, free-tier AI, no paid platform APIs. |
 | C-2 | **No model training.** Quality comes from retrieval and prompts only. |
 | C-3 | **No platform passwords, no scraping.** Only the user's own exports and official bot tokens. |
 | C-4 | **X API costs money** ($0.015 per post, $0.20 with a URL), so X is hand-off only. |
@@ -120,7 +122,7 @@ flowchart LR
 - Users can request and download their own exports (LinkedIn takes 1–2 days to deliver).
 - Users have at least ~20 past posts per platform for good style matching; below that the app warns and uses a shared example pool.
 - Users click to publish on X and LinkedIn.
-- A free external cron service can call the backend every few minutes.
+- The Contabo server stays up; Docker restarts crashed containers (`restart: unless-stopped`).
 
 ---
 
@@ -198,7 +200,7 @@ flowchart LR
 
 | ID | Category | Requirement | Test |
 |---|---|---|---|
-| NFR-1 | Cost | V1 runs at no cost: free-tier hosting, free-tier AI, no paid APIs. | Billing pages show $0 after a week of use. |
+| NFR-1 | Cost | V1 adds no cost beyond the existing Contabo server: free-tier AI, no paid APIs. | Billing pages show $0 after a week of use. |
 | NFR-2 | Setup | One command starts the database on a fresh machine; the README documents the rest. | A new clone runs with `docker compose up` plus the README steps. |
 | NFR-3 | Performance | A draft returns within 20 seconds in normal conditions. | Time ten drafts. |
 | NFR-4 | Resilience | When the AI service rate-limits (HTTP 429), the user sees a clear message and loses no input. | Simulate a 429; the text box keeps its content. |
@@ -211,9 +213,11 @@ flowchart LR
 | NFR-11 | Privacy | Raw uploaded files are never sent to the AI service. Only cleaned text the user reviewed may be sent. Raw files are deleted after parsing. | Inspect outgoing AI requests during an upload; no file content beyond cleaned text. |
 | NFR-12 | Security | Website fetching accepts only public addresses and stops after a short timeout. | Enter a localhost address; it is rejected. |
 | NFR-13 | Security | User data is isolated in the database (row-level security), not only in app code. | Query as user B; user A's rows are not returned. |
-| NFR-14 | Reliability | Reminders and scheduled Telegram sends go out within 5 minutes of the due time, even when the web service sleeps. | Schedule five while idle; all arrive within 5 minutes. |
+| NFR-14 | Reliability | Reminders and scheduled Telegram sends go out within 5 minutes of the due time, and a worker restart never sends a post twice. | Schedule five, restart the worker mid-way; all arrive once, within 5 minutes. |
 | NFR-15 | Observability | Every draft stores its exact prompt, model and provider. | Open any draft's prompt log. |
 | NFR-16 | Time | All times are stored in UTC and shown in the user's time zone. | Change the user's time zone; calendar times shift, stored values do not. |
+| NFR-17 | Recoverability | The database is backed up nightly to storage off the server, and a restore has been tested. | Restore last night's backup into a fresh container; row counts match. |
+| NFR-18 | Security | The server accepts SSH by key only, exposes only ports 80/443/SSH, and Postgres is not reachable from the internet. | Port scan from outside shows only 22, 80, 443. |
 
 ---
 
@@ -241,7 +245,7 @@ flowchart LR
 | Telegram Bot API | Out | `getChatMember` to verify admin rights; `sendMessage` to publish. |
 | X web intent | Browser | `https://x.com/intent/tweet?text=…` pre-filled composer. |
 | LinkedIn | Browser | Open the share composer; text goes via clipboard. |
-| Cron service | In | Calls a protected endpoint every few minutes to send due posts and reminders. |
+| Worker process | Internal | Runs beside the API on the server; every minute it sends due Telegram posts and reminders. |
 | GitHub REST API | Out | (Should) Public commits and PR titles for the day. |
 
 ### 5.3 Embedding format rules
@@ -336,11 +340,11 @@ Seed values for `platform_profiles`, as of October 2026.
 |---|---|
 | 0 — Foundations | NFR-2, NFR-5, NFR-8 (CI), NFR-9 |
 | 1 — Core voice loop (Telegram) | FR-1 (Telegram), FR-2, FR-3, FR-4, FR-7, FR-39, NFR-15 |
-| 2 — Accounts and isolation | FR-27, FR-28, FR-29, FR-37, NFR-7, NFR-13 |
+| 2 — Accounts and isolation | FR-27, FR-28, FR-29, FR-37, NFR-7, NFR-13, NFR-18 |
 | 3 — All platforms and voice | FR-1 (X, LinkedIn), FR-5, FR-9, FR-17, FR-18, FR-22–FR-26, FR-33 |
 | 4 — Drafting workflow | FR-6, FR-8, FR-10, FR-11, FR-19, FR-12 (X, LinkedIn) |
 | 5 — Calendar and Telegram publishing | FR-12 (Telegram), FR-13, FR-35, FR-36, NFR-14, NFR-16 |
-| 6 — SaaS hardening and deploy | FR-30, FR-31, FR-32, FR-38, NFR-1, NFR-3, NFR-4, NFR-10, NFR-11 |
+| 6 — SaaS hardening and deploy | FR-30, FR-31, FR-32, FR-38, NFR-1, NFR-3, NFR-4, NFR-10, NFR-11, NFR-17 |
 | 7 — Private beta | FR-15, success metrics |
 | Stretch | FR-14, FR-16, FR-20, FR-21, FR-34, NFR-12 |
 
@@ -350,4 +354,5 @@ Seed values for `platform_profiles`, as of October 2026.
 
 | Version | Date | Change |
 |---|---|---|
+| 1.1 | 14 Oct 2026 | Hosting moved to the team's Contabo VPS: always-on worker replaces the external cron; Supabase used for login only; added NFR-17 (backups) and NFR-18 (server hardening). |
 | 1.0 | 13 Oct 2026 | First locked V1. Built from the Pre-Build Plan. Clarified: Telegram is sent by the app at the due time because bots cannot schedule natively (FR-12, FR-35); NFR-6 reworded to "never without explicit approval"; NFR-11 reworded for a hosted app; added NFR-15, NFR-16 and a priority column. |
