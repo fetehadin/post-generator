@@ -12,6 +12,7 @@ Read the relevant doc before changing behaviour. Don't contradict it; if the cod
 - `docs/BUILD_PLAN.md` — phases and what belongs in each. Don't build ahead of the current phase.
 - `docs/API.md` — the backend ↔ frontend contract. Change it in the same PR as any endpoint change.
 - `CONTRIBUTING.md` — branches, commits, reviews, definition of done.
+- `docs/CI_CD.md` — what CI checks, how deploys work. CI must be green before merge.
 
 **Current phase:** 0 — Foundations. (Update this line when a phase's demo passes.)
 
@@ -94,7 +95,7 @@ Run the checks for every part you touched before saying a task is done.
 ## Ask before you
 
 - Change the database schema in a way that drops or renames data.
-- Touch auth, RLS policies or anything in `deploy/`.
+- Touch auth, RLS policies, anything in `deploy/`, or `.github/workflows/`.
 - Add a dependency, a new service or a paid API.
 - Change prompt templates in a way that affects all users (show before/after on the ten test topics).
 

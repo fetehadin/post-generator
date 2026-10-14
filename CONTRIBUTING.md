@@ -35,7 +35,7 @@ chore(ci): run ruff format check
 - Link the issue (`Closes #12`).
 - Fill in the template, including how you tested it.
 - Add a screenshot or short clip for UI changes.
-- CI must be green before review.
+- CI must be green before review. The required check is **CI passed** (see [`docs/CI_CD.md`](docs/CI_CD.md)).
 - Reviewer responds within one working day. Review before starting new work.
 - **Squash merge**, then delete the branch.
 
