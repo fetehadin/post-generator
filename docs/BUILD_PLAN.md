@@ -111,8 +111,8 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 | Request your **X, LinkedIn and Telegram exports today** (LinkedIn takes 1–2 days) | Create the FastAPI app with `/health`, settings loaded from `.env` |
 | Get a Gemini API key; read your project's limits in AI Studio | Create the React + Vite + TypeScript app (Tailwind, React Router, TanStack Query) with one page that calls `/health` |
 | **Throwaway test:** embed 20 posts at 768 dims, run a cosine search, check the matches make sense | Docker Compose for Postgres; SQLAlchemy + Alembic set up |
-| Make small anonymised sample exports in `samples/` | GitHub Actions: Ruff + pytest on every PR |
-| Write `ai/client.py` stub: `embed()` and `generate()` with model names from config | Projects board, labels, issue and PR templates |
+| Make small anonymised sample exports in `samples/` | Make CI's backend and frontend jobs pass (workflow already in `.github/workflows/ci.yml`); uncomment pip/npm in `dependabot.yml` |
+| Write `ai/client.py` stub: `embed()` and `generate()` with model names from config | Projects board, labels, issue and PR templates; protect `main` (see `docs/CI_CD.md`) |
 
 **Together:** confirm the decisions in the SRS, write the Phase 1 API contract, agree on folder structure.
 
@@ -154,7 +154,7 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 | Two-user test: generate for A, assert no B posts in the prompt log | Invite codes: sign-up refused without one |
 | | Privacy notice screen; uploads blocked until accepted |
 | | **First deploy to Contabo:** SSH keys only, `ufw` (22/80/443), Docker, Caddy with your domain, API + Postgres + built frontend via `deploy/docker-compose.prod.yml` |
-| | GitHub Actions deploy job: on merge to `main`, SSH in, pull, `docker compose up -d --build`, run migrations |
+| | Turn on the deploy workflow: `production` environment secrets, then `DEPLOY_ENABLED=true` (see `docs/CI_CD.md`) |
 
 **Demo:** two accounts, each imports their own export; neither can reach the other's posts by UI or by calling the API directly.
 

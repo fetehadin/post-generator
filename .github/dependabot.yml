@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Uncomment in Phase 0, once backend/pyproject.toml and frontend/package.json exist.
+  # - package-ecosystem: pip
+  #   directory: /backend
+  #   schedule:
+  #     interval: weekly
+  #   groups:
+  #     minor-and-patch:
+  #       update-types: [minor, patch]
+  #
+  # - package-ecosystem: npm
+  #   directory: /frontend
+  #   schedule:
+  #     interval: weekly
+  #   groups:
+  #     minor-and-patch:
+  #       update-types: [minor, patch]
