@@ -105,6 +105,6 @@ Same shape; `status` moves `parsing → embedding → done | failed`, and `embed
 | 4 | `POST /drafts/{id}/revise` · `GET /drafts/{id}/versions` | Chat revisions |
 | 4 | `GET /drafts?status=&platform=` · `PATCH /drafts/{id}` | Library, status, text, `scheduled_for` |
 | 5 | `POST /telegram/connect` · `POST /drafts/{id}/publish` | Connect channel; publish now |
-| 5 | `POST /internal/cron/tick` (header `X-Cron-Secret`) | Send due posts and reminders |
+| 5 | *(no endpoint)* | Due posts and reminders are sent by the worker process, not over HTTP |
 | 6 | `GET /usage` | Today's usage vs limits |
 | 6 | `GET /me/export` · `DELETE /me` | Export and delete all data |

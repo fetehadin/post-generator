@@ -24,7 +24,7 @@ How two developers take Voxlace from an empty repo to a private beta. It covers 
 
 ### What you're building, in one paragraph
 
-A user uploads their old posts. The backend splits them into rows, turns each into an **embedding** (768 numbers that capture meaning) and stores it in **Postgres + pgvector**. When the user asks for a draft, the backend embeds the topic, finds their most similar past posts, and builds a prompt from four things: those examples, their voice card, today's check-in, and the platform's rules. It sends that prompt to **Gemini**, saves the draft, and shows it in **React**. The user edits it, schedules it on the calendar and approves it. X and LinkedIn get a hand-off; Telegram is sent by the bot, and a **cron job** wakes the app to send scheduled posts on time.
+A user uploads their old posts. The backend splits them into rows, turns each into an **embedding** (768 numbers that capture meaning) and stores it in **Postgres + pgvector**. When the user asks for a draft, the backend embeds the topic, finds their most similar past posts, and builds a prompt from four things: those examples, their voice card, today's check-in, and the platform's rules. It sends that prompt to **Gemini**, saves the draft, and shows it in **React**. The user edits it, schedules it on the calendar and approves it. X and LinkedIn get a hand-off; Telegram is sent by the bot: a **worker** running beside the API on your Contabo server checks every minute and sends scheduled posts on time.
 
 ### The order you build in
 
@@ -37,8 +37,8 @@ flowchart TD
     P2["Phase 2 — Accounts & isolation<br/>login · invites · user_id everywhere · RLS"]
     P3["Phase 3 — All platforms & voice<br/>X + LinkedIn import · voice cards · profile · settings"]
     P4["Phase 4 — Drafting workflow<br/>chat board · revisions · library · hand-off"]
-    P5["Phase 5 — Calendar & Telegram publishing<br/>calendar · bot connect · cron sender · reminders"]
-    P6["Phase 6 — SaaS hardening & deploy<br/>fallback models · limits · export/delete · hosting"]
+    P5["Phase 5 — Calendar & Telegram publishing<br/>calendar · bot connect · worker sender · reminders"]
+    P6["Phase 6 — SaaS hardening & deploy<br/>fallback models · limits · export/delete · backups"]
     P7["Phase 7 — Private beta<br/>invite testers · metrics · fix what hurts"]
     P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7
     P7 -.-> S["Stretch: GitHub context · posting windows · resume import · idea inbox"]
@@ -49,7 +49,7 @@ flowchart TD
 - **Phase 1 is the riskiest part.** If drafts don't sound like you, nothing else matters. Prove it early, with no UI polish.
 - **Accounts come before the second platform**, so `user_id` and row-level security are in place before tables multiply.
 - **Publishing comes late** because it only matters once drafts are good.
-- **Deploy happens before the beta, not at the very end of everything.** Do a first throwaway deploy in Phase 2 so hosting surprises show up early.
+- **Deploy happens before the beta, not at the very end of everything.** Do a first deploy to the Contabo server in Phase 2 so hosting surprises show up early.
 
 ### What happens when a user clicks "Generate"
 
@@ -83,7 +83,7 @@ Split by **track**, not by frontend/backend. Each track owns a feature from data
 | Track | Owns | Starts with |
 |---|---|---|
 | **A — Data & AI** | Parsers, embeddings, retrieval, prompts, voice cards, model fallback, quality checks | **Fetehadin** |
-| **B — App & Platform** | Auth, API endpoints and validation, React screens, calendar, Telegram bot, cron, deploy | **Nezira** |
+| **B — App & Platform** | Auth, API endpoints and validation, React screens, calendar, Telegram bot, worker, server and deploy | **Nezira** |
 | **Together** | Schema changes, the API contract for each slice, demos, reviews | Both |
 
 **Rules for the split**
@@ -109,7 +109,7 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 | Track A — Data & AI | Track B — App & Platform |
 |---|---|
 | Request your **X, LinkedIn and Telegram exports today** (LinkedIn takes 1–2 days) | Create the FastAPI app with `/health`, settings loaded from `.env` |
-| Get a Gemini API key; read your project's limits in AI Studio | Create the React + Vite app with one page that calls `/health` |
+| Get a Gemini API key; read your project's limits in AI Studio | Create the React + Vite + TypeScript app (Tailwind, React Router, TanStack Query) with one page that calls `/health` |
 | **Throwaway test:** embed 20 posts at 768 dims, run a cosine search, check the matches make sense | Docker Compose for Postgres; SQLAlchemy + Alembic set up |
 | Make small anonymised sample exports in `samples/` | GitHub Actions: Ruff + pytest on every PR |
 | Write `ai/client.py` stub: `embed()` and `generate()` with model names from config | Projects board, labels, issue and PR templates |
@@ -149,11 +149,12 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 | Track A — Data & AI | Track B — App & Platform |
 |---|---|
-| Add RLS policies; write a test that queries as user B and gets none of A's rows | Supabase Auth (or Auth0): sign up, log in, log out in React |
+| Add RLS policies; write a test that queries as user B and gets none of A's rows | Supabase Auth (login only): sign up, log in, log out in React |
 | Replace the dev user with the real `user_id` from the token everywhere | Backend dependency that verifies the JWT on every route (401 if missing) |
 | Two-user test: generate for A, assert no B posts in the prompt log | Invite codes: sign-up refused without one |
 | | Privacy notice screen; uploads blocked until accepted |
-| | **First throwaway deploy** (Supabase DB + free backend host + static frontend) |
+| | **First deploy to Contabo:** SSH keys only, `ufw` (22/80/443), Docker, Caddy with your domain, API + Postgres + built frontend via `deploy/docker-compose.prod.yml` |
+| | GitHub Actions deploy job: on merge to `main`, SSH in, pull, `docker compose up -d --build`, run migrations |
 
 **Demo:** two accounts, each imports their own export; neither can reach the other's posts by UI or by calling the API directly.
 
@@ -206,9 +207,9 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 | Track A — Data & AI | Track B — App & Platform |
 |---|---|
 | Due-post query: approved + `scheduled_for <= now()` + not yet sent, safe to run twice | Calendar: week and month views, drag to reschedule (store UTC, show local) |
-| `POST /internal/cron/tick` (secret header): send due Telegram posts, send reminders | Telegram connect flow: bot as admin → `getChatMember` check → save |
+| `worker.py`: every minute, send due Telegram posts and reminders | Telegram connect flow: bot as admin → `getChatMember` check → save |
 | Retry + mark failures without double-sending | "Publish now" for Telegram; reminders in the app |
-| | Free cron service calling the tick endpoint every 5 minutes |
+| Lock each due row (`FOR UPDATE SKIP LOCKED`) so a restart never double-sends | Worker service in the production compose file, `restart: unless-stopped` |
 
 **Demo:** approve a Telegram draft for 5 minutes from now, close the laptop, and it appears in your channel on time.
 
@@ -224,7 +225,8 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 |---|---|
 | Model fallback chain from config; record model + provider per draft | Daily limits per user, shown in the app; clear 429 message, input kept |
 | Embedding retry queue; never switch embedding models | Export my data (JSON) and delete all my data |
-| Daily health check of each model in the chain | Production deploy, env vars, CORS, error pages |
+| Daily health check of each model in the chain | Production env vars, CORS, error pages, uptime check |
+| | Nightly `pg_dump` copied off the server; test a restore (NFR-17) |
 | Run the ten test topics on every fallback model | Warn about cold starts on first load |
 
 **Demo:** turn off the first model in config → drafts still arrive from the second and say so; delete a test account → every row is gone.
@@ -318,12 +320,12 @@ A task is done when **all** of these are true:
 
 | Phase | Tools |
 |---|---|
-| 0 | Git, GitHub (Issues, Projects, Actions), Docker + Compose, PostgreSQL + pgvector, Python 3.12, FastAPI, Uvicorn, Pydantic, SQLAlchemy, Alembic, Ruff, pytest, pre-commit, Node LTS, React, Vite, Vitest |
+| 0 | Git, GitHub (Issues, Projects, Actions), Docker + Compose, PostgreSQL + pgvector, Python 3.12, FastAPI, Uvicorn, Pydantic, SQLAlchemy, Alembic, Ruff, pytest, pre-commit, Node LTS, React, Vite, TypeScript, Tailwind CSS, TanStack Query, Vitest, Claude Code with the repo's `CLAUDE.md` files |
 | 1 | `google-genai` SDK (`gemini-embedding-2`, Gemini Flash), `pgvector` Python package, Python `json`, FastAPI file uploads |
-| 2 | Supabase Auth (or Auth0), JWT verification (`PyJWT`), Postgres row-level security, Supabase-hosted Postgres, a free backend host (e.g. Render), static frontend hosting |
+| 2 | Supabase Auth (login only), JWT verification (`PyJWT`), Postgres row-level security, Contabo VPS, `ufw`, Caddy, production Docker Compose, GitHub Actions deploy over SSH |
 | 3 | Python `csv`, Unicode handling for the weighted counter, React forms |
 | 4 | Clipboard API, X web intent URLs |
-| 5 | FullCalendar (or a simple week grid), Telegram Bot API via `httpx`, a free cron service |
+| 5 | FullCalendar (or a simple week grid), Telegram Bot API via `httpx`, a worker process (plain loop or APScheduler) |
 | 6 | Second AI provider (Groq, OpenRouter or Mistral), structured logging |
 | 7 | Simple metrics queries, a feedback form |
 | Stretch | GitHub REST API, `pypdf` / `python-docx`, regex-based contact stripping |
@@ -338,7 +340,7 @@ Learn each topic in the week you need it, by building.
 |---|---|
 | 0 | FastAPI basics (routes, Pydantic models, dependencies) — the Flask course carries over · Docker Compose · Alembic migrations |
 | 1 | What embeddings are · cosine distance · pgvector queries · prompt structure with examples (few-shot) |
-| 2 | How JWT login works · Postgres row-level security · environment variables in deploys |
+| 2 | How JWT login works · Postgres row-level security · Linux server basics (SSH keys, firewall) · Caddy reverse proxy |
 | 3 | Pandas-free CSV parsing · Unicode and grapheme counting |
 | 5 | Time zones (store UTC, display local) · idempotent jobs (safe to run twice) |
 | 6 | Retries with backoff · rate limits · fallback patterns |
@@ -354,5 +356,5 @@ Learn each topic in the week you need it, by building.
 | A free model disappears | Fallback fires daily | Keep the chain in config; run the daily health check |
 | Scope creep | "Quick" features mid-slice | "Later" column; only the current slice gets built |
 | Data leak between users | — | RLS + two-user tests in CI from Phase 2 |
-| Hosting sleeps | Missed Telegram sends | Cron pings the tick endpoint; NFR-14 test |
+| Server goes down or disk fills | Missed sends, failed uploads | Uptime check, `restart: unless-stopped`, disk alerts, nightly off-server backups |
 | One person becomes the bottleneck | PRs wait > 1 day | Review before starting new work; swap tracks after Phase 3 |
