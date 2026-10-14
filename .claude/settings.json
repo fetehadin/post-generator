@@ -28,7 +28,9 @@
       "Bash(docker compose down *)",
       "Bash(ssh *)",
       "Edit(./deploy/**)",
-      "Write(./deploy/**)"
+      "Write(./deploy/**)",
+      "Edit(./.github/workflows/**)",
+      "Write(./.github/workflows/**)"
     ],
     "deny": [
       "Read(./.env)",
