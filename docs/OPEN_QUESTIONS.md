@@ -116,7 +116,7 @@ It's unknown whether `Shares.csv` dates are UTC or local. Check against a real e
 
 ## AI
 
-### Q16 🔴 Confirm the embedding model ID in the Phase 0 throwaway test
+### Q16 ✅ Confirm the embedding model ID in the Phase 0 throwaway test
 
 Google's English docs use `gemini-embedding-2`. Some localised pages still say `gemini-embedding-2-preview`. The task prefixes in SRS §5.3 (`title: none | text:` / `task: search result | query:`) and 768-dim output through `output_dimensionality` match the current docs. Confirm the exact ID your key accepts before writing the first migration with `vector(768)`.
 
@@ -182,4 +182,5 @@ The README says "not chosen". Choose one before inviting beta testers or making 
 | Q20 | No license for now (all rights reserved). Repo stays **public** so the `main` ruleset stays enforced (GitHub Free doesn't enforce rulesets on private repos). Go private before beta, or earlier with GitHub Pro | 15 Oct 2026 |
 | Q21 | CI backend job creates `voxlace_app` with `db/init/002_app_role.sh`, sets `MIGRATIONS_DATABASE_URL` to the owner and points `DATABASE_URL` at the app role. Verified in a throwaway container | 15 Oct 2026 |
 | Q23 | Narrow the `.claude/settings.json` deny rule so `.env.example` is readable. A person must make this change (auto mode blocks agent edits to its own permissions) | 15 Oct 2026 |
+| Q16 | `models/gemini-embedding-2` accepts our key and returns 768 values with `output_dimensionality=768`. (`-2-preview` and `-001` also exist; we use `gemini-embedding-2`) | 15 Oct 2026 |
 | Others | Use the recommendation written under each question when its phase starts | 15 Oct 2026 |
