@@ -167,6 +167,15 @@ The README says "not chosen". Choose one before inviting beta testers or making 
 
 **Recommendation:** replace `Read(./.env.*)` with specific patterns such as `Read(./.env.local)`, `Read(./.env.*.local)`, `Read(./.env.production)` and `Read(./.env.development)`. In Claude Code, deny rules win over allow rules, so adding an allow for `.env.example` doesn't help. This is a permissions change, so a person should make it.
 
+### Q24 🟡 (Phase 1) Findings from the first real test (15 Oct 2026)
+
+428 own posts from a real mixed Amharic/English channel were embedded with `gemini-embedding-2` at 768 dims. 7 test topics found the right posts, including English topics matching Amharic posts and the reverse.
+
+- **Free-tier rate limit:** about 100 embeddings per minute, so a batch of 100 waits about 60 s. 428 posts took about 5 minutes with backoff. A 24k-post channel would take hours and hit the daily quota. This confirms Q6 (embedding must be a resumable queue) and argues for a per-import post cap.
+- **Near-duplicates crowd the results:** e.g. "3 hour left…" and "2 hour left…" both ranked in the top 5. Recommendation: drop near-duplicate examples (cosine > ~0.95 to one already chosen) when picking the 8 prompt examples.
+- **Junk posts for voice:** link-only posts, and posts whose text starts with `[Forwarded from …]` (copy-pasted forwards without the `forwarded_from` field). Recommendation: skip them in the parser and count them as skipped.
+- **Real exports have extra fields:** `reactions` (engagement, useful for FR-34), `poll`, and `phone`/`email` entities in a few posts (strip before prompting, as in FR-21). The export format otherwise matches `samples/telegram/result.json`.
+
 ---
 
 ## Decided
