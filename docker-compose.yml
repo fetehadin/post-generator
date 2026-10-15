@@ -7,8 +7,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-voxlace}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voxlace}
       POSTGRES_DB: ${POSTGRES_DB:-voxlace}
+      APP_DB_USER: ${APP_DB_USER:-voxlace_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-voxlace_app}
     ports:
-      - "5432:5432"
+      # Host port is configurable: a native Postgres often already owns 5432.
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
       - ./db/init:/docker-entrypoint-initdb.d:ro

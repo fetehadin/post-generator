@@ -1,0 +1,13 @@
+Date,ShareLink,ShareCommentary,SharedUrl,MediaUrl,Visibility
+2026-08-21 08:30:00,https://www.linkedin.com/feed/update/urn%3Ali%3Ashare%3A7300000000000000001,"Three weeks of building in public taught me more than three months of building in private.
+
+What I shipped:
+• a CSV cleaner that streams 2 GB files
+• a fix for a timezone bug I'd ignored for days
+
+What I learned: ""small numbers, real people"" beats vanity metrics every time. 41 users, and every one of them taught me something.
+
+#buildinpublic #python",,,MEMBER_NETWORK
+2026-08-10 09:00:00,https://www.linkedin.com/feed/update/urn%3Ali%3Ashare%3A7300000000000000002,"Postgres tip that saved me hours: run EXPLAIN ANALYZE before you add an index, not after. Most of my ""slow queries"" were the app, not the database.",https://example.org/postgres-indexes,,MEMBER_NETWORK
+2026-08-08 17:15:00,https://www.linkedin.com/feed/update/urn%3Ali%3Ashare%3A7300000000000000003,,https://example.org/someone-elses-article,,MEMBER_NETWORK
+2026-08-03 12:45:00,https://www.linkedin.com/feed/update/urn%3Ali%3Ashare%3A7300000000000000004,"Starting something new: one small tool a week, shipped in public. Follow along if you like seeing the messy middle, not just the launch posts 🙂",,,MEMBER_NETWORK
