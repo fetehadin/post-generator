@@ -47,7 +47,9 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql+psycopg://voxlace:voxlace@localhost:5432/voxlace_test
+      # Same split as local: the app role (subject to RLS) for the API and tests, the owner for Alembic.
+      DATABASE_URL: postgresql+psycopg://voxlace_app:voxlace_app@localhost:5432/voxlace_test
+      MIGRATIONS_DATABASE_URL: postgresql+psycopg://voxlace:voxlace@localhost:5432/voxlace_test
       APP_ENV: test
     defaults:
       run:
@@ -67,6 +69,15 @@ jobs:
         run: ruff format --check .
       - name: Enable pgvector
         run: PGPASSWORD=voxlace psql -h localhost -U voxlace -d voxlace_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+      # Service containers can't mount db/init, so run the role script by hand.
+      - name: Create app role
+        working-directory: .
+        env:
+          PGHOST: localhost
+          PGPASSWORD: voxlace
+          POSTGRES_USER: voxlace
+          POSTGRES_DB: voxlace_test
+        run: bash db/init/002_app_role.sh
       - name: Migrations apply cleanly
         if: hashFiles('backend/alembic.ini') != ''
         run: alembic upgrade head
