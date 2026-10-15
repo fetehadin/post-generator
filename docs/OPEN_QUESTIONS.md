@@ -1,6 +1,6 @@
 # Open Questions — before and during Phase 0
 
-Gaps, contradictions and traps found by reviewing the SRS, build plan and API contract before any code exists. Each has a **recommendation**. Resolve each one together, then either update the SRS or `API.md` in a PR, or mark it *Decided* here with the date.
+Gaps, contradictions and traps found by reviewing the SRS (v1.1, Contabo hosting), build plan and API contract before any code exists. Each has a **recommendation**. Resolve each one together, then either update the SRS or `API.md` in a PR, or mark it *Decided* here with the date.
 
 Status: 🔴 decide before Phase 0 code · 🟡 decide before the phase named · 🟢 note for later
 
@@ -8,18 +8,13 @@ Status: 🔴 decide before Phase 0 code · 🟡 decide before the phase named ·
 
 ## Database and isolation
 
-### Q1 🟡 (Phase 2) Row-level security does nothing for superusers or table owners
+### Q1 ✅ Row-level security does nothing for superusers or table owners
 
-> **Local part done (15 Oct 2026):** `db/init/002_app_role.sh` creates `voxlace_app`. A smoke test confirmed that it sees only the rows for its `app.user_id`, can't insert rows for another user, and can't create tables, while the owner sees everything. Still to decide: the matching role on Supabase in Phase 2.
+> **Done (15 Oct 2026).** `db/init/002_app_role.sh` creates `voxlace_app`. A smoke test confirmed that it sees only the rows for its `app.user_id`, sees 0 rows when none is set, can't insert rows for another user, and can't create tables, while the owner sees everything. The production DB is our own Postgres on the VPS (SRS 1.1), so the same script applies there. Follow-ups are in **Q21** (CI) and **Q22** (worker role).
 
-Postgres skips RLS for **superusers** and for the **table owner** (unless `FORCE ROW LEVEL SECURITY` is set; superusers bypass even that). The local `voxlace` user from `POSTGRES_USER` is a superuser, and Supabase's `postgres` role owns the tables. If the app connects as either, every RLS policy passes silently and the NFR-13 test proves nothing.
+Postgres skips RLS for **superusers** and for the **table owner** (unless `FORCE ROW LEVEL SECURITY` is set; superusers bypass even that). If the app connected as `voxlace` (`POSTGRES_USER`), every RLS policy would pass silently and the NFR-13 test would prove nothing.
 
-**Recommendation:**
-
-- Two roles. Migrations run as the owner (`voxlace` / `postgres`). The API connects as a separate **non-owner, non-superuser** role (e.g. `voxlace_app`), granted only `SELECT, INSERT, UPDATE, DELETE`.
-- Per request, inside a transaction: `SET LOCAL app.user_id = '<uuid>'`. Policies use `user_id = current_setting('app.user_id')::uuid`. `SET LOCAL` (not `SET`) is required behind a transaction-mode pooler such as Supabase's port 6543.
-- Add `db/init/002_app_role.sql` **in Phase 0**. Init scripts only run on an empty volume, so adding it later means everyone runs `docker compose down -v`.
-- The NFR-13 test must connect as `voxlace_app`, never as the owner.
+**Setup:** migrations run as the owner (`MIGRATIONS_DATABASE_URL`). The API connects as `voxlace_app` (`DATABASE_URL`) and runs `SET LOCAL app.user_id = '<uuid>'` at the start of each request transaction. The NFR-13 test connects as `voxlace_app`.
 
 ### Q2 🔴 `imports` table is missing from the data model
 
@@ -33,11 +28,11 @@ C-7 says never mix vectors. FR-32's test checks "no mixed vectors", but nothing 
 
 **Recommendation:** add `source_posts.embedding_model text`. Retrieval filters on `embedding_model = settings.EMBEDDING_MODEL`, which makes mixed vectors impossible rather than just unlikely.
 
-### Q4 🟡 (Phase 1) ID format
+### Q4 🟡 (Phase 1) ID format: `API.md` examples are out of date
 
-`API.md` shows `imp_01`, `drf_1` and `post_1`. Supabase user IDs are UUIDs.
+`backend/CLAUDE.md` already says every table uses a UUID `id`, but `API.md` still shows `imp_01`, `drf_1` and `post_1`.
 
-**Recommendation:** UUIDs everywhere (`gen_random_uuid()`). Update the `API.md` examples.
+**Recommendation:** change the `API.md` examples to UUIDs when the Phase 1 contract is written.
 
 ### Q5 🟡 (Phase 4) Prompt logs for revisions
 
@@ -47,17 +42,19 @@ C-7 says never mix vectors. FR-32's test checks "no mixed vectors", but nothing 
 
 ---
 
-## Background work on free hosting
+## Background work
 
-### Q6 🔴 Embedding runs after the upload response; free hosts kill that work
+### Q6 🔴 Who does the embedding after an upload?
 
-`POST /imports` returns `status: "embedding"`, so embedding happens after the response. FastAPI `BackgroundTasks` run in the same process, and free hosts sleep or restart it, which loses the work. Embedding about 400 posts on the free tier can take minutes because of the rate limits.
+`POST /imports` returns `status: "embedding"`, so embedding happens after the response. Embedding about 400 posts on the free Gemini tier can take minutes because of the rate limits. The server is now always on (SRS 1.1), but FastAPI `BackgroundTasks` still lose their work when the API container restarts, for example on every deploy.
 
-**Recommendation:** treat embedding as a resumable queue. The `embedding IS NULL` rows are the queue. Work on them in small batches with backoff after the upload, and have the Phase 5 cron tick also resume any pending batches. This delivers FR-32 without new infrastructure. Until the cron exists (Phase 1), a "resume" on `GET /imports/{id}` is enough.
+**Recommendation:** treat embedding as a resumable queue. The `embedding IS NULL` rows are the queue. In Phase 1, embed in `BackgroundTasks` and offer a "resume" on `GET /imports/{id}`. Once the worker exists (Phase 5, or earlier if this hurts), it also processes pending embeddings each loop. That delivers FR-32 with no new infrastructure.
 
-### Q7 🟢 (Phase 5) Cron sends must not double-send
+### Q7 🟢 (Phase 5) Sending exactly once is impossible; pick which failure you accept
 
-Pick due drafts with `UPDATE drafts SET sending_started_at = now() WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED) RETURNING …`, and only set `published_at` after Telegram confirms. That needs one more column (`sending_started_at`) or a status.
+`backend/CLAUDE.md` says: lock with `FOR UPDATE SKIP LOCKED`, send, then set `published_at` in the same transaction. If the worker dies **after** Telegram accepts the message but **before** the commit, the post is sent again on the next loop. Marking it first and sending afterwards has the opposite risk: the post is never sent.
+
+**Recommendation:** accept the rare duplicate (Telegram is the only sender, and the window is milliseconds), but write it down in NFR-14's test notes. Alternatively, add `send_attempted_at` and treat "attempted but not published" as *needs a human* instead of retrying.
 
 ---
 
@@ -133,24 +130,42 @@ The build plan's "ten fixed test topics" need a home so they're versioned with t
 
 ## Tooling and repo
 
-### Q18 🔴 Pin the versions CI tests
+### Q18 🟡 (Phase 0) Pin Node
 
-Docs say Python 3.12+ and Node LTS. Dev machines may run newer versions (one has Python 3.14 and Node 26). Free hosts usually default to older ones.
+CI already pins Python **3.12** ✅. Node uses `lts/*` in CI, which changes when a new LTS ships. Dev machines may run newer versions (one has Python 3.14 and Node 26).
 
-**Recommendation:** `requires-python = ">=3.12"`, CI tests on **3.12**, and pin Node with `"engines"` in `package.json` plus a `.nvmrc`.
+**Recommendation:** when the frontend is created, add `.nvmrc` and `"engines"` in `package.json`, and point CI's `setup-node` at `node-version-file: frontend/.nvmrc`.
 
-### Q19 🔴 GitHub settings the plan assumes
+### Q19 🟡 GitHub settings the plan assumes
 
-These can't be checked from the repo. Confirm in GitHub:
+Checked with `gh` on 15 Oct 2026:
 
-- Branch protection on `main`: no direct pushes, 1 approval, CI required.
-- Labels: `track:data-ai`, `track:app`, `phase:0`…`phase:7`, `type:feature`, `type:bug`, `type:chore`.
-- Projects board columns: Backlog → This week → In progress → In review → Done + Later.
-- Nezira added as a collaborator.
+- ✅ Ruleset "Protect main" is active: PR with 1 approval, required check **CI passed** (strict), squash only, linear history, no force-push or deletion.
+- ✅ Squash merge only; branches are deleted on merge.
+- ✅ Two collaborators (`fetehadin`, `Jennah198`).
+- ❌ **Labels missing:** `track:data-ai`, `track:app`, `phase:0`…`phase:7`, `type:feature`, `type:bug`, `type:chore`. The issue templates use `type:bug` and `type:feature`, which don't exist yet.
+- ❓ Projects board not checked (needs the `project` scope on `gh`).
+- ⚠️ The repo is **public**. Fine for code, but it raises the stakes on Q20 and on never committing real exports.
 
 ### Q20 🟢 License
 
 The README says "not chosen". Choose one before inviting beta testers or making the repo public.
+
+### Q21 🔴 CI needs the app role and the migrations URL
+
+`.github/workflows/ci.yml` starts a plain `pgvector/pgvector:pg18` service and sets only `DATABASE_URL` as the superuser. Service containers can't mount `db/init/`, so `voxlace_app` won't exist in CI, and `MIGRATIONS_DATABASE_URL` is unset. Once `migrations/env.py` reads `MIGRATIONS_DATABASE_URL`, CI's `alembic upgrade head` fails, and the isolation tests would run as a superuser that bypasses RLS.
+
+**Recommendation** (a workflow change, so the other person reviews it): in the backend job, run `db/init/002_app_role.sh` with `psql` after "Enable pgvector", set `MIGRATIONS_DATABASE_URL` to the superuser URL, and point `DATABASE_URL` at `voxlace_app`.
+
+### Q22 🟡 (Phase 5) The worker's database role
+
+`backend/CLAUDE.md` says the worker reads due drafts across users through "a narrow RLS policy". It needs its own role (e.g. `voxlace_worker`), plus a `SELECT` policy on `drafts` limited to `status = 'approved' AND published_at IS NULL`. Add it to `db/init/` and to production at the same time.
+
+### Q23 🔴 Claude Code permissions block `.env.example`
+
+`.claude/settings.json` denies `Read(./.env.*)`, which also matches `.env.example`. The secrets hook in `.claude/hooks/guard_secrets.py` also blocks shell commands that only *mention* a `.env.local`-style name next to words like `head` or `source`, even inside a heredoc. `CLAUDE.md` says to "use `.env.example` to learn variable names", so the agent can't follow its own rule.
+
+**Recommendation:** replace `Read(./.env.*)` with specific patterns such as `Read(./.env.local)`, `Read(./.env.*.local)`, `Read(./.env.production)` and `Read(./.env.development)`. In Claude Code, deny rules win over allow rules, so adding an allow for `.env.example` doesn't help. This is a permissions change, so a person should make it.
 
 ---
 
@@ -159,4 +174,5 @@ The README says "not chosen". Choose one before inviting beta testers or making 
 | # | Decision | Date |
 |---|---|---|
 | — | Database host port is configurable (`POSTGRES_PORT`), because a native Postgres often owns 5432 | 15 Oct 2026 |
-| Q1 (local) | API connects as `voxlace_app` (`DATABASE_URL`); Alembic connects as the owner (`MIGRATIONS_DATABASE_URL`). Per request: `SET LOCAL app.user_id` inside the transaction | 15 Oct 2026 |
+| Q1 | API connects as `voxlace_app` (`DATABASE_URL`); Alembic connects as the owner (`MIGRATIONS_DATABASE_URL`). Per request: `SET LOCAL app.user_id` inside the transaction | 15 Oct 2026 |
+| Q6 (part) | Server is always on (SRS 1.1). There's no external cron; the worker container handles scheduled work | 14 Oct 2026 |

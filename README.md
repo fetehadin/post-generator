@@ -104,11 +104,13 @@ Billing and teams · automatic posting to X and LinkedIn · trend feeds · AI im
 | Database | **PostgreSQL + pgvector** | One database for app data and embeddings |
 | Migrations | SQLAlchemy · Alembic | Versioned schema changes both developers can run |
 | AI | **Gemini** (`gemini-embedding-2` at 768 dims, Gemini Flash) + one free fallback provider | Free tier; one wrapper module so models are swapped in config |
-| Frontend | **React + Vite** · FullCalendar | Fast dev loop; a calendar out of the box |
-| Auth | Supabase Auth (or Auth0) · row-level security | Managed login; isolation a code bug can't break |
+| Frontend | **React + Vite + TypeScript** · React Router · TanStack Query · Tailwind CSS · FullCalendar | Types generated from the API contract; a calendar out of the box |
+| Auth | Supabase Auth (login only) · Postgres row-level security | Managed login; isolation a code bug can't break |
 | Publishing | Telegram Bot API · X web intent · LinkedIn composer | Zero platform API fees |
-| Scheduling | Free cron service → protected tick endpoint | Free hosts sleep; cron wakes the app to send on time |
-| Quality | pytest · Vitest · Ruff · pre-commit · GitHub Actions | Same formatting, tests on every PR |
+| Scheduling | Worker container (sends due posts every minute) | Always-on server, no external cron needed |
+| Hosting | **Contabo VPS** · Docker Compose · Caddy (auto HTTPS) | Always on, no cold starts, one server for API, worker, database and frontend |
+| Quality | pytest · Vitest · Ruff · Gitleaks · GitHub Actions | Same formatting, tests and a secret scan on every PR |
+| CI/CD | GitHub Actions → SSH deploy to the server | Merge to `main` = deployed, with rollback on failure |
 | Local dev | Docker Compose | One command for the database |
 
 ---
@@ -117,13 +119,14 @@ Billing and teams · automatic posting to X and LinkedIn · trend feeds · AI im
 
 ```text
 post-generator/
-├── backend/            FastAPI app (Phase 0)
+├── backend/            FastAPI app + worker (Phase 0)
 │   ├── app/
 │   │   ├── api/        Route handlers
 │   │   ├── ai/         Embedding + generation wrapper, fallback chain, prompts
 │   │   ├── importers/  X, LinkedIn and Telegram parsers
 │   │   ├── models/     SQLAlchemy models
-│   │   └── core/       Settings, auth, database session
+│   │   ├── core/       Settings, auth, database session
+│   │   └── worker.py   Sends due Telegram posts and reminders
 │   ├── migrations/     Alembic
 │   └── tests/
 ├── frontend/           React + Vite app (Phase 0)
@@ -132,8 +135,12 @@ post-generator/
 │   ├── SRS.md          Requirements — the source of truth
 │   ├── BUILD_PLAN.md   Phases, task split, cycles, tools
 │   ├── API.md          Backend ↔ frontend contract
+│   ├── CI_CD.md        Pipeline, branch protection, deploy setup
 │   └── OPEN_QUESTIONS.md  Decisions still to make
-├── docker-compose.yml  Postgres + pgvector
+├── .claude/            Claude Code settings, hooks and skills
+├── CLAUDE.md           Rules for agentic development
+├── deploy/             Production setup for the Contabo server (Phase 2)
+├── docker-compose.yml  Local Postgres + pgvector
 └── .env.example        Every setting the app reads
 ```
 
@@ -216,7 +223,7 @@ All settings come from environment variables. See [`.env.example`](.env.example)
 | `FALLBACK_API_KEY` | Key for the second provider |
 | `AUTH_JWT_SECRET` / `AUTH_JWKS_URL` | Login token verification |
 | `TELEGRAM_BOT_TOKEN` | The app's Telegram bot |
-| `CRON_SECRET` | Protects the scheduled-send endpoint |
+| `WORKER_INTERVAL_SECONDS` | How often the worker checks for due posts |
 | `DAILY_DRAFT_LIMIT` · `DAILY_EMBED_LIMIT` | Per-user quotas |
 
 ---
@@ -227,11 +234,11 @@ Full detail in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
 
 - [ ] **Phase 0 — Foundations:** repo, Docker Postgres + pgvector, FastAPI, React, CI
 - [ ] **Phase 1 — Core voice loop:** Telegram import → embed → retrieve → draft
-- [ ] **Phase 2 — Accounts and isolation:** login, invites, row-level security, first deploy
+- [ ] **Phase 2 — Accounts and isolation:** login, invites, row-level security, first deploy to the server
 - [ ] **Phase 3 — All platforms and voice:** X + LinkedIn import, voice cards, profile, settings
 - [ ] **Phase 4 — Drafting workflow:** chat board, revisions, library, hand-off
 - [ ] **Phase 5 — Calendar and Telegram publishing:** calendar, bot connect, scheduled sends
-- [ ] **Phase 6 — SaaS hardening:** fallback models, limits, export/delete, production deploy
+- [ ] **Phase 6 — SaaS hardening:** fallback models, limits, export/delete, backups, production deploy
 - [ ] **Phase 7 — Private beta:** invited testers, publish-rate metrics
 
 ---
@@ -243,10 +250,25 @@ Full detail in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
 | [Software Requirements Specification](docs/SRS.md) | Every requirement with a yes/no test, the data model, platform rules |
 | [Build Plan](docs/BUILD_PLAN.md) | Build order, who does what, the cycle, tools by phase |
 | [API Contract](docs/API.md) | Endpoints and JSON shapes |
+| [CI/CD](docs/CI_CD.md) | Checks on every pull request, deploys to the server, GitHub setup |
 | [Open Questions](docs/OPEN_QUESTIONS.md) | Design gaps to settle before and during each phase |
 | [Contributing](CONTRIBUTING.md) | Branches, commits, reviews, definition of done |
 
 ---
+
+## Building with Claude Code
+
+The repo is set up for agentic development:
+
+| File | What it does |
+|---|---|
+| [`CLAUDE.md`](CLAUDE.md) | Project rules every session loads: stack, commands, non-negotiable rules, workflow |
+| [`backend/CLAUDE.md`](backend/CLAUDE.md) · [`frontend/CLAUDE.md`](frontend/CLAUDE.md) | Layer-specific conventions, loaded when Claude works in that folder |
+| [`.claude/settings.json`](.claude/settings.json) | Permissions: safe commands allowed, pushes and deploys ask first, secrets denied |
+| `.claude/hooks/` | Auto-format edited files; block shell commands that read `.env` |
+| `.claude/skills/` | `/slice` build a feature end to end · `/check` run all checks · `/pr-check` review a branch · `/migration` create a migration |
+
+Personal notes go in `CLAUDE.local.md` (git-ignored).
 
 ## Privacy
 
