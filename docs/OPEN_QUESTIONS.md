@@ -176,6 +176,24 @@ The README says "not chosen". Choose one before inviting beta testers or making 
 - **Junk posts for voice:** link-only posts, and posts whose text starts with `[Forwarded from …]` (copy-pasted forwards without the `forwarded_from` field). Recommendation: skip them in the parser and count them as skipped.
 - **Real exports have extra fields:** `reactions` (engagement, useful for FR-34), `poll`, and `phone`/`email` entities in a few posts (strip before prompting, as in FR-21). The export format otherwise matches `samples/telegram/result.json`.
 
+### Q25 ✅ (Phase 1) Big channels and personal posts: which posts to learn from
+
+Real numbers: a large channel had 17,648 usable posts (about 3 hours of free-tier embedding plus the daily quota). Retrieval only puts about 8 examples in each prompt, so a few hundred good posts teach style as well as all of them.
+
+**Decided (15 Oct 2026):**
+
+1. **Import cap:** embed the best **~1,000** posts first, ranked by **reactions** (Telegram `reactions[].count`) and **recency**. Their top 500 posts were almost all from the last 2–3 years anyway. Any remaining posts stay queued with `embedding IS NULL` and are embedded later by the queue (Q6), or never. The user can draft as soon as the first batch is done.
+2. **Excluded hashtags:** a post carrying any excluded hashtag is skipped at import and counted as `skipped.excluded_topic`. The list is a **per-user setting** (stored on the user, editable in Settings, case-insensitive) because what counts as personal differs per person. Starting list:
+   - Religious: `#scripture #spiritual #christianart #alhamdulillah #eidvibes #ኢድ_ሙባረክ #ramadanbreak`
+   - Personal life: `#family #forher #relationship #friends #me #dailylife`
+   - Shared content, not writing: `#memes #jokes #songs #lyrics #wallpapers #profilepics #tiktoks #funnyvideos #comics #movies #games`
+   - Mental-health posts are **kept** (explicit choice).
+3. Personal posts **without** hashtags can't be caught automatically. The user excludes them by hand (FR-25).
+
+Effect on real exports: the large channel excluded 4,848 posts (16,810 kept before the cap); FeteScript excluded 4 (415 kept).
+
+**Inspiration channels (Later list, not V1 core):** don't embed them. Turn each channel's top ~50 posts by reactions into a one-paragraph **style card** with one AI call, then use it as "structure like X" during drafting while the voice stays the user's own.
+
 ---
 
 ## Decided
