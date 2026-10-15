@@ -82,7 +82,7 @@ The free Gemini quota resets at midnight Pacific (C-8). FR-30's per-user limits 
 
 ## Parsers and counting
 
-### Q11 🟡 (Phase 3) X threads: are self-replies "replies"?
+### Q11 ✅ X threads: are self-replies "replies"?
 
 FR-2 says skip replies. A builder's threads are replies to their **own** tweets, and they're often their best writing.
 
@@ -96,7 +96,7 @@ FR-2 says skip replies. A builder's threads are replies to their **own** tweets,
 
 **Recommendation:** accept the ZIP. Read only `data/tweets*.js` (+ `note-tweet.js`) from it, in memory, and never store the ZIP (NFR-11).
 
-### Q13 🟡 (Phase 1) Telegram export variants
+### Q13 ✅ Telegram export variants
 
 Telegram Desktop makes two formats: a single-chat export (`{name, type, id, messages}`, which the samples use) and a full-account export (`{about, chats: {list: […]}}`).
 
@@ -136,22 +136,22 @@ CI already pins Python **3.12** ✅. Node uses `lts/*` in CI, which changes when
 
 **Recommendation:** when the frontend is created, add `.nvmrc` and `"engines"` in `package.json`, and point CI's `setup-node` at `node-version-file: frontend/.nvmrc`.
 
-### Q19 🟡 GitHub settings the plan assumes
+### Q19 ✅ GitHub settings the plan assumes
 
 Checked with `gh` on 15 Oct 2026:
 
 - ✅ Ruleset "Protect main" is active: PR with 1 approval, required check **CI passed** (strict), squash only, linear history, no force-push or deletion.
 - ✅ Squash merge only; branches are deleted on merge.
 - ✅ Two collaborators (`fetehadin`, `Jennah198`).
-- ❌ **Labels missing:** `track:data-ai`, `track:app`, `phase:0`…`phase:7`, `type:feature`, `type:bug`, `type:chore`. The issue templates use `type:bug` and `type:feature`, which don't exist yet.
+- ✅ **Labels created** (were missing): `track:data-ai`, `track:app`, `phase:0`…`phase:7`, `type:feature`, `type:bug`, `type:chore`.
 - ❓ Projects board not checked (needs the `project` scope on `gh`).
 - ⚠️ The repo is **public**. Fine for code, but it raises the stakes on Q20 and on never committing real exports.
 
-### Q20 🟢 License
+### Q20 ✅ License
 
 The README says "not chosen". Choose one before inviting beta testers or making the repo public.
 
-### Q21 🔴 CI needs the app role and the migrations URL
+### Q21 ✅ CI needs the app role and the migrations URL
 
 `.github/workflows/ci.yml` starts a plain `pgvector/pgvector:pg18` service and sets only `DATABASE_URL` as the superuser. Service containers can't mount `db/init/`, so `voxlace_app` won't exist in CI, and `MIGRATIONS_DATABASE_URL` is unset. Once `migrations/env.py` reads `MIGRATIONS_DATABASE_URL`, CI's `alembic upgrade head` fails, and the isolation tests would run as a superuser that bypasses RLS.
 
@@ -161,7 +161,7 @@ The README says "not chosen". Choose one before inviting beta testers or making 
 
 `backend/CLAUDE.md` says the worker reads due drafts across users through "a narrow RLS policy". It needs its own role (e.g. `voxlace_worker`), plus a `SELECT` policy on `drafts` limited to `status = 'approved' AND published_at IS NULL`. Add it to `db/init/` and to production at the same time.
 
-### Q23 🔴 Claude Code permissions block `.env.example`
+### Q23 🙋 (needs a person) Claude Code permissions block `.env.example`
 
 `.claude/settings.json` denies `Read(./.env.*)`, which also matches `.env.example`. The secrets hook in `.claude/hooks/guard_secrets.py` also blocks shell commands that only *mention* a `.env.local`-style name next to words like `head` or `source`, even inside a heredoc. `CLAUDE.md` says to "use `.env.example` to learn variable names", so the agent can't follow its own rule.
 
@@ -176,3 +176,10 @@ The README says "not chosen". Choose one before inviting beta testers or making 
 | — | Database host port is configurable (`POSTGRES_PORT`), because a native Postgres often owns 5432 | 15 Oct 2026 |
 | Q1 | API connects as `voxlace_app` (`DATABASE_URL`); Alembic connects as the owner (`MIGRATIONS_DATABASE_URL`). Per request: `SET LOCAL app.user_id` inside the transaction | 15 Oct 2026 |
 | Q6 (part) | Server is always on (SRS 1.1). There's no external cron; the worker container handles scheduled work | 14 Oct 2026 |
+| Q11 | Keep self-replies (threads) as voice data; skip only replies to other accounts | 15 Oct 2026 |
+| Q13 | Accept single-channel Telegram exports only, one upload per channel. A user with several channels uploads each one | 15 Oct 2026 |
+| Q19 | Labels created (`track:*`, `phase:0`–`7`, `type:*`) | 15 Oct 2026 |
+| Q20 | No license for now (all rights reserved). Repo stays **public** so the `main` ruleset stays enforced (GitHub Free doesn't enforce rulesets on private repos). Go private before beta, or earlier with GitHub Pro | 15 Oct 2026 |
+| Q21 | CI backend job creates `voxlace_app` with `db/init/002_app_role.sh`, sets `MIGRATIONS_DATABASE_URL` to the owner and points `DATABASE_URL` at the app role. Verified in a throwaway container | 15 Oct 2026 |
+| Q23 | Narrow the `.claude/settings.json` deny rule so `.env.example` is readable. A person must make this change (auto mode blocks agent edits to its own permissions) | 15 Oct 2026 |
+| Others | Use the recommendation written under each question when its phase starts | 15 Oct 2026 |
