@@ -13,6 +13,8 @@ Read the relevant doc before changing behaviour. Don't contradict it; if the cod
 - `docs/API.md` — the backend ↔ frontend contract. Change it in the same PR as any endpoint change.
 - `CONTRIBUTING.md` — branches, commits, reviews, definition of done.
 - `docs/CI_CD.md` — what CI checks, how deploys work. CI must be green before merge.
+- `docs/OPEN_QUESTIONS.md` — design gaps not yet settled. Check it before designing schema, auth, jobs or parsers.
+- `samples/README.md` — expected parser counts for each sample file, and the format traps they contain.
 
 **Current phase:** 0 — Foundations. (Update this line when a phase's demo passes.)
 
@@ -39,7 +41,8 @@ frontend/   React app                                  → see frontend/CLAUDE.m
 deploy/     Production compose, Caddyfile, backups     → see deploy/README.md
 samples/    Small anonymised exports for parser tests
 docs/       SRS, build plan, API contract
-docker-compose.yml   Local Postgres + pgvector (port 5432)
+docker-compose.yml   Local Postgres + pgvector (host port from POSTGRES_PORT, default 5432)
+db/init/             Runs once on an empty volume: pgvector, the voxlace_app role
 ```
 
 ## Commands
@@ -49,7 +52,7 @@ docker compose up -d                          # local database (pgvector enabled
 cd backend && uvicorn app.main:app --reload   # API on :8000, docs at /docs
 cd backend && python -m app.worker            # worker (Phase 5+)
 cd backend && ruff check . && ruff format --check . && pytest
-cd backend && alembic upgrade head            # apply migrations
+cd backend && alembic upgrade head            # apply migrations (connects with MIGRATIONS_DATABASE_URL)
 cd frontend && npm run dev                    # app on :5173
 cd frontend && npm run lint && npm test && npm run build
 ```
@@ -68,6 +71,13 @@ Run the checks for every part you touched before saying a task is done.
 8. **Platform rules live in the `platform_profiles` table**, not in code constants (seed data is fine).
 9. **Log every prompt.** Each generated draft saves its exact prompt, model and provider to `prompt_logs`.
 10. **Drafts state only given facts:** the summary card, the day's check-in, approved GitHub items. Prompts must say so.
+
+## Database roles
+
+- `voxlace` (`POSTGRES_USER`) is the superuser and table owner. Only Alembic uses it (`MIGRATIONS_DATABASE_URL`).
+- `voxlace_app` (`APP_DB_USER`) is what the API connects as (`DATABASE_URL`). It can read and write rows, can't change the schema, and doesn't bypass RLS. New tables get its grants automatically (default privileges in `db/init/002_app_role.sh`).
+- Superusers and table owners skip RLS, so an isolation test that connects as `voxlace` proves nothing. Run two-user tests as `voxlace_app`.
+- With no `app.user_id` set, `voxlace_app` sees 0 rows, so a missing `SET LOCAL` fails closed.
 
 ## Security and privacy
 
@@ -103,7 +113,9 @@ Run the checks for every part you touched before saying a task is done.
 
 - X `tweets.js` is JavaScript, not JSON: strip `window.YTD.tweets.part0 =`; counts are strings; times are UTC.
 - LinkedIn `Shares.csv` has text and dates only, no engagement numbers.
-- Telegram `result.json` text can be a string or a list of string/entity parts. Flatten it.
+- Telegram `result.json` text can be a string or a list of string/entity parts. Flatten it. `date` is the exporter's local time; use `date_unixtime`.
+- X `full_text` is HTML-escaped (`&amp;`) and has `t.co` links; expand them from `entities.urls`.
+- `db/init/*` runs only on an empty volume. After changing it: `docker compose down -v && docker compose up -d` (this wipes local data, so ask first).
 - X length is weighted: URLs count 23, most emoji 2, CJK characters 2. Never use plain `len()`.
 - pgvector: start without a vector index (exact search). Query shape is `ORDER BY embedding <=> :q LIMIT :n`.
 - Gemini free tier returns 429 under load. Back off and retry; keep the user's input.

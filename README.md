@@ -135,7 +135,8 @@ post-generator/
 │   ├── SRS.md          Requirements — the source of truth
 │   ├── BUILD_PLAN.md   Phases, task split, cycles, tools
 │   ├── API.md          Backend ↔ frontend contract
-│   └── CI_CD.md        Pipeline, branch protection, deploy setup
+│   ├── CI_CD.md        Pipeline, branch protection, deploy setup
+│   └── OPEN_QUESTIONS.md  Decisions still to make
 ├── .claude/            Claude Code settings, hooks and skills
 ├── CLAUDE.md           Rules for agentic development
 ├── deploy/             Production setup for the Contabo server (Phase 2)
@@ -174,6 +175,8 @@ docker compose exec db psql -U voxlace -c "SELECT extname, extversion FROM pg_ex
 
 The `vector` extension is enabled automatically on first start.
 
+> Port 5432 already taken by a local Postgres? Set `POSTGRES_PORT=5433` in `.env` and change the port in `DATABASE_URL` to match.
+
 ### 3. Run the backend *(from Phase 0)*
 
 ```bash
@@ -211,7 +214,9 @@ All settings come from environment variables. See [`.env.example`](.env.example)
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | Postgres connection string |
+| `DATABASE_URL` | Postgres connection for the API (limited `voxlace_app` role) |
+| `MIGRATIONS_DATABASE_URL` | Postgres connection for Alembic (owner role) |
+| `POSTGRES_PORT` | Host port for the Docker database |
 | `GEMINI_API_KEY` | Embeddings and generation |
 | `EMBEDDING_MODEL` · `EMBEDDING_DIMENSIONS` | Fixed embedding model; never changed silently |
 | `GENERATION_MODELS` | Ordered fallback chain, comma-separated `provider:model` |
@@ -246,6 +251,7 @@ Full detail in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
 | [Build Plan](docs/BUILD_PLAN.md) | Build order, who does what, the cycle, tools by phase |
 | [API Contract](docs/API.md) | Endpoints and JSON shapes |
 | [CI/CD](docs/CI_CD.md) | Checks on every pull request, deploys to the server, GitHub setup |
+| [Open Questions](docs/OPEN_QUESTIONS.md) | Design gaps to settle before and during each phase |
 | [Contributing](CONTRIBUTING.md) | Branches, commits, reviews, definition of done |
 
 ---

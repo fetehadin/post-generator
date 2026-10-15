@@ -59,7 +59,7 @@ ruff check . --fix && ruff format .
 - Embedding column: `Vector(768)` from `pgvector.sqlalchemy`. Autogenerate doesn't always import it; check the migration's imports.
 - Uniqueness for imports: `(user_id, platform, external_id)`, inserted with `ON CONFLICT DO NOTHING`.
 - Retrieval: filter `user_id`, `platform`, `excluded = false`, then `ORDER BY embedding <=> :q LIMIT :n`; merge pinned posts in. No vector index until searches get slow.
-- RLS only binds roles that don't own the tables. Either run the app as a separate non-owner role or add `FORCE ROW LEVEL SECURITY`. Test it with the two-user fixture.
+- RLS only binds roles that don't own the tables. The app connects as the non-owner role `voxlace_app` (`DATABASE_URL`). Alembic connects as the owner (`MIGRATIONS_DATABASE_URL`, read in `migrations/env.py`). Test isolation with the two-user fixture connected as `voxlace_app`.
 - Never edit a migration that has been merged. Write a new one.
 
 ## AI client (`app/ai/client.py`)

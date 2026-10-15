@@ -1,0 +1,135 @@
+{
+ "name": "Sam Builds",
+ "type": "public_channel",
+ "id": 1000000001,
+ "messages": [
+  {
+   "id": 1,
+   "type": "service",
+   "date": "2026-08-01T09:00:00",
+   "date_unixtime": "1785564000",
+   "actor": "Sam Builds",
+   "actor_id": "channel1000000001",
+   "action": "create_channel",
+   "title": "Sam Builds",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 2,
+   "type": "message",
+   "date": "2026-08-02T10:15:00",
+   "date_unixtime": "1785654900",
+   "from": "Sam Builds",
+   "from_id": "channel1000000001",
+   "text": "Day 1 of building in public. Goal: ship a tiny tool every week and write about what broke.",
+   "text_entities": [
+    {"type": "plain", "text": "Day 1 of building in public. Goal: ship a tiny tool every week and write about what broke."}
+   ]
+  },
+  {
+   "id": 3,
+   "type": "message",
+   "date": "2026-08-05T18:40:00",
+   "date_unixtime": "1785944400",
+   "edited": "2026-08-05T18:45:12",
+   "edited_unixtime": "1785944712",
+   "from": "Sam Builds",
+   "from_id": "channel1000000001",
+   "text": [
+    "Shipped ",
+    {"type": "bold", "text": "v0.2"},
+    " of the CSV cleaner.\n\nWhat changed:\n• ",
+    {"type": "italic", "text": "streaming"},
+    " reads, so 2 GB files don't kill my laptop\n• better error messages\n\nCode: ",
+    {"type": "text_link", "text": "the repo", "href": "https://example.com/sam/csv-cleaner"},
+    " 🚀"
+   ],
+   "text_entities": [
+    {"type": "plain", "text": "Shipped "},
+    {"type": "bold", "text": "v0.2"},
+    {"type": "plain", "text": " of the CSV cleaner.\n\nWhat changed:\n• "},
+    {"type": "italic", "text": "streaming"},
+    {"type": "plain", "text": " reads, so 2 GB files don't kill my laptop\n• better error messages\n\nCode: "},
+    {"type": "text_link", "text": "the repo", "href": "https://example.com/sam/csv-cleaner"},
+    {"type": "plain", "text": " 🚀"}
+   ]
+  },
+  {
+   "id": 4,
+   "type": "message",
+   "date": "2026-08-07T08:05:00",
+   "date_unixtime": "1786079100",
+   "from": "Sam Builds",
+   "from_id": "channel1000000001",
+   "photo": "(File not included. Change data exporting settings to download.)",
+   "width": 1280,
+   "height": 720,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 5,
+   "type": "message",
+   "date": "2026-08-09T21:30:00",
+   "date_unixtime": "1786300200",
+   "from": "Sam Builds",
+   "from_id": "channel1000000001",
+   "forwarded_from": "Some Other Channel",
+   "text": "A forwarded post written by someone else. Not Sam's voice.",
+   "text_entities": [
+    {"type": "plain", "text": "A forwarded post written by someone else. Not Sam's voice."}
+   ]
+  },
+  {
+   "id": 6,
+   "type": "message",
+   "date": "2026-08-12T12:00:00",
+   "date_unixtime": "1786525200",
+   "from": "Sam Builds",
+   "from_id": "channel1000000001",
+   "text": [
+    "Reading list this week: ",
+    {"type": "link", "text": "https://example.org/postgres-indexes"},
+    " — best explanation of B-tree vs GIN I've found. Also tried ",
+    {"type": "code", "text": "EXPLAIN ANALYZE"},
+    " on everything. Humbling."
+   ],
+   "text_entities": [
+    {"type": "plain", "text": "Reading list this week: "},
+    {"type": "link", "text": "https://example.org/postgres-indexes"},
+    {"type": "plain", "text": " — best explanation of B-tree vs GIN I've found. Also tried "},
+    {"type": "code", "text": "EXPLAIN ANALYZE"},
+    {"type": "plain", "text": " on everything. Humbling."}
+   ]
+  },
+  {
+   "id": 7,
+   "type": "message",
+   "date": "2026-08-15T07:20:00",
+   "date_unixtime": "1786767600",
+   "from": "Sam Builds",
+   "from_id": "channel1000000001",
+   "text": "Ship log: fixed the timezone bug. Everything is UTC in the database now and only converted at the edges. Should have done that on day one.",
+   "text_entities": [
+    {"type": "plain", "text": "Ship log: fixed the timezone bug. Everything is UTC in the database now and only converted at the edges. Should have done that on day one."}
+   ]
+  },
+  {
+   "id": 8,
+   "type": "message",
+   "date": "2026-08-20T19:45:00",
+   "date_unixtime": "1787244300",
+   "from": "Sam Builds",
+   "from_id": "channel1000000001",
+   "text": [
+    {"type": "hashtag", "text": "#buildinpublic"},
+    " week 3: 41 users, 2 bug reports, 1 very kind email. Small numbers, real people."
+   ],
+   "text_entities": [
+    {"type": "hashtag", "text": "#buildinpublic"},
+    {"type": "plain", "text": " week 3: 41 users, 2 bug reports, 1 very kind email. Small numbers, real people."}
+   ]
+  }
+ ]
+}
