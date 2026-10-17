@@ -2,6 +2,7 @@
 
     python -m app.dev import-telegram path/to/result.json
     python -m app.dev embed [--limit 1000]
+    python -m app.dev search "a topic" [--platform telegram]
 
 Everything is stored under one fixed dev user, the same way real users will be.
 """
@@ -17,6 +18,7 @@ from app.importers.telegram import parse_telegram
 from app.models import Import, User
 from app.services.embedding import DEFAULT_LIMIT, embed_pending
 from app.services.posts import save_posts
+from app.services.retrieval import find_examples
 
 DEV_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
@@ -52,6 +54,12 @@ def embed(limit: int) -> None:
         print(f"stopped early ({report.stopped_reason}); run it again later to continue")
 
 
+def search(topic: str, platform: str) -> None:
+    for i, e in enumerate(find_examples(DEV_USER_ID, platform, topic), 1):
+        tag = " [pinned]" if e.pinned else ""
+        print(f"{i}. {e.similarity:.3f}{tag}  {' '.join(e.text.split())[:90]}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.dev")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -59,11 +67,16 @@ def main() -> None:
     imp.add_argument("path", type=Path)
     emb = sub.add_parser("embed", help="embed the dev user's waiting posts, best first")
     emb.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
+    src = sub.add_parser("search", help="show the 8 posts the prompt would use for a topic")
+    src.add_argument("topic")
+    src.add_argument("--platform", default="telegram", choices=["telegram", "x", "linkedin"])
     args = parser.parse_args()
     if args.command == "import-telegram":
         import_telegram(args.path)
     elif args.command == "embed":
         embed(args.limit)
+    elif args.command == "search":
+        search(args.topic, args.platform)
 
 
 if __name__ == "__main__":
