@@ -1,0 +1,158 @@
+"""The only module that talks to an AI provider (CLAUDE.md rule 2).
+
+Embeddings use one fixed model and never fall back (C-7, FR-32): on repeated failure
+they raise EmbeddingUnavailable so the import queue can retry later. Generation walks
+the configured chain and records which model actually answered (FR-31, NFR-15).
+"""
+
+import logging
+import time
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+
+from google import genai
+from google.genai import errors, types
+
+from app.core.config import Settings, get_settings
+
+logger = logging.getLogger(__name__)
+
+DOC_PREFIX = "title: none | text: "
+QUERY_PREFIX = "task: search result | query: "
+EMBED_BATCH = 100
+RETRYABLE = {429, 500, 502, 503, 504}
+
+
+class AIUnavailable(Exception):
+    """Every model in the generation chain failed."""
+
+
+class EmbeddingUnavailable(Exception):
+    """The embedding model kept failing; retry the import later, never switch models."""
+
+
+@dataclass(frozen=True)
+class GenerationResult:
+    text: str
+    model: str
+    provider: str
+    model_version: str | None
+
+
+class AIClient:
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        genai_client: object | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+        max_attempts: int = 5,
+    ) -> None:
+        self.settings = settings or get_settings()
+        self._client = genai_client
+        self._sleep = sleep
+        self.max_attempts = max_attempts
+
+    @property
+    def client(self):
+        if self._client is None:
+            if not self.settings.gemini_api_key:
+                raise AIUnavailable("GEMINI_API_KEY is not set")
+            self._client = genai.Client(api_key=self.settings.gemini_api_key)
+        return self._client
+
+    # ---- embeddings ----
+    def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        """One vector per text, in order. Each text is its own content object:
+        a plain list of strings would be embedded as ONE merged vector."""
+        vectors: list[list[float]] = []
+        for start in range(0, len(texts), EMBED_BATCH):
+            batch = texts[start : start + EMBED_BATCH]
+            vectors.extend(self._embed([DOC_PREFIX + t for t in batch]))
+        return vectors
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed([QUERY_PREFIX + text])[0]
+
+    def _embed(self, texts: list[str]) -> list[list[float]]:
+        contents = [types.Content(parts=[types.Part(text=t)]) for t in texts]
+        config = types.EmbedContentConfig(output_dimensionality=self.settings.embedding_dimensions)
+        for attempt in range(1, self.max_attempts + 1):
+            try:
+                resp = self.client.models.embed_content(
+                    model=self.settings.embedding_model, contents=contents, config=config
+                )
+                vectors = [list(e.values) for e in resp.embeddings]
+                if len(vectors) != len(texts):
+                    raise EmbeddingUnavailable(f"expected {len(texts)} vectors, got {len(vectors)}")
+                return vectors
+            except errors.APIError as e:
+                if e.code not in RETRYABLE or attempt == self.max_attempts:
+                    raise EmbeddingUnavailable(f"{e.code}: {e.message}") from e
+                self._backoff(attempt, e.code)
+        raise EmbeddingUnavailable("unreachable")
+
+    # ---- generation ----
+    def generate(
+        self, prompt: str, purpose: str = "draft", temperature: float = 0.9
+    ) -> GenerationResult:
+        """Try each model in the chain; move on when one is down, rate-limited or removed."""
+        failures = []
+        for provider, model in self.settings.generation_chain:
+            if provider != "google":
+                # Second provider lands with FR-31's fallback work in Phase 6.
+                logger.warning("skipping %s:%s, provider not supported yet", provider, model)
+                failures.append(f"{provider}:{model} unsupported")
+                continue
+            try:
+                return self._generate_google(model, prompt, temperature)
+            except errors.APIError as e:
+                logger.warning("%s generation failed on %s: %s", purpose, model, e.code)
+                failures.append(f"{model} {e.code}")
+        raise AIUnavailable("all models failed: " + "; ".join(failures))
+
+    def _generate_google(self, model: str, prompt: str, temperature: float) -> GenerationResult:
+        config = types.GenerateContentConfig(temperature=temperature)
+        for attempt in range(1, self.max_attempts + 1):
+            try:
+                resp = self.client.models.generate_content(
+                    model=model, contents=prompt, config=config
+                )
+                return GenerationResult(
+                    text=(resp.text or "").strip(),
+                    model=model,
+                    provider="google",
+                    model_version=getattr(resp, "model_version", None),
+                )
+            except errors.APIError as e:
+                # 429 and 5xx get a few retries on the same model; anything else moves on.
+                if e.code not in RETRYABLE or attempt == self.max_attempts:
+                    raise
+                self._backoff(attempt, e.code)
+        raise AIUnavailable("unreachable")
+
+    def _backoff(self, attempt: int, code: int) -> None:
+        wait = min(60.0, 2.0**attempt)
+        logger.info("AI call got %s, retrying in %.0fs", code, wait)
+        self._sleep(wait)
+
+
+_default: AIClient | None = None
+
+
+def default_client() -> AIClient:
+    global _default
+    if _default is None:
+        _default = AIClient()
+    return _default
+
+
+def embed_documents(texts: Sequence[str]) -> list[list[float]]:
+    return default_client().embed_documents(texts)
+
+
+def embed_query(text: str) -> list[float]:
+    return default_client().embed_query(text)
+
+
+def generate(prompt: str, purpose: str = "draft") -> GenerationResult:
+    return default_client().generate(prompt, purpose)
