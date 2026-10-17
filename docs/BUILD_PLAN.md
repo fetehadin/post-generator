@@ -78,20 +78,20 @@ sequenceDiagram
 
 ## 2. The two tracks (who does what)
 
-Split by **track**, not by frontend/backend. Each track owns a feature from database to screen, so neither of you waits on the other for long.
+Split so that each track has about the same amount of work. **Track A owns the backend of every feature** (database, API endpoints, AI, worker). **Track B owns everything the user touches, plus login and the server.** The API contract in [`API.md`](API.md) is the line between them.
 
 | Track | Owns | Starts with |
 |---|---|---|
-| **A — Data & AI** | Parsers, embeddings, retrieval, prompts, voice cards, model fallback, quality checks | **Fetehadin** |
-| **B — App & Platform** | Auth, API endpoints and validation, React screens, calendar, Telegram bot, worker, server and deploy | **Nezira** |
-| **Together** | Schema changes, the API contract for each slice, demos, reviews | Both |
+| **A — Backend & AI** | Database models and migrations, RLS policies, API endpoints for imports and drafts, parsers, embeddings, retrieval, prompts, voice cards, smart inspiration, draft chat, model fallback, the worker (scheduled sends and reminders) | **Fetehadin** |
+| **B — Frontend & Platform** | FastAPI skeleton and error handling, Supabase login and JWT check, every React screen (setup, chat board, draft editor, calendar, profile, settings), Telegram connect flow, CI, server and deploy, backups | **Nezira** |
+| **Together** | The API contract for each slice, schema reviews, demos, reviews | Both |
 
 **Rules for the split**
 
 1. **Swap tracks after Phase 3.** Both of you should be able to explain the whole system by the beta.
 2. **Every pull request is reviewed by the other person.** That's how each of you learns the other track.
-3. **Schema changes are joint.** One person writes the Alembic migration; the other reviews it before anyone builds on it.
-4. **The API contract comes first.** Agree request/response shapes in [`API.md`](API.md) before coding a slice. Track B then builds the screen against fake data while Track A builds the logic.
+3. **Schema changes are reviewed by both.** Track A writes the Alembic migration; Track B reviews it before anyone builds on it.
+4. **The API contract comes first.** Agree request/response shapes in [`API.md`](API.md) before coding a slice. Track B builds the screen against fake data while Track A builds the endpoint and logic.
 5. **Blocked for more than an hour? Say so.** Pair on it instead of waiting.
 
 ---
@@ -104,17 +104,18 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 **Goal:** both of you can clone the repo, run one command, and see the API and the React app talking to a local database.
 
-**Database:** `pgvector/pgvector:pg18` in Docker, `CREATE EXTENSION vector;`, first Alembic migration with `users` and `source_posts`.
+**Database:** `pgvector/pgvector:pg18` in Docker (done), the `voxlace_app` role (done), first Alembic migration with `users`, `imports` and `source_posts`.
 
-| Track A — Data & AI | Track B — App & Platform |
+**Already done (15–17 Oct):** exports, Gemini key, throwaway embedding test on 428 real posts, sample exports, local database + app role, CI fixes, labels, protected `main`, the clickable prototype ([`docs/prototype/`](prototype/index.html)).
+
+| Track A — Backend & AI (Fetehadin) | Track B — Frontend & Platform (Nezira) |
 |---|---|
-| Request your **X, LinkedIn and Telegram exports today** (LinkedIn takes 1–2 days) | Create the FastAPI app with `/health`, settings loaded from `.env` |
-| Get a Gemini API key; read your project's limits in AI Studio | Create the React + Vite + TypeScript app (Tailwind, React Router, TanStack Query) with one page that calls `/health` |
-| **Throwaway test:** embed 20 posts at 768 dims, run a cosine search, check the matches make sense | Docker Compose for Postgres; SQLAlchemy + Alembic set up |
-| Make small anonymised sample exports in `samples/` | Make CI's backend and frontend jobs pass (workflow already in `.github/workflows/ci.yml`); uncomment pip/npm in `dependabot.yml` |
-| Write `ai/client.py` stub: `embed()` and `generate()` with model names from config | Projects board, labels, issue and PR templates; protect `main` (see `docs/CI_CD.md`) |
+| `backend/pyproject.toml` with dependencies, Ruff and pytest config | FastAPI app factory with `/health` (API + DB check) and the shared error shape from `API.md` |
+| `core/config.py` (settings from `.env`) and `core/db.py` (engine, session) | React + Vite + TypeScript app (Tailwind, React Router, TanStack Query) with one page that calls `/health` |
+| SQLAlchemy models + Alembic set up; first migration (`users`, `imports`, `source_posts`) | Make CI's backend and frontend jobs pass; uncomment pip/npm in `dependabot.yml` |
+| `ai/client.py`: `embed_documents()`, `embed_query()`, `generate()` with retries, model names from config | Projects board with this week's issues |
 
-**Together:** confirm the decisions in the SRS, write the Phase 1 API contract, agree on folder structure.
+**Together:** confirm SRS 1.2, write the Phase 1 API contract (`/imports`, `/posts`, `/drafts/generate`), agree on folder structure.
 
 **Demo:** fresh clone → `docker compose up -d` → backend and frontend running → browser shows "API: ok, DB: ok".
 
@@ -124,18 +125,17 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 **Goal:** upload your Telegram export and get a draft that sounds like you. No login yet: use one hard-coded dev user, but **put `user_id` on every row anyway**.
 
-**Database:** `source_posts` gets `embedding vector(768)`; add `drafts`, `draft_versions`, `prompt_logs`.
+**Database:** `source_posts.embedding vector(768)`; add `drafts`, `draft_versions`, `prompt_logs`.
 
-| Track A — Data & AI | Track B — App & Platform |
+| Track A — Backend & AI (Fetehadin) | Track B — Frontend & Platform (Nezira) |
 |---|---|
-| Telegram parser: read `result.json`, flatten formatted text, skip empty/service messages | `POST /imports` (multipart) → calls parser, returns counts |
-| Dedupe on `(user_id, platform, external_id)`; reject malformed files atomically | `GET /posts` with paging |
-| Embedding pipeline: one content object per post, `title: none \| text:` prefix, retry on 429 | Upload page: pick platform, upload, show counts and errors |
-| Retrieval: `ORDER BY embedding <=> :q LIMIT 8` filtered by user + platform | Generate page: topic box → draft card with character count |
-| Prompt builder + `POST /drafts/generate`; save every prompt to `prompt_logs` | Show the prompt log for a draft (debug view) |
-| **Ten fixed test topics** you re-run after every prompt change | |
+| Telegram parser: flatten text, skip forwards/service/empty/link-only and excluded hashtags (FR-44) | Upload page: pick platform, upload, live progress and counts, readable errors |
+| Dedupe on `(user_id, platform, external_id)`; reject malformed files atomically | Generate page: topic box → draft card with character count |
+| `POST /imports` + `GET /imports/{id}`: best ~1,000 first, resumable embedding queue | Posts list page using `GET /posts` with paging |
+| Retrieval: 8 closest posts, no near-duplicates; prompt builder; `POST /drafts/generate`; prompt logs | Prompt log debug view for a draft |
+| `GET /posts` with paging · **ten fixed test topics** you re-run after every prompt change | Request logging and friendly error pages in the frontend |
 
-**Demo:** upload your real Telegram export → see "412 posts imported" → type a topic → get a draft you'd actually post.
+**Demo:** upload your real Telegram export → see "415 posts imported" → type a topic → get a draft you'd actually post.
 
 > If drafts sound generic, stay here. Tune retrieval count, examples and prompt wording until they don't.
 
@@ -147,14 +147,12 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 **Database:** `invites`, `profiles` (empty shell), privacy acceptance on `users`, **row-level security** on every user table.
 
-| Track A — Data & AI | Track B — App & Platform |
+| Track A — Backend & AI (Fetehadin) | Track B — Frontend & Platform (Nezira) |
 |---|---|
-| Add RLS policies; write a test that queries as user B and gets none of A's rows | Supabase Auth (login only): sign up, log in, log out in React |
-| Replace the dev user with the real `user_id` from the token everywhere | Backend dependency that verifies the JWT on every route (401 if missing) |
-| Two-user test: generate for A, assert no B posts in the prompt log | Invite codes: sign-up refused without one |
-| | Privacy notice screen; uploads blocked until accepted |
-| | **First deploy to Contabo:** SSH keys only, `ufw` (22/80/443), Docker, Caddy with your domain, API + Postgres + built frontend via `deploy/docker-compose.prod.yml` |
-| | Turn on the deploy workflow: `production` environment secrets, then `DEPLOY_ENABLED=true` (see `docs/CI_CD.md`) |
+| RLS policies on every user table, in migrations | Supabase Auth: Google or email code, stay logged in until log out |
+| `SET LOCAL app.user_id` per request in `core/db.py` | Backend dependency that verifies the JWT on every route (401 if missing) |
+| Two-user tests as `voxlace_app`: B never sees A's posts, drafts or prompt logs | Invite codes; privacy notice screen; uploads blocked until accepted |
+| Replace the dev user with the real `user_id` everywhere | **First deploy to Contabo** (SSH keys only, `ufw`, Caddy, prod compose) and the deploy workflow |
 
 **Demo:** two accounts, each imports their own export; neither can reach the other's posts by UI or by calling the API directly.
 
@@ -162,20 +160,18 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 ### Phase 3 — All platforms and voice
 
-**Goal:** X and LinkedIn work like Telegram, and each platform has its own voice and rules.
+**Goal:** X and LinkedIn work like Telegram, each platform has its own voice and rules, and inspiration is picked automatically.
 
-**Database:** `voice_cards`, `platform_profiles` (seeded), `platform_settings`, full `profiles`, `exemplar_posts`.
+**Database:** `voice_cards`, `platform_profiles` (seeded), `platform_settings`, full `profiles`, `exemplar_posts`, `inspiration_posts`.
 
-| Track A — Data & AI | Track B — App & Platform |
+| Track A — Backend & AI (Fetehadin) | Track B — Frontend & Platform (Nezira) |
 |---|---|
-| X parser: strip the `window.YTD.tweets.part0 =` wrapper, numbers from strings, skip replies/retweets | Onboarding: About-you form + audience questions + language |
-| LinkedIn parser: `Shares.csv` (text + date only) | Settings: tab per platform — rules, voice card, pinned posts |
-| Weighted X counter (URL = 23, emoji = 2, CJK = 2) with tests | Live length counter on the draft card using the platform rule |
-| Voice card + stats per platform; warning under 20 posts; keep hand edits on regenerate | Pin / exclude buttons on posts |
-| Summary card from the profile form (~150 words, editable) | Edit platform rules in Settings (no code change) |
-| Use pinned/excluded posts in retrieval; exemplar pool for thin histories | |
+| X parser (wrapper, threads kept, replies to others skipped) and LinkedIn parser | Setup flow: privacy → about you → audience → import → your voice → first draft |
+| Weighted X counter with shared test cases (used by both backend and frontend) | Profile page: edit any section any time; summary card refreshes |
+| Voice card + stats per platform; summary card; endpoints for profile and voice cards | Settings: tab per platform (rules, voice card, excluded hashtags, pinned posts) |
+| **Smart inspiration (FR-41):** post-type detection, a separate inspiration pool per platform (Telegram channels, X accounts, LinkedIn creators), structure examples | Live length counter; pin / exclude buttons; inspiration chip in the editor |
 
-**Demo:** the same topic produces three clearly different drafts — a tight X post, a LinkedIn post with a strong first line, a Telegram post — each in your voice and language.
+**Demo:** the same topic produces three clearly different drafts — a tight X post, a LinkedIn post with a strong first line, a Telegram post — each in your voice, and a launch post shows a launch-strong creator's structure.
 
 **→ Swap tracks after this phase.**
 
@@ -183,35 +179,35 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 ### Phase 4 — Drafting workflow
 
-**Goal:** the daily loop feels good: write a check-in, get drafts, revise by chat, keep a library.
+**Goal:** the daily loop feels good: write a check-in, get drafts, improve them by chatting, keep a library.
 
-**Database:** `checkins`.
+**Database:** `checkins`, `draft_messages`.
 
-| Track A — Data & AI | Track B — App & Platform |
+| Track A — Backend & AI | Track B — Frontend & Platform |
 |---|---|
-| Revise endpoint: current draft + instruction → new version | Chat board: check-ins and draft requests in one stream with history |
-| Facts guard: prompt only allows facts from summary card, check-in, approved items | Draft editor: chat revisions, hand edits, version history |
-| Record edit distance between first and final version | Draft library with status filters (draft, approved, published, discarded) |
-| | Hand-off: X pre-filled link, LinkedIn copy + open composer, mark as published |
+| Draft chat (FR-40): conversation endpoint, revise a selected sentence, convert to another platform, ask instead of inventing | Chat board: check-ins and draft requests in one stream with history |
+| Facts guard: only facts from summary card, check-in, approved items | Draft editor with chat panel, hand edits, version history |
+| Check-in endpoints; record edit distance between first and final version | Draft library with status filters |
+| Published drafts saved back as source posts (`origin = voxlace`) | Hand-off: X pre-filled link, LinkedIn copy + open composer, mark as published |
 
-**Demo:** write today's check-in → generate for all three → revise one twice → approve → X opens pre-filled with the right text.
+**Demo:** write today's check-in → generate for all three → chat "make it punchier" twice → approve → X opens pre-filled with the right text.
 
 ---
 
-### Phase 5 — Calendar and Telegram publishing
+### Phase 5 — Calendar, Telegram publishing and reminders
 
-**Goal:** plan the week on a calendar; Telegram posts go out on time by themselves after approval.
+**Goal:** plan the week on a calendar; Telegram posts go out on time; Voxlace reminds you to check in.
 
-**Database:** `telegram_connections`; `drafts.scheduled_for`, `reminder_sent_at`, `published_at` in use.
+**Database:** `telegram_connections`, `reminder_settings`; `drafts.scheduled_for`, `reminder_sent_at`, `published_at` in use.
 
-| Track A — Data & AI | Track B — App & Platform |
+| Track A — Backend & AI | Track B — Frontend & Platform |
 |---|---|
-| Due-post query: approved + `scheduled_for <= now()` + not yet sent, safe to run twice | Calendar: week and month views, drag to reschedule (store UTC, show local) |
-| `worker.py`: every minute, send due Telegram posts and reminders | Telegram connect flow: bot as admin → `getChatMember` check → save |
-| Retry + mark failures without double-sending | "Publish now" for Telegram; reminders in the app |
-| Lock each due row (`FOR UPDATE SKIP LOCKED`) so a restart never double-sends | Worker service in the production compose file, `restart: unless-stopped` |
+| `worker.py`: every minute, send approved due Telegram posts; lock rows so a restart never double-sends | Calendar: week and month views, drag to reschedule (store UTC, show local) |
+| Daily check-in reminders (FR-42), skipped when today already has a check-in | Telegram connect flow: bot as admin → `getChatMember` check → save |
+| Reply to the bot = check-in, draft sent back (FR-43) | Reminder settings screen; in-app notifications; "Publish now" |
+| Retry and record failures | Worker service in the production compose file |
 
-**Demo:** approve a Telegram draft for 5 minutes from now, close the laptop, and it appears in your channel on time.
+**Demo:** approve a Telegram draft for 5 minutes from now and close the laptop: it appears in your channel on time. At 20:00 the bot asks "What did you build today?"; your reply becomes a check-in.
 
 ---
 
@@ -221,13 +217,12 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 **Database:** `provider_usage`, `uploads` (if doing resume import later).
 
-| Track A — Data & AI | Track B — App & Platform |
+| Track A — Backend & AI | Track B — Frontend & Platform |
 |---|---|
-| Model fallback chain from config; record model + provider per draft | Daily limits per user, shown in the app; clear 429 message, input kept |
-| Embedding retry queue; never switch embedding models | Export my data (JSON) and delete all my data |
-| Daily health check of each model in the chain | Production env vars, CORS, error pages, uptime check |
-| | Nightly `pg_dump` copied off the server; test a restore (NFR-17) |
-| Run the ten test topics on every fallback model | Warn about cold starts on first load |
+| Model fallback chain from config; record model + provider per draft | Daily limits shown in the app; clear 429 message, input kept |
+| Embedding retry queue; never switch embedding models | Export my data (JSON) and delete all my data (screens) |
+| Daily health check of each model; run the ten test topics on every fallback | Production env vars, CORS, error pages, uptime check |
+| Export and delete endpoints; usage limits enforced in the API | Nightly `pg_dump` copied off the server; test a restore (NFR-17) |
 
 **Demo:** turn off the first model in config → drafts still arrive from the second and say so; delete a test account → every row is gone.
 
@@ -237,7 +232,7 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 **Goal:** learn whether real people publish what Voxlace writes.
 
-| Track A — Data & AI | Track B — App & Platform |
+| Track A | Track B |
 |---|---|
 | Metrics: publish rate and edit intensity per user per week | Invite 5–10 testers; onboarding guide on getting exports |
 | Read weak drafts' prompt logs weekly; fix prompts | Feedback form; fix the top three pain points each week |
@@ -248,7 +243,7 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 ### Stretch (after the core works)
 
-GitHub context (FR-14) · suggested posting windows (FR-16, FR-34) · resume and website import with contact stripping (FR-20, FR-21, NFR-12) · idea inbox · angle suggestions · metrics page.
+GitHub context (FR-14) · suggested posting windows (FR-16, FR-34) · resume and website import with contact stripping (FR-20, FR-21, NFR-12) · streak and catch-up nudges · idea inbox · metrics page.
 
 ---
 

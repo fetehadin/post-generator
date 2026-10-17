@@ -289,8 +289,8 @@ Two-person team, one rule: **every change goes through a pull request reviewed b
 
 | | Role |
 |---|---|
-| **Fetehadin Negash** | Co-founder · starts on Data & AI |
-| **Nezira** | Co-founder · starts on App & Platform |
+| **Fetehadin Negash** | Co-founder · starts on Backend & AI (Track A) |
+| **Nezira** | Co-founder · starts on Frontend & Platform (Track B) |
 
 ## License
 
