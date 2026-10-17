@@ -11,6 +11,10 @@ class Settings(BaseSettings):
 
     app_env: str = "development"
 
+    # The API connects as the limited role (RLS applies); Alembic as the table owner.
+    database_url: str = "postgresql+psycopg://voxlace_app:voxlace_app@localhost:5432/voxlace"
+    migrations_database_url: str = "postgresql+psycopg://voxlace:voxlace@localhost:5432/voxlace"
+
     gemini_api_key: str = ""
     embedding_model: str = "gemini-embedding-2"
     embedding_dimensions: int = 768
