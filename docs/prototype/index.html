@@ -317,19 +317,30 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
   var TYPES = { launch: "Launch", progress: "Progress", lesson: "Lesson", opinion: "Hot take", humor: "Humor", tip: "Tip", event: "Event" };
   var TYPE_KEYS = Object.keys(TYPES);
   var CREATORS = [
-    { h: "levelsio", n: "Pieter Levels", shape: "list", c: "#3355FF", best: { launch: 3, progress: 2, opinion: 1 }, card: "Numbers first, short lines, one idea each. Launch posts say what it is, who it's for and where to try it." },
-    { h: "marclou", n: "Marc Lou", shape: "list", c: "#16794A", best: { launch: 3, progress: 3 }, card: "Daily ship logs. A check-mark per line, real numbers, friendly and fast. One emoji at most per line." },
-    { h: "bekacru", n: "Beka", shape: "reflect", c: "#0A5BAD", best: { lesson: 3, progress: 2, launch: 1 }, card: "Calm reflections from building. One clear idea, a few short paragraphs, ends on what comes next." },
-    { h: "dhh", n: "DHH", shape: "bold", c: "#B4400B", best: { opinion: 3, event: 2 }, card: "Opens with a bold, declarative line. Short sentences, no hedging. Ends on a one-line verdict." },
-    { h: "theo", n: "Theo", shape: "bold", c: "#7A3FD1", best: { opinion: 3, tip: 1 }, card: "Names the tool or idea in the first line, then two or three lines of why. Confident, direct." },
-    { h: "rauchg", n: "Guillermo Rauch", shape: "bold", c: "#0F1422", best: { launch: 2, event: 1 }, card: "Concise product statements: one strong line, then the proof. Announces with confidence." },
-    { h: "ThePrimeagen", n: "ThePrimeagen", shape: "casual", c: "#5B2CB8", best: { humor: 3, opinion: 2 }, card: "lowercase, casual, self-deprecating. One-line jokes about the pain of coding. Abrupt endings." },
-    { h: "elonmusk", n: "Elon Musk", shape: "oneliner", c: "#333B4F", best: { humor: 2 }, card: "Ultra-short one-liners. One idea, no setup, no hashtags." },
-    { h: "karpathy", n: "Andrej Karpathy", shape: "explain", c: "#A2621A", best: { lesson: 3, tip: 2 }, card: "Explains a hard idea simply: the setup, the insight, then a numbered breakdown." },
-    { h: "simonw", n: "Simon Willison", shape: "explain", c: "#0F6E9E", best: { tip: 3, lesson: 1 }, card: "Today-I-learned style: what I tried, what worked, the exact tool, a link to the notes." },
-    { h: "swyx", n: "swyx", shape: "explain", c: "#2A7F7A", best: { lesson: 2, event: 2 }, card: "Learning in public: a framing line, three takeaways, an open question to the community." }
+    { p: "x", h: "levelsio", n: "Pieter Levels", shape: "list", c: "#3355FF", best: { launch: 3, progress: 2, opinion: 1 }, card: "Numbers first, short lines, one idea each. Launch posts say what it is, who it's for and where to try it." },
+    { p: "x", h: "marclou", n: "Marc Lou", shape: "list", c: "#16794A", best: { launch: 3, progress: 3 }, card: "Daily ship logs. A check-mark per line, real numbers, friendly and fast. One emoji at most per line." },
+    { p: "x", h: "bekacru", n: "Beka", shape: "reflect", c: "#0A5BAD", best: { lesson: 3, progress: 2, launch: 1 }, card: "Calm reflections from building. One clear idea, a few short paragraphs, ends on what comes next." },
+    { p: "x", h: "dhh", n: "DHH", shape: "bold", c: "#B4400B", best: { opinion: 3, event: 2 }, card: "Opens with a bold, declarative line. Short sentences, no hedging. Ends on a one-line verdict." },
+    { p: "x", h: "theo", n: "Theo", shape: "bold", c: "#7A3FD1", best: { opinion: 3, tip: 1 }, card: "Names the tool or idea in the first line, then two or three lines of why. Confident, direct." },
+    { p: "x", h: "rauchg", n: "Guillermo Rauch", shape: "bold", c: "#0F1422", best: { launch: 2, event: 1 }, card: "Concise product statements: one strong line, then the proof. Announces with confidence." },
+    { p: "x", h: "ThePrimeagen", n: "ThePrimeagen", shape: "casual", c: "#5B2CB8", best: { humor: 3, opinion: 2 }, card: "lowercase, casual, self-deprecating. One-line jokes about the pain of coding. Abrupt endings." },
+    { p: "x", h: "elonmusk", n: "Elon Musk", shape: "oneliner", c: "#333B4F", best: { humor: 2 }, card: "Ultra-short one-liners. One idea, no setup, no hashtags." },
+    { p: "x", h: "karpathy", n: "Andrej Karpathy", shape: "explain", c: "#A2621A", best: { lesson: 3, tip: 2 }, card: "Explains a hard idea simply: the setup, the insight, then a numbered breakdown." },
+    { p: "x", h: "simonw", n: "Simon Willison", shape: "explain", c: "#0F6E9E", best: { tip: 3, lesson: 1 }, card: "Today-I-learned style: what I tried, what worked, the exact tool, a link to the notes." },
+    { p: "x", h: "swyx", n: "swyx", shape: "explain", c: "#2A7F7A", best: { lesson: 2, event: 2 }, card: "Learning in public: a framing line, three takeaways, an open question to the community." }
+,
+    { p: "telegram", h: "tg-dagmawi", n: "Dagmawi Babi", shape: "list", c: "#16794A", best: { launch: 3, progress: 3, lesson: 2, event: 2 }, card: "Punchy, diary-like openers; short intros with bulleted links underneath; credits the community on milestones; ends with gratitude and the channel handle." },
+    { p: "telegram", h: "tg-codeandthought", n: "Code and Thought", shape: "casual", c: "#7A3FD1", best: { progress: 3, lesson: 2, opinion: 2 }, card: "Opens abruptly with a milestone or a bold thesis; single-sentence paragraphs with spoken-word rhythm; Amharic for punchlines; soft invites to react." },
+    { p: "telegram", h: "tg-luna", n: "Luna's pathway", shape: "reflect", c: "#A2621A", best: { lesson: 3, progress: 2, opinion: 2 }, card: "Opens like a mid-thought confession or question; short reflective lines; casual English with Amharic idioms; soft sign-offs." },
+    { p: "telegram", h: "tg-technerd", n: "Tech Nerd", shape: "bold", c: "#0A5BAD", best: { progress: 3, lesson: 2, launch: 2 }, card: "Short, punchy declarations; very short sentences with line breaks for emphasis; English only; signs off with the channel handle and thanks." }
   ];
   var CBY = {}; CREATORS.forEach(function (c) { CBY[c.h] = c; });
+  function cname(h) {
+    if (!h) return "";
+    if (CBY[h]) return CBY[h].p === "x" ? "@" + CBY[h].h : CBY[h].n;
+    var raw = String(h).replace(/^custom:/, ""), cu = (S && S.account && S.account.custom || []).filter(function (c) { return c.h === raw; })[0];
+    return cu && cu.p === "x" ? "@" + raw : raw;
+  }
   var EXCLUDED = ["#Scripture", "#Spiritual", "#ChristianArt", "#Alhamdulillah", "#EidVibes", "#Family", "#ForHer", "#Relationship", "#Friends", "#Me", "#DailyLife", "#Memes", "#Jokes", "#Songs", "#Lyrics", "#Wallpapers"];
   var DEFAULT_CHECKIN = "Day 4 of #10DaysGrind: finished the Telegram importer for Voxlace. It keeps 415 of my posts and skips forwards and personal hashtags. Tomorrow: the embedding queue.";
   var EXAMPLE_PROFILE = {
@@ -408,9 +419,9 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
     if (/\b(tip|how to|trick|guide)\b/i.test(t)) return "tip";
     return "progress";
   }
-  function pickCreator(type) {
+  function pickCreator(type, platform) {
     var on = A().creators, best = null, score = 1;
-    CREATORS.forEach(function (c) { var s = c.best[type] || 0; if (on.indexOf(c.h) >= 0 && s > score) { best = c.h; score = s; } });
+    CREATORS.forEach(function (c) { var s = c.best[type] || 0; if (c.p === platform && on.indexOf(c.h) >= 0 && s > score) { best = c.h; score = s; } });
     return best;
   }
   function facts(text) {
@@ -479,16 +490,15 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
   // ---------- Groups (one check-in → up to three platform drafts) ----------
   function newGroup(checkin, platform) {
     var g = { id: uid(), checkin: checkin, type: detectType(checkin), drafts: {}, platform: platform || "telegram", created: Date.now() };
-    g.insp = pickCreator(g.type);
     A().groups[g.id] = g; A().active = g.id;
     ensureDraft(g, g.platform);
     return g;
   }
   function ensureDraft(g, p) {
     if (!g.drafts[p]) {
-      var text = compose(p, g.checkin, g.type, shapeOf(g.insp));
-      g.drafts[p] = { platform: p, versions: [{ label: "First draft", text: text }], cur: 0, status: "Draft", sched: null,
-        chat: [{ role: "ai", text: "Here's a " + PN[p] + " draft from your check-in, in your voice" + (g.insp ? ", using the structure @" + g.insp + " uses for " + TYPES[g.type].toLowerCase() + " posts" : "") + ".\nTell me what to change. Try: shorter · punchier · mention a project · make it a LinkedIn version.", chips: ["Shorter", "Punchier", "Mention a project", "Why this hook?"] }] };
+      var insp = pickCreator(g.type, p), text = compose(p, g.checkin, g.type, shapeOf(insp));
+      g.drafts[p] = { platform: p, insp: insp, versions: [{ label: "First draft", text: text }], cur: 0, status: "Draft", sched: null,
+        chat: [{ role: "ai", text: "Here's a " + PN[p] + " draft from your check-in, in your voice" + (insp ? ", using the structure " + cname(insp) + " uses for " + TYPES[g.type].toLowerCase() + " posts on " + PN[p] : "") + ".\nTell me what to change. Try: shorter · punchier · mention a project · make it a LinkedIn version.", chips: ["Shorter", "Punchier", "Mention a project", "Why this hook?"] }] };
       A().draftsToday = (A().draftsToday || 0) + 1;
     }
     g.platform = p;
@@ -503,8 +513,8 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
     var d = g.drafts[g.platform], m = msg.toLowerCase(), text = cur(d), reply, v;
     d.chat.push({ role: "user", text: msg });
     var projects = projectsList(), named = projects.filter(function (p) { return m.indexOf(p.name.toLowerCase()) >= 0; })[0];
-    var creatorAsk = (m.match(/(?:like|style of|structure of|as)\s+@?([a-z0-9_]+)/i) || [])[1];
-    var creator = creatorAsk ? CREATORS.filter(function (c) { return c.h.toLowerCase() === creatorAsk.toLowerCase(); })[0] : null;
+    var creatorAsk = (m.match(/(?:like|style of|structure of|as)\s+@?([a-z0-9_'’ ]+?)(?:'s)?\s*$/i) || m.match(/(?:like|style of|structure of|as)\s+@?([a-z0-9_]+)/i) || [])[1];
+    var creator = creatorAsk ? CREATORS.filter(function (c) { var k = creatorAsk.toLowerCase(); return c.h.toLowerCase() === k || c.h.toLowerCase() === "tg-" + k || c.n.toLowerCase().replace(/[^a-z0-9]/g, "") === k.replace(/[^a-z0-9]/g, ""); })[0] : null;
     if (sel && sel.text) {
       var r = tighten(sel.text);
       if (/short|cut|trim/.test(m) && /[,:;—]/.test(r)) r = r.split(/[,:;—]/)[0].trim();
@@ -516,7 +526,7 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
       v = addVersion(d, "Fixed one line", t2);
       reply = "Changed only the part you selected:\n“" + sel.text.trim() + "” → “" + r.trim() + "”";
     } else if (/\b(why|explain)\b/.test(m)) {
-      reply = g.insp ? "This is a " + TYPES[g.type].toLowerCase() + " post, and @" + g.insp + " is strongest at those, so I borrowed their shape: " + CBY[g.insp].card.charAt(0).toLowerCase() + CBY[g.insp].card.slice(1) + "\nThe words, emoji and sign-off are still yours, from your FeteScript posts." : "No builder style is applied, so this follows your own usual pattern: your tag line first, the facts, then what's next, signed @fetedev.";
+      reply = d.insp ? "This is a " + TYPES[g.type].toLowerCase() + " post, and on " + PN[g.platform] + " " + cname(d.insp) + " is strongest at those, so I borrowed their shape" + (CBY[d.insp] ? ": " + CBY[d.insp].card.charAt(0).toLowerCase() + CBY[d.insp].card.slice(1) : ".") + "\nThe words, emoji and sign-off are still yours, from your FeteScript posts." : "No builder style is applied, so this follows your own usual pattern: your tag line first, the facts, then what's next, signed @fetedev.";
     } else if (/\b(undo|go back|previous version|revert)\b/.test(m)) {
       if (d.cur > 0) { d.cur -= 1; reply = "Back to version " + (d.cur + 1) + "."; } else reply = "This is already the first version.";
     } else if (!/^add:/i.test(msg) && /\b(add|include|put|mention)\b/.test(m) && /\b(numbers?|metrics?|users?|revenue|stats?|downloads?|followers?)\b/.test(m)) {
@@ -553,10 +563,14 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
         v = addVersion(d, "Thread", parts.map(function (p2, i) { return (i + 1) + "/" + parts.length + " " + p2; }).join("\n\n"));
         reply = "Split it into a " + parts.length + "-post thread, one fact per post.";
       }
+    } else if (creator && creator.p !== g.platform) {
+      var same = CREATORS.filter(function (c) { return c.p === g.platform && A().creators.indexOf(c.h) >= 0; });
+      reply = cname(creator.h) + " is a " + PN[creator.p] + " creator, and inspiration never crosses platforms. For " + PN[g.platform] + " I can use: " + (same.length ? same.map(function (c) { return cname(c.h); }).join(", ") : "none yet (add some on the Inspiration page)") + ".";
+      d.chat.push({ role: "ai", text: reply, chips: same.slice(0, 4).map(function (c) { return "Like " + (c.p === "x" ? "@" + c.h : c.n); }) }); return;
     } else if (creator) {
-      g.insp = creator.h;
-      v = addVersion(d, "Structure: @" + creator.h, compose(g.platform, g.checkin, g.type, creator.shape));
-      reply = "Rebuilt it with @" + creator.h + "'s structure: " + creator.card.charAt(0).toLowerCase() + creator.card.slice(1);
+      d.insp = creator.h;
+      v = addVersion(d, "Structure: " + cname(creator.h), compose(g.platform, g.checkin, g.type, creator.shape));
+      reply = "Rebuilt it with " + cname(creator.h) + "'s structure: " + creator.card.charAt(0).toLowerCase() + creator.card.slice(1);
     } else if (/no emoji|remove emoji|without emoji/.test(m)) {
       v = addVersion(d, "No emoji", text.replace(EMOJI, "").replace(/[ \t]{2,}/g, " ").replace(/ +\n/g, "\n"));
       reply = "Removed the emoji.";
@@ -618,7 +632,7 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
         '<p class="hint">Invite-only beta · never asks for your social media passwords</p>' +
       '</div>' +
       '<div class="card stack" aria-label="Example draft">' +
-        '<div class="row between"><span class="row" style="gap:6px"><span class="chip tg">Telegram</span><span class="chip accent">Progress</span><span class="chip amber">Structure: @marclou</span></span><span class="counter muted">' + count("telegram", sample) + ' / 4,096</span></div>' +
+        '<div class="row between"><span class="row" style="gap:6px"><span class="chip tg">Telegram</span><span class="chip accent">Progress</span><span class="chip amber">Structure: Dagmawi Babi</span></span><span class="counter muted">' + count("telegram", sample) + ' / 4,096</span></div>' +
         '<p class="post">' + esc(sample) + '</p>' +
         '<div class="divider">in your voice, learned from posts like</div>' +
         VOICE_EXAMPLES.slice(0, 2).map(function (x) { return '<p class="example">' + esc(x) + '</p>'; }).join("") +
@@ -690,8 +704,9 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
       '<div class="field"><span class="label">When you usually post</span><div class="pick" role="group" aria-label="Usual posting times">' + ["Morning", "Afternoon", "Evening", "Late night"].map(function (h) { return '<button type="button" data-action="hour" data-hour="' + h + '" aria-pressed="' + (P.hours.indexOf(h) >= 0) + '">' + h + '</button>'; }).join("") + '</div></div>' +
       area("topics", "Topics you post about", P.topics) + fld("avoid", "Topics to avoid", P.avoid) + fld("voice", "Three to five words for your voice", P.voice) + '</div>', true);
     if (n === 4) return setupFrame(4, head("Import your posts", "Start with one platform. X and LinkedIn take 1–2 days to send exports: add them later from Settings.") + importCards() + excludedCard(), a.imported, a.imported ? "Continue" : "Import at least one platform");
-    if (n === 5) return setupFrame(5, head("Builders you admire", "Voxlace detects what kind of post you're writing and borrows the structure of the builder who's best at that kind. Your words, emoji and sign-off always stay yours.") +
-      '<div class="grid3">' + CREATORS.map(function (c) { return creatorTile(c, true); }).join("") + '</div>' +
+    if (n === 5) return setupFrame(5, head("Creators you admire, per platform", "Voxlace detects what kind of post you're writing and borrows the structure of the creator who's best at that kind <b>on the same platform</b>: Telegram channels shape Telegram drafts, X accounts shape X drafts. Your words, emoji and sign-off always stay yours.") +
+      ["telegram", "x"].map(function (pl) { return '<div class="stack"><div class="row between"><h2>' + PN[pl] + (pl === "telegram" ? " channels" : " accounts") + '</h2><span class="chip ' + (pl === "x" ? "x" : "tg") + '">Shapes ' + PN[pl] + ' drafts only</span></div><div class="grid3">' + CREATORS.filter(function (c) { return c.p === pl; }).map(function (c) { return creatorTile(c, true); }).join("") + '</div></div>'; }).join("") +
+      '<div class="card tint stack"><div class="row between"><h3>LinkedIn creators</h3><span class="chip li">Shapes LinkedIn drafts only</span></div><p class="small">None yet. Add them later on the Inspiration page; until then LinkedIn drafts use only your own voice.</p></div>' +
       '<p class="hint">You can add your own creators later on the Inspiration page. ' + a.creators.length + ' selected.</p>', true);
     if (n === 6) return setupFrame(6, head("Does this sound like you?", "Voxlace uses these in every draft. Fix anything that's off.") +
       '<div class="card stack"><div class="row between"><h2>Summary card</h2><span class="chip accent">Used in every draft</span></div><label class="hint" for="summary">Written from your setup answers · about 150 words</label><textarea id="summary" rows="5" data-bind="summary">' + esc(a.summary || summaryOf(P)) + '</textarea></div>' + voiceCard(), true, "Looks like me");
@@ -700,15 +715,15 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
       var g = a.first ? a.groups[a.first] : null, d = g ? g.drafts.telegram : null;
       return setupFrame(8, head("Your first draft", "Write today's check-in in a line or two. Voxlace drafts it for Telegram.") +
         '<form class="card stack" data-form="first"><div class="field"><label for="first-checkin">Today\'s check-in</label><textarea id="first-checkin" rows="3">' + esc(g ? g.checkin : DEFAULT_CHECKIN) + '</textarea></div><div class="row"><button class="btn primary" type="submit">' + (g ? "Draft it again" : "Draft for Telegram") + '</button><span class="hint">Only facts from this check-in and your profile are used.</span></div></form>' +
-        (d ? '<div class="card stack"><div class="row between"><span class="row" style="gap:6px"><span class="chip tg">Telegram</span><span class="chip accent">' + TYPES[g.type] + '</span>' + (g.insp ? '<span class="chip amber">Structure: @' + esc(g.insp) + '</span>' : '<span class="chip">Your own structure</span>') + '</span><span class="counter muted">' + fmt(count("telegram", cur(d))) + ' / 4,096</span></div><p class="post">' + esc(cur(d)) + '</p></div>' : ""),
+        (d ? '<div class="card stack"><div class="row between"><span class="row" style="gap:6px"><span class="chip tg">Telegram</span><span class="chip accent">' + TYPES[g.type] + '</span>' + (d.insp ? '<span class="chip amber">Structure: ' + esc(cname(d.insp)) + '</span>' : '<span class="chip">Your own structure</span>') + '</span><span class="counter muted">' + fmt(count("telegram", cur(d))) + ' / 4,096</span></div><p class="post">' + esc(cur(d)) + '</p></div>' : ""),
         !!d, "Finish setup");
     }
     return "";
   }
   function creatorTile(c, inSetup) {
     var on = A().creators.indexOf(c.h) >= 0, bests = TYPE_KEYS.filter(function (t) { return (c.best[t] || 0) >= 2; });
-    return '<div class="card creator"><div class="row" style="gap:12px;flex-wrap:nowrap"><span class="cav" style="background:' + c.c + '" aria-hidden="true">' + esc(initials(c.n)) + '</span><div class="grow"><b>' + esc(c.n) + '</b><div class="small muted">@' + esc(c.h) + '</div></div>' +
-      '<button class="switch" type="button" role="switch" aria-checked="' + on + '" aria-label="Use @' + esc(c.h) + ' for inspiration" data-action="creator" data-h="' + esc(c.h) + '"></button></div>' +
+    return '<div class="card creator"><div class="row" style="gap:12px;flex-wrap:nowrap"><span class="cav" style="background:' + c.c + '" aria-hidden="true">' + esc(initials(c.n)) + '</span><div class="grow"><b>' + esc(c.n) + '</b><div class="small muted">' + (c.p === "x" ? "@" + esc(c.h) : PN[c.p] + " channel") + '</div></div>' +
+      '<button class="switch" type="button" role="switch" aria-checked="' + on + '" aria-label="Use ' + esc(cname(c.h)) + ' for inspiration" data-action="creator" data-h="' + esc(c.h) + '"></button></div>' +
       '<div class="row" style="gap:6px">' + bests.map(function (t) { return '<span class="chip accent">' + TYPES[t] + '</span>'; }).join("") + '</div>' +
       (inSetup ? "" : '<p class="small muted">' + esc(c.card) + '</p>') + '</div>';
   }
@@ -769,7 +784,7 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
       if (it.kind === "posted") return '<div class="bot-line">✓ ' + esc(it.text) + '</div>';
       var g = a.groups[it.g]; if (!g) return "";
       var d = g.drafts[it.p] || g.drafts[g.platform]; if (!d) return "";
-      return '<div class="card stack" style="max-width:760px"><div class="row between"><span class="row" style="gap:6px"><span class="chip ' + (d.platform === "x" ? "x" : d.platform === "linkedin" ? "li" : "tg") + '">' + PN[d.platform] + '</span><span class="chip accent">' + TYPES[g.type] + '</span>' + (g.insp ? '<span class="chip amber">Structure: @' + esc(g.insp) + '</span>' : "") + '<span class="chip ' + statusChip(d.status) + '">' + d.status + '</span></span><span class="counter muted">' + fmt(count(d.platform, cur(d))) + ' / ' + fmt(LIM[d.platform]) + '</span></div><p class="post">' + esc(cur(d)) + '</p><div class="row"><button class="btn sm primary" type="button" data-action="open" data-g="' + g.id + '" data-p="' + d.platform + '">Open in studio</button>' +
+      return '<div class="card stack" style="max-width:760px"><div class="row between"><span class="row" style="gap:6px"><span class="chip ' + (d.platform === "x" ? "x" : d.platform === "linkedin" ? "li" : "tg") + '">' + PN[d.platform] + '</span><span class="chip accent">' + TYPES[g.type] + '</span>' + (d.insp ? '<span class="chip amber">Structure: ' + esc(cname(d.insp)) + '</span>' : "") + '<span class="chip ' + statusChip(d.status) + '">' + d.status + '</span></span><span class="counter muted">' + fmt(count(d.platform, cur(d))) + ' / ' + fmt(LIM[d.platform]) + '</span></div><p class="post">' + esc(cur(d)) + '</p><div class="row"><button class="btn sm primary" type="button" data-action="open" data-g="' + g.id + '" data-p="' + d.platform + '">Open in studio</button>' +
         ["x", "linkedin", "telegram"].filter(function (p) { return !g.drafts[p]; }).map(function (p) { return '<button class="btn sm" type="button" data-action="also" data-g="' + g.id + '" data-p="' + p + '">+ ' + PN[p] + ' version</button>'; }).join("") + '</div></div>';
     }).join("");
     return '<div class="page-head"><div class="stack" style="gap:4px"><h1>Chat board</h1><p class="muted">Check in, get drafts, keep the streak. Friday 17 October.</p></div>' +
@@ -787,10 +802,10 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
     if (!g) return '<h1>Draft studio</h1><div class="card empty"><p>No draft open. Write a check-in on the <a href="#home">chat board</a> first.</p></div>';
     var d = g.drafts[g.platform], text = cur(d), n = count(d.platform, text), lim = LIM[d.platform], over = n > lim;
     var tabs = '<div class="seg" role="group" aria-label="Platform">' + ["x", "linkedin", "telegram"].map(function (p) { return '<button type="button" data-action="tab" data-p="' + p + '" aria-pressed="' + (g.platform === p) + '">' + PN[p] + (g.drafts[p] ? "" : " +") + '</button>'; }).join("") + '</div>';
-    var enabled = A().creators.concat(A().custom.map(function (c) { return "custom:" + c.h; }));
+    var enabled = A().creators.filter(function (h) { return CBY[h] && CBY[h].p === g.platform; }).concat(A().custom.filter(function (c) { return c.p === g.platform; }).map(function (c) { return "custom:" + c.h; }));
     var insp = '<div class="insp"><span class="label">Post type</span><select aria-label="Post type" data-action="type">' + TYPE_KEYS.map(function (t) { return '<option value="' + t + '"' + (g.type === t ? " selected" : "") + '>' + TYPES[t] + '</option>'; }).join("") + '</select>' +
-      '<span class="label">Structure from</span><select aria-label="Structure from" data-action="insp"><option value="">Just my voice</option>' + enabled.map(function (h) { var name = h.indexOf("custom:") === 0 ? h.slice(7) : h; return '<option value="' + esc(h) + '"' + (g.insp === h ? " selected" : "") + '>@' + esc(name) + (CBY[h] && CBY[h].best[g.type] >= 2 ? " · best at " + TYPES[g.type].toLowerCase() : "") + '</option>'; }).join("") + '</select>' +
-      '<span class="hint">Auto-picked: the enabled builder strongest at this type.</span></div>';
+      '<span class="label">Structure from</span><select aria-label="Structure from" data-action="insp"><option value="">Just my voice</option>' + enabled.map(function (h) { return '<option value="' + esc(h) + '"' + (d.insp === h ? " selected" : "") + '>' + esc(cname(h)) + (CBY[h] && CBY[h].best[g.type] >= 2 ? " · best at " + TYPES[g.type].toLowerCase() : "") + '</option>'; }).join("") + '</select>' +
+      '<span class="hint">Auto-picked from your ' + PN[g.platform] + ' creators only. Platforms never mix.</span></div>';
     var actions;
     if (d.platform === "telegram") actions = '<button class="btn amber" type="button" data-action="publish"' + (over ? " disabled" : "") + '>Approve &amp; post now</button>';
     else if (d.platform === "x") actions = '<button class="btn amber" type="button" data-action="publish"' + (over ? " disabled" : "") + '>Approve &amp; open X</button>';
@@ -855,21 +870,25 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
   }
 
   function viewInspiration() {
-    var a = A(), hl = S.ui.hl || "launch";
-    var cols = CREATORS.concat(a.custom.map(function (c) { return { h: c.h, n: c.h, best: {}, custom: true }; }));
-    var matrix = '<div class="matrix-scroll"><table class="matrix"><thead><tr><th>Post type</th>' + CREATORS.map(function (c) { return '<th>@' + esc(c.h) + '</th>'; }).join("") + '<th>Picked</th></tr></thead><tbody>' +
-      TYPE_KEYS.map(function (t) { var pick = pickCreator(t); return '<tr' + (t === hl ? ' class="hl"' : "") + '><td><button class="btn sm ghost" type="button" data-action="hl" data-t="' + t + '">' + TYPES[t] + '</button></td>' + CREATORS.map(function (c) { var s = c.best[t] || 0, on = a.creators.indexOf(c.h) >= 0; return '<td><span class="str" style="' + (on ? "" : "opacity:.35") + '" aria-label="' + s + ' of 3">' + "●".repeat(s) + '<span class="off">' + "●".repeat(3 - s) + '</span></span></td>'; }).join("") + '<td><b>' + (pick ? "@" + esc(pick) : "your voice") + '</b></td></tr>'; }).join("") + '</tbody></table></div>';
+    var a = A(), ip = S.ui.ip || "telegram", hl = S.ui.hl || "progress";
+    var list = CREATORS.filter(function (c) { return c.p === ip; }), custom = a.custom.filter(function (c) { return c.p === ip; });
+    var tabs = '<div class="seg" role="group" aria-label="Platform">' + ["telegram", "x", "linkedin"].map(function (pl) { var n = CREATORS.filter(function (c) { return c.p === pl; }).length + a.custom.filter(function (c) { return c.p === pl; }).length; return '<button type="button" data-action="ip" data-p="' + pl + '" aria-pressed="' + (ip === pl) + '">' + PN[pl] + ' · ' + n + '</button>'; }).join("") + '</div>';
+    var matrix = list.length ? '<div class="matrix-scroll"><table class="matrix" style="min-width:' + (220 + list.length * 110) + 'px"><thead><tr><th>Post type</th>' + list.map(function (c) { return '<th>' + esc(cname(c.h)) + '</th>'; }).join("") + '<th>Picked</th></tr></thead><tbody>' +
+      TYPE_KEYS.map(function (t) { var pick = pickCreator(t, ip); return '<tr' + (t === hl ? ' class="hl"' : "") + '><td><button class="btn sm ghost" type="button" data-action="hl" data-t="' + t + '">' + TYPES[t] + '</button></td>' + list.map(function (c) { var sc = c.best[t] || 0, on = a.creators.indexOf(c.h) >= 0; return '<td><span class="str" style="' + (on ? "" : "opacity:.35") + '" aria-label="' + sc + ' of 3">' + "●".repeat(sc) + '<span class="off">' + "●".repeat(3 - sc) + '</span></span></td>'; }).join("") + '<td><b>' + (pick ? esc(cname(pick)) : "your voice") + '</b></td></tr>'; }).join("") + '</tbody></table></div>'
+      : '<div class="empty">No ' + PN[ip] + ' creators yet. Add one below. Until then, ' + PN[ip] + ' drafts use only your own voice.</div>';
     var grok = "Search X for the 30 most recent ORIGINAL posts by @HANDLE. Only posts they wrote (no replies, reposts or quotes), only about software, building, startups, AI or work. Copy each post EXACTLY and include its like count. Format each as:\n---\nDATE: <date>\nLINK: <link>\nLIKES: <count>\n<exact text>";
-    return '<div class="page-head"><div class="stack" style="gap:4px"><h1>Inspiration</h1><p class="muted">Voxlace borrows <b>structure</b> from builders you admire: hooks, rhythm, endings. Never their words, opinions or identity.</p></div><span class="chip accent">' + a.creators.length + ' of ' + CREATORS.length + ' enabled</span></div>' +
-      '<div class="card stack"><div class="row between"><h2>Who’s best at what</h2><span class="hint">Click a post type to highlight it. The rightmost column is who gets picked.</span></div>' + matrix +
-      '<p class="hint">Prototype: strengths are estimates from the structure of 310 collected posts. With like counts collected, “best” will mean proven best.</p></div>' +
-      '<div class="grid3">' + CREATORS.map(function (c) { return creatorTile(c, false); }).join("") +
-        a.custom.map(function (c) { return '<div class="card creator"><div class="row" style="gap:12px;flex-wrap:nowrap"><span class="cav" style="background:#566077" aria-hidden="true">' + esc(initials(c.h)) + '</span><div class="grow"><b>@' + esc(c.h) + '</b><div class="small muted">' + c.posts + ' posts pasted</div></div><span class="chip ok">Style card ready</span></div><p class="small muted">Added by you. Used when you pick it in the studio.</p></div>'; }).join("") + '</div>' +
-      '<form class="card stack" data-form="addcreator"><h2>Add a creator</h2><p class="small muted">Ask Grok on X for their posts with the prompt below, then paste the answer. Their posts stay private to your account.</p>' +
-        '<div class="grid2"><div class="field"><label for="c-handle">X handle</label><input id="c-handle" type="text" placeholder="@bekacru"></div><div class="field"><span class="label">Grok prompt</span><button class="btn" type="button" data-action="copy-grok">Copy the Grok prompt</button></div></div>' +
-        '<div class="field"><label for="c-posts">Paste their posts</label><textarea id="c-posts" rows="4" placeholder="---&#10;DATE: …&#10;LINK: …&#10;post text…"></textarea></div>' +
-        '<details><summary class="small">Show the prompt</summary><pre class="mono" style="white-space:pre-wrap;margin:8px 0 0">' + esc(grok) + '</pre></details>' +
-        '<div class="row"><button class="btn primary" type="submit">Build style card</button><span class="hint">Posts are checked: dates must match each post’s ID, and copies are refused in drafts.</span></div></form>';
+    var how = ip === "telegram" ? "Export the channel in Telegram Desktop (JSON) and paste its posts, or upload result.json. Voxlace uses the 40 most-reacted posts after the personal-hashtag filter." : ip === "x" ? "Ask Grok on X for their posts with the prompt below, then paste the answer." : "Copy 20–30 of their LinkedIn posts and paste them here, separated by blank lines.";
+    var idLabel = ip === "x" ? "X handle" : ip === "telegram" ? "Channel name" : "Creator name";
+    return '<div class="page-head"><div class="stack" style="gap:4px"><h1>Inspiration</h1><p class="muted">Each platform has its own creators: Telegram channels shape Telegram drafts, X accounts shape X drafts, LinkedIn creators shape LinkedIn drafts. <b>Never mixed.</b> Only structure is borrowed, never words or opinions.</p></div>' + tabs + '</div>' +
+      '<div class="card stack"><div class="row between"><h2>Who’s best at what on ' + PN[ip] + '</h2><span class="hint">Click a post type to highlight it. “Picked” is who your ' + PN[ip] + ' drafts borrow from.</span></div>' + matrix +
+      '<p class="hint">' + (ip === "telegram" ? "Strengths come from style cards built from each channel's 40 most-reacted posts." : ip === "x" ? "Strengths are estimates from 310 collected posts. With like counts collected, “best” will mean proven best." : "Add LinkedIn creators to see their strengths.") + '</p></div>' +
+      (list.length || custom.length ? '<div class="grid3">' + list.map(function (c) { return creatorTile(c, false); }).join("") +
+        custom.map(function (c) { return '<div class="card creator"><div class="row" style="gap:12px;flex-wrap:nowrap"><span class="cav" style="background:#566077" aria-hidden="true">' + esc(initials(c.h)) + '</span><div class="grow"><b>' + esc(cname("custom:" + c.h)) + '</b><div class="small muted">' + c.posts + ' posts · ' + PN[c.p] + '</div></div><span class="chip ok">Style card ready</span></div><p class="small muted">Added by you. Shapes your ' + PN[c.p] + ' drafts only.</p></div>'; }).join("") + '</div>' : "") +
+      '<form class="card stack" data-form="addcreator" data-p="' + ip + '"><h2>Add a ' + PN[ip] + ' creator</h2><p class="small muted">' + how + ' Their posts stay private to your account.</p>' +
+        '<div class="grid2"><div class="field"><label for="c-handle">' + idLabel + '</label><input id="c-handle" type="text" placeholder="' + (ip === "x" ? "@bekacru" : ip === "telegram" ? "e.g. Tech Nerd" : "e.g. Jane Doe") + '"></div>' + (ip === "x" ? '<div class="field"><span class="label">Grok prompt</span><button class="btn" type="button" data-action="copy-grok">Copy the Grok prompt</button></div>' : "") + '</div>' +
+        '<div class="field"><label for="c-posts">Paste their posts</label><textarea id="c-posts" rows="4" placeholder="One post per block, separated by a blank line"></textarea></div>' +
+        (ip === "x" ? '<details><summary class="small">Show the prompt</summary><pre class="mono" style="white-space:pre-wrap;margin:8px 0 0">' + esc(grok) + '</pre></details>' : "") +
+        '<div class="row"><button class="btn primary" type="submit">Build style card</button><span class="hint">Copies are refused in drafts: no 5 words in a row from their posts.</span></div></form>';
   }
 
   function viewReminders() {
@@ -931,7 +950,7 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
       ["Check", "N", "Logged in? Under today's draft limit? If not, a clear message and your text is kept.", "backend/app/core/auth.py · limits", "FR-27, FR-30", "Phase 2 & 6"],
       ["Post type", "F", "Detect the kind of post: launch, progress, lesson, hot take, humor, tip or event.", "backend/app/services/drafting.py", "FR-41", "Phase 3", "studio"],
       ["Search", "F", "Find your 8 closest past posts on that platform. Pinned always in, excluded never, near-copies dropped.", "backend/app/services/retrieval.py", "FR-7, FR-25", "Phase 1"],
-      ["Inspiration", "F", "Pick the enabled builder strongest at that post type and take 3 of their posts as structure-only examples.", "backend/app/services/inspiration.py", "FR-41", "Phase 3", "inspiration"],
+      ["Inspiration", "F", "Pick the enabled creator strongest at that post type ON THE SAME PLATFORM (Telegram channels for Telegram, X accounts for X, LinkedIn creators for LinkedIn) and take 3 of their posts as structure-only examples. Platforms never mix.", "backend/app/services/inspiration.py", "FR-41", "Phase 3", "inspiration"],
       ["Generate", "F", "Gemini writes it from: your examples, voice card, summary card, check-in, platform rules and “only these facts”. Backup models if it fails.", "backend/app/ai/client.py · ai/prompts/", "FR-19, FR-31", "Phase 1 & 6"],
       ["Show", "N", "The studio shows it with a live, platform-correct counter and the chat panel.", "frontend: Draft studio", "FR-9", "Phase 1 & 3", "studio"]] },
     { id: "ship", name: "Ship", when: "When you're happy with it", steps: [
@@ -1062,6 +1081,7 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
     else if (a === "lib") { S.ui.lib = b.getAttribute("data-v"); render(); }
     else if (a === "libp") { S.ui.libp = b.getAttribute("data-v"); render(); }
     else if (a === "hl") { S.ui.hl = b.getAttribute("data-t"); render(); }
+    else if (a === "ip") { S.ui.ip = b.getAttribute("data-p"); render(); }
     else if (a === "copy-grok") { var gp = "Search X for the 30 most recent ORIGINAL posts by @HANDLE. Only posts they wrote (no replies, reposts or quotes), only about software, building, startups, AI or work. Copy each post EXACTLY and include its like count. Format each as:\n---\nDATE: <date>\nLINK: <link>\nLIKES: <count>\n<exact text>"; try { navigator.clipboard.writeText(gp).then(function () { toast("Grok prompt copied. Replace @HANDLE with the creator's handle."); }, function () { toast("Copy blocked here. Open “Show the prompt” and copy it from there."); }); } catch (e) { toast("Copy blocked here. Open “Show the prompt” and copy it from there."); } }
     else if (a === "bot-remind") { S.ui.botAsked = true; acc.bot.push({ from: "bot", text: "👋 Hey " + acc.profile.name.split(" ")[0] + ", what did you build today? Reply in a line or two and I'll draft it.", time: acc.reminders.time }); save(); S.ui.focus = "bot-in"; render(); }
     else if (a === "bot-clear") { acc.bot = []; S.ui.botAsked = false; save(); render(); }
@@ -1092,10 +1112,11 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
     else if (a === "later-file" && t.files && t.files.length) toast("Got " + t.files[0].name + ". X and LinkedIn import arrive in Phase 3.");
     else if (a === "type" || a === "insp") {
       g = activeGroup(); if (!g) return;
-      if (a === "type") { g.type = t.value; g.insp = pickCreator(g.type); } else g.insp = t.value || null;
-      var d = g.drafts[g.platform], label = a === "type" ? "Type: " + TYPES[g.type] : (g.insp ? "Structure: @" + g.insp.replace(/^custom:/, "") : "Just my voice");
-      var v = addVersion(d, label, compose(g.platform, g.checkin, g.type, shapeOf(g.insp)));
-      d.chat.push({ role: "ai", text: a === "type" ? "Treated it as a " + TYPES[g.type].toLowerCase() + " post" + (g.insp ? " and picked @" + g.insp + ", strongest at that type." : ". No enabled builder is strong at this type, so it's your own structure.") : (g.insp ? "Rebuilt with @" + g.insp.replace(/^custom:/, "") + "'s structure. Your words stay yours." : "Back to just your voice, no borrowed structure."), v: v });
+      var d = g.drafts[g.platform];
+      if (a === "type") { g.type = t.value; d.insp = pickCreator(g.type, g.platform); } else d.insp = t.value || null;
+      var label = a === "type" ? "Type: " + TYPES[g.type] : (d.insp ? "Structure: " + cname(d.insp) : "Just my voice");
+      var v = addVersion(d, label, compose(g.platform, g.checkin, g.type, shapeOf(d.insp)));
+      d.chat.push({ role: "ai", text: a === "type" ? "Treated it as a " + TYPES[g.type].toLowerCase() + " post" + (d.insp ? " and picked " + cname(d.insp) + ", your strongest " + PN[g.platform] + " creator at that type." : ". None of your " + PN[g.platform] + " creators is strong at this type, so it's your own structure.") : (d.insp ? "Rebuilt with " + cname(d.insp) + "'s structure. Your words stay yours." : "Back to just your voice, no borrowed structure."), v: v });
       save(); render();
     }
     else if (a === "rem-time") { A().reminders.time = t.value || "20:00"; save(); render(); }
@@ -1146,7 +1167,7 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
       if (!text) { toast("Write what you did today, then pick a platform."); return; }
       if ((acc.draftsToday || 0) >= 30) { toast("You've used today's 30 drafts. The limit resets at midnight."); return; }
       g = addCheckin(text, p); S.ui.checkin = ""; save(); render();
-      toast(PN[p] + " draft ready · " + TYPES[g.type] + (g.insp ? " · structure from @" + g.insp : ""));
+      toast(PN[p] + " draft ready · " + TYPES[g.type] + (g.drafts[p].insp ? " · structure from " + cname(g.drafts[p].insp) : ""));
     }
     else if (kind === "chat") { var ci = document.getElementById("chat-in"), msg = ci ? ci.value : ""; chatSend(msg); }
     else if (kind === "sched") {
@@ -1157,12 +1178,12 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
     }
     else if (kind === "section") { var P = acc.profile; Array.prototype.forEach.call(f.querySelectorAll("input,textarea"), function (x) { P[x.name] = x.value; }); acc.summary = ""; S.ui.editing = null; save(); render(); toast("Saved. Your summary card was refreshed; the next drafts use it."); }
     else if (kind === "addcreator") {
-      var hEl = document.getElementById("c-handle"), pEl = document.getElementById("c-posts"), handle = (hEl && hEl.value || "").trim().replace(/^@/, ""), posts = (pEl && pEl.value || "").trim();
-      if (!/^[A-Za-z0-9_]{1,15}$/.test(handle)) { toast("Enter an X handle, like @bekacru."); return; }
-      if (CBY[handle] || acc.custom.some(function (c) { return c.h.toLowerCase() === handle.toLowerCase(); })) { toast("@" + handle + " is already in your list."); return; }
+      var cp = f.getAttribute("data-p") || "x", hEl = document.getElementById("c-handle"), pEl = document.getElementById("c-posts"), handle = (hEl && hEl.value || "").trim().replace(/^@/, ""), posts = (pEl && pEl.value || "").trim();
+      if (cp === "x" ? !/^[A-Za-z0-9_]{1,15}$/.test(handle) : !/^.{2,40}$/.test(handle)) { toast(cp === "x" ? "Enter an X handle, like @bekacru." : "Enter the " + (cp === "telegram" ? "channel" : "creator") + " name (2–40 characters)."); return; }
+      if (CREATORS.some(function (c) { return c.h.toLowerCase() === handle.toLowerCase() || c.n.toLowerCase() === handle.toLowerCase(); }) || acc.custom.some(function (c) { return c.h.toLowerCase() === handle.toLowerCase(); })) { toast(handle + " is already in your list."); return; }
       var cnt = (posts.match(/^LINK:/gmi) || []).length || posts.split(/\n\s*\n/).filter(Boolean).length;
       if (cnt < 5) { toast("Paste at least 5 of their posts so the style card is reliable."); return; }
-      acc.custom.push({ h: handle, posts: cnt }); save(); render(); toast("Style card built for @" + handle + " from " + cnt + " posts.");
+      acc.custom.push({ h: handle, p: cp, posts: cnt }); save(); render(); toast("Style card built for " + cname("custom:" + handle) + " from " + cnt + " posts. It shapes your " + PN[cp] + " drafts only.");
     }
     else if (kind === "bot") {
       var bi = document.getElementById("bot-in"), reply = (bi && bi.value || "").trim(); if (!reply) return;
@@ -1170,7 +1191,7 @@ table.matrix { border-collapse: collapse; width: 100%; min-width: 760px; font-si
       acc.bot.push({ from: "me", text: reply, time: now });
       g = addCheckin(reply, "telegram", "telegram");
       var draft = cur(g.drafts.telegram);
-      acc.bot.push({ from: "bot", text: "Saved as today's check-in ✅\nHere's your draft (" + TYPES[g.type].toLowerCase() + (g.insp ? ", structure from @" + g.insp : "") + "):\n\n" + draft + "\n\nOpen Voxlace to polish and approve it.", time: now });
+      acc.bot.push({ from: "bot", text: "Saved as today's check-in ✅\nHere's your draft (" + TYPES[g.type].toLowerCase() + (g.drafts.telegram.insp ? ", structure from " + cname(g.drafts.telegram.insp) : "") + "):\n\n" + draft + "\n\nOpen Voxlace to polish and approve it.", time: now });
       S.ui.botAsked = false; save(); render(); toast("Your reply became today's check-in. The draft is on your chat board.");
     }
   });

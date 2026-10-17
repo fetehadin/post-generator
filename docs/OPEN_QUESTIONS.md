@@ -202,6 +202,8 @@ The user shouldn't have to say "write like DHH". The app detects what kind of po
 
 **Decided:** voice examples must vary (at most 3 from one template); structure comes from 3 real inspiration posts of the matching type, plus an explicit instruction ("their hook, rhythm and ending; your words, emoji and sign-off"); a 5-word-phrase copy check runs on every draft. Collect like counts next time so "strongest" means proven, not just frequent. Inspiration posts are private to the user who collected them.
 
+**Decided (18 Oct 2026): inspiration is per platform, never mixed.** Telegram drafts learn structure only from Telegram channels (Dagmawi Babi, Code and Thought, Luna's pathway, Tech Nerd), X drafts only from X accounts (DHH, ThePrimeagen, Theo, levelsio…), LinkedIn drafts only from LinkedIn creators (none collected yet). Telegram style cards were built from each channel's 40 most-reacted posts, after the importer's personal-hashtag filter.
+
 ### Q27 ✅ (Phase 4–5) Chat with the draft, and daily reminders (FR-40, FR-42, FR-43)
 
 **Chat:** each draft gets a chat panel that already knows the user's voice, profile and platform rules. Every change is a version; it can fix one selected sentence, convert to another platform, and asks a question instead of inventing a missing fact. Stored in `draft_messages`.

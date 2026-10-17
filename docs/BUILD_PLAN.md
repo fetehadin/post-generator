@@ -169,7 +169,7 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 | X parser (wrapper, threads kept, replies to others skipped) and LinkedIn parser | Setup flow: privacy → about you → audience → import → your voice → first draft |
 | Weighted X counter with shared test cases (used by both backend and frontend) | Profile page: edit any section any time; summary card refreshes |
 | Voice card + stats per platform; summary card; endpoints for profile and voice cards | Settings: tab per platform (rules, voice card, excluded hashtags, pinned posts) |
-| **Smart inspiration (FR-41):** post-type detection, inspiration pool, structure examples | Live length counter; pin / exclude buttons; inspiration chip in the editor |
+| **Smart inspiration (FR-41):** post-type detection, a separate inspiration pool per platform (Telegram channels, X accounts, LinkedIn creators), structure examples | Live length counter; pin / exclude buttons; inspiration chip in the editor |
 
 **Demo:** the same topic produces three clearly different drafts — a tight X post, a LinkedIn post with a strong first line, a Telegram post — each in your voice, and a launch post shows a launch-strong creator's structure.
 
