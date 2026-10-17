@@ -140,3 +140,25 @@ def test_generate_skips_unsupported_provider_and_fails_clearly_when_all_fail():
 def test_chain_parsing_defaults_provider_to_google():
     s = Settings(_env_file=None, generation_models=" google:a , b,groq:c ")
     assert s.generation_chain == [("google", "a"), ("google", "b"), ("groq", "c")]
+
+
+def test_backoff_waits_as_long_as_the_server_asks():
+    class HintedModels(FakeModels):
+        def embed_content(self, model, contents, config):
+            if not self.embed_calls:
+                self.embed_calls.append(1)
+                raise errors.APIError(
+                    429,
+                    {
+                        "error": {
+                            "code": 429,
+                            "status": "RESOURCE_EXHAUSTED",
+                            "message": "Quota exceeded. Please retry in 15.4s.",
+                        }
+                    },
+                )
+            return super().embed_content(model, contents, config)
+
+    client, waits = make(HintedModels())
+    client.embed_query("x")
+    assert waits == [16.4]  # the server's 15.4s + 1s margin, not the 2s default
