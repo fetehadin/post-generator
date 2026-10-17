@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Voxlace Clickable Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a thin "prototype" bar on top; below it either a centered auth card, a setup wizard, or the app shell (sidebar + content). */
+:root {
+  --ground: #F3F5F8; --surface: #FFFFFF; --ink: #121826; --muted: #4A5468; --line: #D7DDE7; --line-strong: #A9B3C6;
+  --blue: #2346D8; --blue-ink: #16309E; --blue-tint: #E6ECFD; --on-blue: #FFFFFF;
+  --orange: #B4400B; --orange-ink: #8A2F06; --orange-tint: #FCEBDD;
+  --ok: #1E6B43; --ok-tint: #DCEFE3; --warn: #9A3412; --warn-tint: #FDE8DA;
+  --side: #121826; --side-ink: #D7DDE7; --soft: #E8ECF3;
+  --display: 'Bricolage Grotesque', Georgia, serif; --body: 'Instrument Sans', 'Helvetica Neue', Arial, sans-serif; --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ground: #0E121C; --surface: #171C28; --ink: #E8ECF4; --muted: #A3ADC2; --line: #2A3243; --line-strong: #46506A;
+  --blue: #7D97FF; --blue-ink: #A9BBFF; --blue-tint: #1D2645; --on-blue: #0E121C;
+  --orange: #F0915A; --orange-ink: #F6B48C; --orange-tint: #3A2418;
+  --ok: #6FD39C; --ok-tint: #16301F; --warn: #F6A97A; --warn-tint: #3A2418;
+  --side: #090C14; --side-ink: #C3CBDB; --soft: #222A3A; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --ground: #0E121C; --surface: #171C28; --ink: #E8ECF4; --muted: #A3ADC2; --line: #2A3243; --line-strong: #46506A;
+  --blue: #7D97FF; --blue-ink: #A9BBFF; --blue-tint: #1D2645; --on-blue: #0E121C;
+  --orange: #F0915A; --orange-ink: #F6B48C; --orange-tint: #3A2418;
+  --ok: #6FD39C; --ok-tint: #16301F; --warn: #F6A97A; --warn-tint: #3A2418;
+  --side: #090C14; --side-ink: #C3CBDB; --soft: #222A3A; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { background: var(--ground); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+h1, h2, h3 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: -0.3px; }
+h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.12; }
+h2 { font-size: 24px; line-height: 1.2; }
+h3 { font-size: 18px; line-height: 1.3; }
+p { margin: 0; }
+a { color: var(--blue); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font-weight: 600; cursor: pointer; text-decoration: none; }
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ship { background: var(--orange); border-color: var(--orange); color: var(--on-blue); }
+.btn.dark { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.small { min-height: 36px; padding: 0 12px; font-size: 14px; }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; filter: none; }
+.btn.full { width: 100%; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label, .label { font-size: 14px; font-weight: 600; }
+.hint { font-size: 13px; color: var(--muted); }
+input[type=text], input[type=email], select, textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); }
+textarea { resize: vertical; line-height: 1.5; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.between { justify-content: space-between; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; background: var(--soft); }
+.chip.blue { background: var(--blue-tint); color: var(--blue-ink); }
+.chip.orange { background: var(--orange-tint); color: var(--orange-ink); }
+.chip.ok { background: var(--ok-tint); color: var(--ok); }
+.chip.warn { background: var(--warn-tint); color: var(--warn); }
+.tag { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px 2px 10px; border-radius: 8px; background: var(--soft); font-size: 14px; }
+.tag button { min-width: 32px; min-height: 32px; border: 0; background: transparent; cursor: pointer; color: var(--muted); font-size: 16px; }
+.mono { font-family: var(--mono); font-size: 13px; }
+.muted { color: var(--muted); }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
+.divider { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+.divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--soft); border-radius: 12px; }
+.seg button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 9px; background: transparent; cursor: pointer; font-weight: 600; font-size: 14px; }
+.seg button[aria-pressed="true"] { background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+
+/* Prototype bar (not part of the product) */
+.protobar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding-block: 8px; padding-inline: 16px; background: var(--soft); border-bottom: 1px dashed var(--line-strong); font-size: 13px; }
+.protobar .row { gap: 6px; }
+.protobar .btn { min-height: 34px; padding: 0 10px; font-size: 13px; }
+.protobar b { font-weight: 700; }
+
+/* Auth */
+.auth-wrap { min-height: calc(100vh - 52px); display: grid; place-items: center; padding-block: 40px; padding-inline: 16px; }
+.auth { width: min(440px, 100%); display: flex; flex-direction: column; gap: 18px; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: -0.5px; }
+.google-dot { width: 18px; height: 18px; border-radius: 50%; background: conic-gradient(#EA4335 0 25%, #FBBC05 0 50%, #34A853 0 75%, #4285F4 0); }
+.error { color: var(--warn); font-size: 14px; font-weight: 600; }
+.code-input { letter-spacing: 10px; font-family: var(--mono); font-size: 22px !important; text-align: center; }
+
+/* Welcome */
+.welcome { max-width: 1120px; margin: 0 auto; padding-block: 56px; padding-inline: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 48px; align-items: center; }
+.welcome h1 { font-size: clamp(36px, 6vw, 60px); }
+.lede { font-size: 18px; color: var(--muted); max-width: 52ch; }
+.steps3 { display: grid; gap: 10px; }
+.steps3 div { display: flex; gap: 12px; align-items: baseline; }
+.steps3 b { font-family: var(--display); color: var(--blue); min-width: 20px; }
+.preview-post { white-space: pre-line; font-size: 16px; line-height: 1.55; }
+
+/* Setup */
+.setup { max-width: 820px; margin: 0 auto; padding-block: 32px 64px; padding-inline: 16px; display: flex; flex-direction: column; gap: 22px; }
+.progress { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.progress div { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.progress div::before { content: ""; height: 6px; border-radius: 3px; background: var(--line); }
+.progress div.done::before { background: var(--ok); }
+.progress div.now { color: var(--ink); }
+.progress div.now::before { background: var(--blue); }
+@media (max-width: 560px) { .progress div span { display: none; } }
+.check { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--line-strong); border-radius: 12px; cursor: pointer; }
+.check input { width: 22px; height: 22px; margin-top: 2px; flex-shrink: 0; }
+.bar { height: 10px; border-radius: 5px; background: var(--soft); overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--blue); transition: width 0.2s linear; }
+.pick { display: flex; flex-wrap: wrap; gap: 8px; }
+.pick button { min-height: 40px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); cursor: pointer; font-size: 14px; }
+.pick button[aria-pressed="true"] { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
+.drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 120px; border: 2px dashed var(--line-strong); border-radius: 12px; text-align: center; padding: 16px; cursor: pointer; }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+/* App shell */
+.shell { display: flex; flex-wrap: wrap; min-height: calc(100vh - 52px); }
+.side { flex: 1 1 220px; max-width: 100%; background: var(--side); color: var(--side-ink); padding-block: 24px; padding-inline: 16px; display: flex; flex-direction: column; gap: 24px; }
+.side .brand { color: #FFFFFF; padding-inline: 12px; }
+.side nav { display: flex; flex-direction: column; gap: 4px; }
+.side nav a { display: flex; align-items: center; min-height: 44px; padding-inline: 12px; border-radius: 10px; color: var(--side-ink); text-decoration: none; font-weight: 500; }
+.side nav a:hover { background: rgba(255,255,255,0.08); }
+.side nav a[aria-current="page"] { background: #2346D8; color: #FFFFFF; font-weight: 700; }
+.side .usage { margin-top: auto; padding: 12px; border-radius: 10px; background: rgba(255,255,255,0.06); font-size: 13px; }
+.content { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; }
+.topbar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding-block: 14px; padding-inline: clamp(16px, 4vw, 40px); border-bottom: 1px solid var(--line); background: var(--surface); position: relative; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--blue); color: var(--on-blue); display: grid; place-items: center; font-weight: 700; border: 0; cursor: pointer; }
+.menu { position: absolute; right: clamp(16px, 4vw, 40px); top: 62px; z-index: 5; width: 240px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.18); padding: 8px; display: flex; flex-direction: column; }
+.menu a, .menu button { display: flex; align-items: center; min-height: 44px; padding-inline: 12px; border-radius: 8px; border: 0; background: transparent; text-align: left; text-decoration: none; color: var(--ink); cursor: pointer; font-weight: 500; }
+.menu a:hover, .menu button:hover { background: var(--soft); }
+.page { padding-block: 32px 64px; padding-inline: clamp(16px, 4vw, 40px); display: flex; flex-direction: column; gap: 22px; max-width: 1100px; width: 100%; }
+@media (max-width: 760px) {
+  .side { flex-basis: 100%; padding-block: 12px; gap: 10px; }
+  .side nav { flex-direction: row; overflow-x: auto; }
+  .side nav a { white-space: nowrap; }
+  .side .usage { display: none; }
+}
+
+/* Chat + drafts */
+.bubble-me { align-self: flex-end; max-width: 640px; background: var(--blue); color: var(--on-blue); border-radius: 16px 16px 4px 16px; padding: 14px 18px; }
+.bubble-app { max-width: 720px; }
+.post-text { white-space: pre-line; font-size: 16px; line-height: 1.6; }
+.counter { font-variant-numeric: tabular-nums; }
+.versions button { display: flex; justify-content: space-between; width: 100%; min-height: 40px; padding-inline: 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; text-align: left; }
+.versions button[aria-current="true"] { background: var(--blue-tint); font-weight: 700; }
+.example { font-size: 14px; padding: 10px 12px; background: var(--ground); border-radius: 8px; }
+
+/* Calendar */
+.cal-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.cal { min-width: 820px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal .head { padding: 10px 12px; font-size: 13px; font-weight: 700; color: var(--muted); border-bottom: 1px solid var(--line); }
+.cal .head.today { background: var(--blue); color: var(--on-blue); }
+.cal .day { min-height: 300px; padding: 10px; display: flex; flex-direction: column; gap: 8px; border-right: 1px solid var(--line); }
+.cal .day:last-child { border-right: 0; }
+.ev { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 10px; font-size: 13px; line-height: 1.35; background: var(--ground); text-decoration: none; color: var(--ink); }
+.ev.tg { border: 2px solid var(--blue); background: var(--blue-tint); }
+.ev.x { border: 2px solid var(--orange); background: var(--orange-tint); }
+.ev.li { border: 1px dashed var(--line-strong); }
+
+/* Profile */
+.profile-head { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+.big-avatar { width: 84px; height: 84px; border-radius: 50%; background: var(--blue); color: var(--on-blue); display: grid; place-items: center; font-family: var(--display); font-size: 32px; font-weight: 700; }
+.section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.kv { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 8px 16px; font-size: 15px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; white-space: pre-line; }
+
+/* How it works */
+.how { max-width: 1180px; margin: 0 auto; padding-block: 32px 64px; padding-inline: 16px; display: flex; flex-direction: column; gap: 22px; }
+.lane { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.step { flex: 1 1 140px; min-width: 0; display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 14px; border-radius: 12px; border: 2px solid var(--line-strong); background: var(--surface); cursor: pointer; }
+.step:hover { transform: translateY(-1px); }
+.step.F { border-color: var(--blue); background: var(--blue-tint); }
+.step.N { border-color: var(--orange); background: var(--orange-tint); }
+.step.B { border-color: var(--ink); }
+.step[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--ink); }
+.step .n { font-size: 12px; font-weight: 700; color: var(--muted); }
+.step .t { font-weight: 700; font-size: 16px; }
+.step .o { font-size: 12px; font-weight: 700; margin-top: auto; }
+.arrow { align-self: center; color: var(--muted); font-size: 18px; }
+@media (max-width: 760px) { .arrow { display: none; } }
+.detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 18px; }
+.detail dl { margin: 0; display: grid; gap: 4px; }
+.detail dt { font-size: 12px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); }
+.detail dd { margin: 0 0 10px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 20; max-width: min(520px, calc(100% - 32px)); background: var(--ink); color: var(--surface); padding: 12px 18px; border-radius: 12px; font-weight: 600; box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
+</style>
+</head>
+<body>
+
+<div class="protobar" role="region" aria-label="Prototype controls">
+  <div><b>Voxlace prototype</b> · a clickable sketch for the team, not the real app. Nothing is sent anywhere.</div>
+  <div class="row">
+    <a class="btn" href="#how">How it works</a>
+    <button class="btn" type="button" data-action="reopen">Close &amp; reopen app</button>
+    <button class="btn" type="button" data-action="reset">Start as a new visitor</button>
+  </div>
+</div>
+<div id="view"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+  var KEY = "voxlace-prototype-v1";
+
+  // --- Example content (clearly an example user) ---
+  var EXAMPLE_PROFILE = {
+    name: "Fetehadin Negash", role: "Backend developer", stack: "Python, Django, FastAPI, PostgreSQL",
+    projects: "Voxlace: an app that drafts posts in your own voice", focus: "Building in public, learning AI engineering",
+    goal: "Post 3 times a week without it eating my evenings", topics: "Shipping logs, coding challenges, resources for beginners",
+    avoid: "Politics, religion, personal family life", voice: "Energetic, honest, short, a bit funny",
+    portfolio: "https://example.com/fetehadin", github: "https://github.com/fetehadin", website: "",
+    language: "English + Amharic", audience: "Ethiopia", hours: ["Evening"]
+  };
+  var EXCLUDED = ["#Scripture", "#Spiritual", "#ChristianArt", "#Alhamdulillah", "#EidVibes", "#Family", "#ForHer", "#Relationship", "#Friends", "#Me", "#DailyLife", "#Memes", "#Jokes", "#Songs", "#Lyrics", "#Wallpapers"];
+  var DRAFTS = {
+    telegram: "4/10 — #10DaysGrind | STATUS REPORT 🪖\nTelegram importer: done. 415 posts in, forwards and personal stuff out.\nNext mission: the embedding queue.\nSmall steps, every day. @fetedev",
+    x: "Day 4 of #10DaysGrind: the Telegram importer works. 415 posts in, forwards and personal stuff filtered out. Next: an embedding queue that survives restarts.",
+    linkedin: "Four days into a 10-day build sprint, and the first real piece of Voxlace works.\n\nIt reads a Telegram channel export and keeps only what I actually wrote: 415 posts, with forwards and personal topics filtered out.\n\nWhat surprised me: real exports are messier than any sample file. Dates come in local time, some posts are copy-pasted forwards, and a few contain phone numbers that should never reach an AI.\n\nNext up: an embedding queue that survives restarts and rate limits.\n\n#buildinpublic #python"
+  };
+  var REVISE = {
+    shorter: { telegram: "4/10 — #10DaysGrind 🪖\nImporter done: 415 posts in, the noise out.\nNext: embedding queue.\n@fetedev", x: "Day 4 #10DaysGrind: Telegram importer done. 415 posts in, noise out. Next: embeddings.", linkedin: "Day 4 of a 10-day sprint: Voxlace now reads a Telegram export and keeps only what I wrote (415 posts).\n\nLesson: real exports are messy. Next: an embedding queue that survives restarts.\n\n#buildinpublic" },
+    punchier: { telegram: "4/10 — #10DaysGrind 🪖\nImporter: DONE. 415 posts in. Zero noise.\nTomorrow the embedding queue falls too.\n@fetedev", x: "Importer: done. 415 posts in, zero noise. Day 4/10 of #10DaysGrind and the embedding queue is next.", linkedin: "415 posts in. Zero noise.\n\nDay 4 of my 10-day sprint, and Voxlace can now read a Telegram channel and keep only my own writing.\n\nReal exports are messy. That's the job.\n\nNext: an embedding queue that never loses work.\n\n#buildinpublic" },
+    casual: { telegram: "day 4/10 #10DaysGrind 🪖\nthe telegram importer finally works 😅 415 posts in, all the forwards out.\nembedding queue tomorrow insha'Allah\n@fetedev", x: "day 4/10 of #10DaysGrind and the telegram importer finally works 😅 415 posts in. embeddings tomorrow.", linkedin: "Small win today: Voxlace can read a Telegram export now 😅\n\n415 of my posts in, forwards and personal stuff out. Real exports are way messier than sample files.\n\nTomorrow: the embedding queue.\n\n#buildinpublic" }
+  };
+  var LIMITS = { telegram: 4096, x: 280, linkedin: 3000 };
+  var PNAME = { telegram: "Telegram", x: "X", linkedin: "LinkedIn" };
+
+  // --- How it works content ---
+  var LANES = [
+    { id: "learn", name: "Learn", when: "When you upload an export", steps: [
+      { t: "Upload", o: "N", what: "You pick your export file on the Import page (or setup step 4). The browser sends it to the backend.", code: "frontend: Import page · backend/app/api/imports.py (POST /imports)", req: "FR-1, FR-37 (privacy accepted first)", phase: "Phase 1", go: "setup-4" },
+      { t: "Read", o: "F", what: "Open the file and keep only the posts. A broken file is rejected with a readable message, and nothing is half-saved.", code: "backend/app/importers/telegram.py (later x.py, linkedin.py)", req: "FR-3, FR-39", phase: "Phase 1" },
+      { t: "Clean", o: "F", what: "Drop forwards, replies, service messages, empty and link-only posts, posts with your excluded hashtags, and anything already imported.", code: "backend/app/importers/telegram.py", req: "FR-2 · OPEN_QUESTIONS Q24, Q25", phase: "Phase 1", go: "settings" },
+      { t: "Choose", o: "F", what: "Rank posts by reactions and recency. The best ~1,000 are embedded right away; the rest wait in the queue.", code: "backend/app/services/imports.py", req: "OPEN_QUESTIONS Q25", phase: "Phase 1" },
+      { t: "Embed", o: "F", what: "Turn each post into 768 numbers that capture its meaning, about 100 posts a minute on the free tier. Backs off on rate limits and resumes after a restart. Never switches to another embedding model.", code: "backend/app/ai/client.py → embed_documents()", req: "FR-4, FR-32", phase: "Phase 1" },
+      { t: "Store", o: "B", what: "Save each post with its owner, platform, date, reactions and its 768 numbers. The database itself refuses to show one user's rows to another.", code: "backend/app/models/ · backend/migrations/ (source_posts, imports)", req: "FR-29, NFR-13", phase: "Phase 1–2" },
+      { t: "Voice card", o: "F", what: "Measure your habits per platform (length, emoji, hashtags, language, sign-offs) and write a short description of your style. Your own edits survive a regenerate.", code: "backend/app/services/voice.py", req: "FR-5, FR-26", phase: "Phase 3", go: "settings" }
+    ]},
+    { id: "draft", name: "Draft", when: "When you ask for a post", steps: [
+      { t: "Ask", o: "N", what: "You write a check-in or a topic and choose a platform on the chat board.", code: "frontend: Chat board · backend/app/api/drafts.py (POST /drafts/generate)", req: "FR-6, FR-7, FR-8", phase: "Phase 1 & 4", go: "chat" },
+      { t: "Check", o: "N", what: "Is the request from a logged-in user? Are they under today's draft limit? If not, a clear message and their text is kept.", code: "backend/app/core/auth.py · usage limits", req: "FR-27, FR-30, NFR-4", phase: "Phase 2 & 6" },
+      { t: "Search", o: "F", what: "Turn the topic into 768 numbers, then find your 8 closest past posts on that platform. Pinned posts are always included, excluded ones never, and near-copies are dropped so the examples vary.", code: "backend/app/services/retrieval.py", req: "FR-7, FR-25 · Q24", phase: "Phase 1" },
+      { t: "Prompt", o: "F", what: "Build the message for the AI: your 8 examples, your voice card, your profile summary, today's check-in, the platform's rules, and an instruction to state only these facts.", code: "backend/app/ai/prompts/*.md · services/drafting.py", req: "FR-19, FR-23, FR-24", phase: "Phase 1" },
+      { t: "Generate", o: "F", what: "Gemini writes the draft. If it's down or rate-limited, the next model in the list does, and the draft records which one wrote it.", code: "backend/app/ai/client.py → generate()", req: "FR-31, NFR-3", phase: "Phase 1 & 6" },
+      { t: "Save", o: "B", what: "Store the draft, its first version and the exact prompt that produced it, so any weak draft can be investigated later.", code: "tables: drafts, draft_versions, prompt_logs", req: "NFR-15", phase: "Phase 1" },
+      { t: "Show", o: "N", what: "The editor shows the draft with a live length counter that follows each platform's rule (X counts links as 23 and most emoji as 2).", code: "frontend: Draft editor · counting rules", req: "FR-9", phase: "Phase 1 & 3", go: "draft" }
+    ]},
+    { id: "ship", name: "Ship", when: "When you're happy with it", steps: [
+      { t: "Revise", o: "B", what: "Edit by hand, or ask for a change (\"shorter\"). Each change is a new version and older ones stay viewable.", code: "frontend: Draft editor · backend: POST /drafts/{id}/revise", req: "FR-10", phase: "Phase 4", go: "draft" },
+      { t: "Approve", o: "N", what: "You mark the draft Approved. Nothing is ever sent to any platform before this.", code: "PATCH /drafts/{id} (status)", req: "FR-11, NFR-6", phase: "Phase 4", go: "draft" },
+      { t: "Schedule", o: "N", what: "Place it on the calendar. Times are stored in UTC and shown in your own time zone.", code: "frontend: Calendar · drafts.scheduled_for", req: "FR-13, NFR-16", phase: "Phase 5", go: "calendar" },
+      { t: "Send", o: "N", what: "Telegram: the worker checks every minute and the bot posts approved, due drafts, even with your laptop closed. X opens its composer pre-filled; LinkedIn copies the text and opens its composer.", code: "backend/app/worker.py · Telegram Bot API · X intent link", req: "FR-12, FR-35, NFR-14", phase: "Phase 4 & 5", go: "calendar" },
+      { t: "Measure", o: "F", what: "Record whether each draft was published and how much you edited it. The weekly publish rate is the number that tells us Voxlace works.", code: "metrics queries", req: "FR-15", phase: "Phase 7" }
+    ]},
+    { id: "account", name: "Login & privacy", when: "Under every step", steps: [
+      { t: "Sign up / log in", o: "N", what: "Google, or an email code. Sign-up needs an invite code during the beta. Voxlace never asks for X, LinkedIn or Telegram passwords.", code: "Supabase Auth · frontend auth pages", req: "FR-27, FR-28, NFR-6", phase: "Phase 2", go: "signup" },
+      { t: "Stay logged in", o: "N", what: "Supabase keeps a refresh token on the device and quietly renews the short-lived login token, so the login page only returns after Log out.", code: "Supabase JS client session storage", req: "FR-27", phase: "Phase 2" },
+      { t: "Every request", o: "N", what: "The backend checks the login token on every call and takes the user from the token, never from what the browser sends.", code: "backend/app/core/auth.py", req: "FR-27, FR-29", phase: "Phase 2" },
+      { t: "Database lock", o: "B", what: "The API connects as a limited role and tells Postgres who the user is. Row-level security then hides everyone else's rows, even if the code has a bug. Tested with two users.", code: "backend/app/core/db.py · db/init/002_app_role.sh", req: "FR-29, NFR-7, NFR-13", phase: "Phase 2" },
+      { t: "Your data", o: "N", what: "A privacy notice before any upload, and buttons to export or delete everything.", code: "setup step 1 · Settings → Account & data", req: "FR-37, FR-38, NFR-10", phase: "Phase 2 & 6", go: "settings" }
+    ]}
+  ];
+  var OWNER = { F: "Fetehadin · Data & AI", N: "Nezira · App & Platform", B: "Both" };
+
+  // --- State ---
+  function fresh() {
+    return { account: null, session: null, pending: null, ui: {}, chat: [], draft: null, howLane: "learn", howStep: 0 };
+  }
+  var S = load();
+  function load() { try { var raw = localStorage.getItem(KEY); if (raw) return Object.assign(fresh(), JSON.parse(raw)); } catch (e) {} return fresh(); }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function initials(n) { return (n || "?").split(/\s+/).map(function (w) { return w[0]; }).join("").slice(0, 2).toUpperCase(); }
+  var toastTimer;
+  function toast(msg) { var t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 3200); }
+  function go(r) { if (location.hash === "#" + r) render(); else location.hash = r; }
+  function route() { return (location.hash || "").slice(1); }
+
+  function xCount(t) {
+    var s = t.replace(/https?:\/\/\S+/g, "xxxxxxxxxxxxxxxxxxxxxxx"); var n = 0;
+    for (var ch of s) { var cp = ch.codePointAt(0); n += (cp >= 0x1F000 || (cp >= 0x2600 && cp <= 0x27BF) || (cp >= 0x1100 && cp <= 0x115F) || (cp >= 0x2E80 && cp <= 0xA4CF) || (cp >= 0xAC00 && cp <= 0xD7A3)) ? 2 : 1; }
+    return n;
+  }
+  function count(p, t) { return p === "x" ? xCount(t) : Array.from(t).length; }
+
+  // --- Boot: what a real app does when it opens ---
+  function boot(silent) {
+    var r = route();
+    if (r === "how") { render(); return; }
+    if (S.session && S.account) {
+      if (!S.account.setupDone) { go("setup-" + (S.account.setupStep || 1)); if (!silent) toast("Session found on this device: back to setup step " + (S.account.setupStep || 1) + "."); }
+      else { go(isApp(r) ? r : "chat"); if (!silent) toast("Session found on this device: straight in, no login page."); }
+    } else if (!isAuth(r)) { go("welcome"); }
+    else render();
+  }
+  function isApp(r) { return ["chat", "draft", "calendar", "profile", "settings"].indexOf(r) >= 0; }
+  function isAuth(r) { return ["welcome", "signup", "login", "verify"].indexOf(r) >= 0; }
+
+  // --- Views ---
+  function render() {
+    var r = route(), v = document.getElementById("view"), html;
+    if (r === "how") html = viewHow();
+    else if (isAuth(r) || !S.session) {
+      if (!isAuth(r)) { location.hash = "welcome"; return; }
+      html = r === "signup" ? viewAuth("signup") : r === "login" ? viewAuth("login") : r === "verify" ? viewVerify() : viewWelcome();
+    } else if (/^setup-\d$/.test(r)) html = viewSetup(+r.slice(6));
+    else if (!S.account.setupDone) { location.hash = "setup-" + (S.account.setupStep || 1); return; }
+    else html = viewApp(r);
+    v.innerHTML = html;
+    document.title = "Voxlace Clickable Prototype";
+    var h = v.querySelector("h1"); if (h && document.activeElement === document.body) { h.setAttribute("tabindex", "-1"); }
+    after(r);
+  }
+
+  function viewWelcome() {
+    return '<section class="welcome">' +
+      '<div class="stack" style="gap:22px">' +
+        '<div class="brand">Voxlace</div>' +
+        '<h1>Your voice, woven across every platform.</h1>' +
+        '<p class="lede">Voxlace learns how you write from your own past posts, then drafts posts for X, LinkedIn and Telegram that sound like you. You approve every post.</p>' +
+        '<div class="steps3"><div><b>1</b><span>Upload your exports. It learns your voice per platform.</span></div><div><b>2</b><span>Write a daily check-in. Get a draft in your words.</span></div><div><b>3</b><span>Approve and schedule. Telegram posts itself on time.</span></div></div>' +
+        '<div class="row"><a class="btn primary" href="#signup">Create account</a><a class="btn" href="#login">Log in</a><a class="btn ghost" href="#how">How it works</a></div>' +
+        '<p class="hint">Invite-only beta. We never ask for your social media passwords.</p>' +
+      '</div>' +
+      '<div class="card stack" aria-label="Example draft">' +
+        '<div class="row between"><span class="chip blue">Telegram · example draft</span><span class="hint counter">197 / 4,096</span></div>' +
+        '<p class="preview-post">' + esc(DRAFTS.telegram) + '</p>' +
+        '<div class="divider">learned from posts like</div>' +
+        '<p class="example">2/10 — #10DaysGrind | STATUS REPORT 🪖 Progress: 2 / 8 Hours, Codebase refactored…</p>' +
+        '<p class="example">Progress is built on the days you didn\'t feel like showing up but did anyway. @fetedev</p>' +
+      '</div>' +
+    '</section>';
+  }
+
+  function viewAuth(mode) {
+    var up = mode === "signup";
+    var err = S.ui.authError ? '<p class="error" role="alert">' + esc(S.ui.authError) + '</p>' : "";
+    return '<div class="auth-wrap"><form class="auth card" data-form="' + mode + '" novalidate>' +
+      '<div class="brand">Voxlace</div>' +
+      '<h1 style="font-size:30px">' + (up ? "Create your account" : "Welcome back") + '</h1>' +
+      '<p class="muted">' + (up ? "Takes a minute. Then a short setup teaches Voxlace your voice." : "Log in once on this device and you stay logged in until you log out.") + '</p>' +
+      '<button class="btn full" type="button" data-action="google" data-mode="' + mode + '"><span class="google-dot" aria-hidden="true"></span>Continue with Google</button>' +
+      '<div class="divider">or with email</div>' +
+      '<div class="field"><label for="auth-email">Email</label><input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com" value="' + esc(S.ui.email || "") + '"></div>' +
+      (up ? '<div class="field"><label for="auth-invite">Invite code</label><input id="auth-invite" type="text" placeholder="e.g. BETA-7Q2K" value="' + esc(S.ui.invite || "") + '"><span class="hint">During the beta you need an invite from the team.</span></div>' : "") +
+      err +
+      '<button class="btn primary full" type="submit">Continue with email</button>' +
+      '<p class="hint">' + (up ? 'Already have an account? <a href="#login">Log in</a>' : 'New here? <a href="#signup">Create an account</a>') + '</p>' +
+      '<p class="hint">No password needed: we email you a 6-digit code.</p>' +
+    '</form></div>';
+  }
+
+  function viewVerify() {
+    if (!S.pending) return viewAuth("login");
+    var err = S.ui.codeError ? '<p class="error" role="alert">' + esc(S.ui.codeError) + '</p>' : "";
+    return '<div class="auth-wrap"><form class="auth card" data-form="verify" novalidate>' +
+      '<div class="brand">Voxlace</div>' +
+      '<h1 style="font-size:30px">Check your email</h1>' +
+      '<p class="muted">We sent a 6-digit code to <b>' + esc(S.pending.email) + '</b>. It works for 10 minutes.</p>' +
+      '<div class="field"><label for="code">Code</label><input id="code" class="code-input" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000"></div>' +
+      '<p class="hint">Prototype: any 6 digits work.</p>' + err +
+      '<button class="btn primary full" type="submit">Verify and continue</button>' +
+      '<p class="hint"><a href="#' + (S.pending.mode === "signup" ? "signup" : "login") + '">Use a different email</a></p>' +
+    '</form></div>';
+  }
+
+  var SETUP_NAMES = ["Privacy", "About you", "Audience", "Import posts", "Your voice", "First draft"];
+  function progress(n) {
+    return '<div class="progress" aria-label="Setup progress: step ' + n + ' of 6">' + SETUP_NAMES.map(function (s, i) {
+      var c = i + 1 < n ? "done" : i + 1 === n ? "now" : ""; return '<div class="' + c + '"><span>' + (i + 1) + ' · ' + s + '</span></div>';
+    }).join("") + '</div>';
+  }
+  function setupFrame(n, inner, canNext, nextLabel) {
+    return '<section class="setup">' +
+      '<div class="row between"><div class="brand">Voxlace</div><span class="hint">Saved as you go. You can close this and continue later.</span></div>' +
+      progress(n) + inner +
+      '<div class="row between">' + (n > 1 ? '<a class="btn" href="#setup-' + (n - 1) + '">Back</a>' : '<span></span>') +
+      '<button class="btn primary" type="button" data-action="next" data-step="' + n + '"' + (canNext ? "" : " disabled") + '>' + (nextLabel || "Continue") + '</button></div>' +
+    '</section>';
+  }
+
+  function viewSetup(n) {
+    var A = S.account, P = A.profile;
+    if (n > (A.setupMax || 1)) { location.hash = "setup-" + (A.setupMax || 1); return ""; }
+    A.setupStep = n; save();
+    if (n === 1) return setupFrame(1,
+      '<h1>Before you upload anything</h1>' +
+      '<div class="grid2"><div class="card stack"><h3>What Voxlace keeps</h3><p>Only the posts from your exports, your setup answers, your drafts and check-ins.</p><p>Your posts are used only for your own drafts. Nothing is shared with other users.</p></div>' +
+      '<div class="card stack"><h3>What to know</h3><p>During the beta, drafts are written with Google Gemini\'s free tier, which may use submitted text to improve Google\'s products.</p><p>You can export or delete all your data at any time in Settings.</p></div></div>' +
+      '<label class="check" for="privacy"><input id="privacy" type="checkbox" data-action="privacy"' + (A.privacy ? " checked" : "") + '><span>I understand how Voxlace uses my data, and I\'m happy to continue.</span></label>',
+      !!A.privacy, "Accept and continue");
+    if (n === 2) return setupFrame(2,
+      '<div class="stack" style="gap:6px"><h1>About you</h1><p class="muted">Drafts can only state facts you give here or in a check-in. Example answers are filled in; change anything. You can edit all of this later on your Profile.</p></div>' +
+      '<div class="card stack">' +
+        '<div class="grid2">' + fld("name", "Your name", P.name) + sel("role", "What you do", P.role, ["Backend developer", "Frontend developer", "Full-stack developer", "Mobile developer", "Data / AI engineer", "Student developer"]) + '</div>' +
+        fld("stack", "Your stack", P.stack) + area("projects", "What you're building now", P.projects) +
+        '<div class="grid2">' + fld("focus", "Current focus", P.focus) + fld("goal", "Your posting goal", P.goal) + '</div>' +
+        '<div class="label">Portfolio and links</div>' +
+        '<div class="grid3">' + fld("portfolio", "Portfolio", P.portfolio) + fld("github", "GitHub", P.github) + fld("website", "Website (optional)", P.website) + '</div>' +
+        sel("language", "Write my drafts in", P.language, ["English", "Amharic", "English + Amharic"]) +
+      '</div>', true);
+    if (n === 3) return setupFrame(3,
+      '<div class="stack" style="gap:6px"><h1>Your audience</h1><p class="muted">Used to shape tone and, later, to suggest good posting times.</p></div>' +
+      '<div class="card stack">' +
+        sel("audience", "Where most of your readers live", P.audience, ["Ethiopia", "East Africa", "Africa", "Europe", "North America", "Worldwide"]) +
+        '<div class="field"><span class="label">When you usually post</span><div class="pick" role="group" aria-label="Usual posting times">' +
+          ["Morning", "Afternoon", "Evening", "Late night"].map(function (h) { return '<button type="button" data-action="hour" data-hour="' + h + '" aria-pressed="' + (P.hours.indexOf(h) >= 0) + '">' + h + '</button>'; }).join("") +
+        '</div></div>' +
+        area("topics", "Topics you post about", P.topics) + fld("avoid", "Topics to avoid", P.avoid) + fld("voice", "Three to five words for your voice", P.voice) +
+      '</div>', true);
+    if (n === 4) return setupFrame(4, viewImport(true), A.imported, A.imported ? "Continue" : "Import at least one platform");
+    if (n === 5) return setupFrame(5,
+      '<div class="stack" style="gap:6px"><h1>Does this sound like you?</h1><p class="muted">Voxlace uses these two cards in every draft. Edit anything that\'s off. You can change them later too.</p></div>' +
+      '<div class="card stack"><div class="row between"><h3>Summary card</h3><span class="chip blue">Used in every draft</span></div>' +
+        '<label class="hint" for="summary">About 150 words, written from your setup answers</label><textarea id="summary" rows="5" data-bind="summary">' + esc(A.summary || summaryOf(P)) + '</textarea></div>' +
+      voiceCard(), true, "Looks like me");
+    if (n === 6) return setupFrame(6,
+      '<div class="stack" style="gap:6px"><h1>Your first draft</h1><p class="muted">Write a quick check-in about today, then let Voxlace draft it for Telegram.</p></div>' +
+      '<div class="card stack"><div class="field"><label for="first-checkin">Today\'s check-in</label><textarea id="first-checkin" rows="3">Day 4: finished the Telegram importer. It keeps 415 posts; forwards and personal hashtags get skipped. Tomorrow: the embedding queue.</textarea></div>' +
+      '<div class="row"><button class="btn primary" type="button" data-action="first-draft">Draft for Telegram</button></div>' +
+      (A.firstDraft ? '<div class="card stack" style="background:var(--ground)"><div class="row between"><span class="chip blue">Telegram · AI-generated</span><span class="hint counter">' + count("telegram", DRAFTS.telegram) + ' / 4,096</span></div><p class="post-text">' + esc(DRAFTS.telegram) + '</p></div>' : "") +
+      '</div>', !!A.firstDraft, "Finish setup");
+    return "";
+  }
+  function fld(k, label, v) { return '<div class="field"><label for="f-' + k + '">' + label + '</label><input id="f-' + k + '" type="text" data-bind="p.' + k + '" value="' + esc(v) + '"></div>'; }
+  function area(k, label, v) { return '<div class="field"><label for="f-' + k + '">' + label + '</label><textarea id="f-' + k + '" rows="2" data-bind="p.' + k + '">' + esc(v) + '</textarea></div>'; }
+  function sel(k, label, v, opts) { return '<div class="field"><label for="f-' + k + '">' + label + '</label><select id="f-' + k + '" data-bind="p.' + k + '">' + opts.map(function (o) { return '<option' + (o === v ? " selected" : "") + '>' + o + '</option>'; }).join("") + '</select></div>'; }
+  function summaryOf(P) {
+    return P.name + " is a " + P.role.toLowerCase() + " working with " + P.stack + ". Right now: " + P.projects + ". Focus: " + P.focus.toLowerCase() + ". Posts about " + P.topics.toLowerCase() + ", mostly for readers in " + P.audience + ", usually in the " + P.hours.join(" and ").toLowerCase() + ". Voice: " + P.voice.toLowerCase() + ". Avoids: " + P.avoid.toLowerCase() + ". Writes in " + P.language + ". Links: " + [P.portfolio, P.github, P.website].filter(Boolean).join(", ") + ".";
+  }
+  function voiceCard() {
+    return '<div class="card stack"><div class="row between"><h3>Your voice on Telegram</h3><span class="hint">measured from 428 posts</span></div>' +
+      '<p>Short, energetic updates from a builder working in public. Mixes English with Amharic, uses emoji often, signs off with @fetedev. Loves challenge logs (#10DaysGrind) and one-line motivation.</p>' +
+      '<div class="grid3">' + [["126", "typical length (characters)"], ["63%", "of posts use emoji"], ["45%", "sign off with @fetedev"], ["30%", "use hashtags"], ["27%", "include Amharic"], ["23%", "share a link"]].map(function (s) { return '<div class="card" style="padding:12px;background:var(--ground)"><div style="font-family:var(--display);font-size:24px;font-weight:700">' + s[0] + '</div><div class="hint">' + s[1] + '</div></div>'; }).join("") + '</div></div>';
+  }
+
+  function viewImport(inSetup) {
+    var A = S.account, im = S.ui.importing;
+    var tg;
+    if (A.imported) tg = '<span class="chip ok">Ready</span><p class="muted">FeteScript · result.json</p><p><b style="font-family:var(--display);font-size:40px">415</b> posts learned</p><p class="hint">Skipped 134 forwards · 4 personal topics · 11 too short</p>';
+    else if (im) tg = '<p class="muted">FeteScript · result.json</p><p class="label">' + esc(im.label) + '</p><div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + im.pct + '"><span style="width:' + im.pct + '%"></span></div><p class="hint">' + esc(im.sub) + '</p>';
+    else tg = '<label class="drop" for="tg-file"><b>Drop result.json here</b><span class="hint">Telegram Desktop → your channel → ⋮ → Export chat history → JSON</span><input id="tg-file" type="file" accept=".json" data-action="tg-file"></label><button class="btn small" type="button" data-action="tg-example">Use the FeteScript example</button>';
+    return (inSetup ? '<div class="stack" style="gap:6px"><h1>Import your posts</h1><p class="muted">Start with one platform. X and LinkedIn take 1–2 days to send exports, so you can add them later from Import.</p></div>' : '<h1>Import</h1>') +
+      '<div class="grid3">' +
+        '<div class="card stack"><h3>Telegram</h3>' + tg + '</div>' +
+        '<div class="card stack"><h3>X</h3><label class="drop" for="x-file"><b>Drop your X archive (.zip)</b><span class="hint">Settings → Your account → Download an archive</span><input id="x-file" type="file" accept=".zip" data-action="later-file"></label><p class="hint">Arrives in about a day. Skip for now.</p></div>' +
+        '<div class="card stack"><h3>LinkedIn</h3><label class="drop" for="li-file"><b>Drop your LinkedIn archive</b><span class="hint">We read only Shares.csv</span><input id="li-file" type="file" accept=".zip,.csv" data-action="later-file"></label><p class="hint">Takes 1–2 days. Request it today.</p></div>' +
+      '</div>' + excludedCard();
+  }
+  function excludedCard() {
+    var list = S.account.excluded;
+    return '<div class="card stack"><div class="row between"><h3>Never learn from posts tagged</h3><span class="hint">' + list.length + ' hashtags</span></div>' +
+      '<div class="row" style="gap:8px">' + list.map(function (t, i) { return '<span class="tag">' + esc(t) + '<button type="button" data-action="untag" data-i="' + i + '" aria-label="Remove ' + esc(t) + '">×</button></span>'; }).join("") + '</div>' +
+      '<form class="row" data-form="addtag"><label for="newtag" class="hint">Add a hashtag</label><input id="newtag" type="text" placeholder="#hashtag" style="max-width:220px"><button class="btn small dark" type="submit">Add</button></form></div>';
+  }
+
+  // --- App shell ---
+  var NAV = [["chat", "Chat board"], ["draft", "Draft editor"], ["calendar", "Calendar"], ["profile", "Profile"], ["settings", "Settings"]];
+  function viewApp(r) {
+    var A = S.account, body;
+    if (r === "draft") body = viewDraft(); else if (r === "calendar") body = viewCalendar(); else if (r === "profile") body = viewProfile(); else if (r === "settings") body = viewSettings(); else body = viewChat();
+    return '<div class="shell"><aside class="side"><div class="brand">Voxlace</div><nav aria-label="Main">' +
+      NAV.map(function (n) { return '<a href="#' + n[0] + '"' + (r === n[0] ? ' aria-current="page"' : "") + '>' + n[1] + '</a>'; }).join("") +
+      '<a href="#how">How it works</a></nav><div class="usage">Today: ' + (S.chat.filter(function (m) { return m.kind === "draft"; }).length + 1) + ' of 30 drafts used</div></aside>' +
+      '<div class="content"><div class="topbar"><span class="hint">' + esc(A.email) + '</span><button class="avatar" type="button" data-action="menu" aria-haspopup="true" aria-expanded="' + (!!S.ui.menu) + '" aria-label="Account menu">' + initials(A.profile.name) + '</button>' +
+      (S.ui.menu ? '<div class="menu" role="menu"><a role="menuitem" href="#profile">Profile</a><a role="menuitem" href="#settings">Settings</a><button role="menuitem" type="button" data-action="logout">Log out</button></div>' : "") +
+      '</div><main class="page">' + body + '</main></div></div>';
+  }
+
+  function viewChat() {
+    var msgs = S.chat.map(function (m) {
+      if (m.kind === "checkin") return '<div class="bubble-me"><div class="eyebrow" style="color:inherit;opacity:.8">Check-in</div><p>' + esc(m.text) + '</p></div>';
+      return '<div class="card stack bubble-app"><div class="row between"><span class="chip blue">' + PNAME[m.platform] + ' · AI-generated</span><span class="hint counter">' + count(m.platform, m.text) + ' / ' + LIMITS[m.platform].toLocaleString() + '</span></div><p class="post-text">' + esc(m.text) + '</p><div class="row"><button class="btn small primary" type="button" data-action="open-draft" data-platform="' + m.platform + '">Open in editor</button></div></div>';
+    }).join("");
+    return '<div class="row between"><h1>Chat board</h1><span class="hint">Thursday 16 October</span></div>' +
+      '<div class="stack">' + (msgs || '<div class="card"><p class="muted">Nothing yet today. Write a check-in below, then pick a platform.</p></div>') + '</div>' +
+      '<form class="card stack" data-form="checkin"><label class="label" for="checkin">What did you do today, or what should we post about?</label>' +
+      '<textarea id="checkin" rows="3" placeholder="e.g. Fixed the duplicate bug in the importer">' + esc(S.ui.checkin || "") + '</textarea>' +
+      '<div class="row between"><span class="hint">Drafts only use facts from your profile and your check-ins.</span><div class="row">' +
+      ["x", "linkedin", "telegram"].map(function (p) { return '<button class="btn small' + (p === "telegram" ? " primary" : "") + '" type="submit" data-platform="' + p + '">Draft for ' + PNAME[p] + '</button>'; }).join("") +
+      '</div></div></form>';
+  }
+
+  function ensureDraft(p) {
+    if (!S.draft || (p && S.draft.platform !== p)) { var pl = p || "telegram"; S.draft = { platform: pl, versions: [{ label: "First draft", text: DRAFTS[pl] }], cur: 0, status: "Draft", scheduled: null }; }
+    return S.draft;
+  }
+  function viewDraft() {
+    var d = ensureDraft(), v = d.versions[d.cur], n = count(d.platform, v.text), lim = LIMITS[d.platform], over = n > lim;
+    var send = d.platform === "telegram" ? "Approve & publish now" : d.platform === "x" ? "Approve & open X" : "Approve, copy & open LinkedIn";
+    return '<div class="row between"><h1>Draft editor</h1><div class="seg" role="group" aria-label="Platform">' +
+      ["x", "linkedin", "telegram"].map(function (p) { return '<button type="button" data-action="platform" data-platform="' + p + '" aria-pressed="' + (d.platform === p) + '">' + PNAME[p] + '</button>'; }).join("") + '</div></div>' +
+      '<div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));align-items:start">' +
+      '<div class="stack">' +
+        '<div class="card stack"><div class="row between"><label class="hint" for="draft-text">AI-generated · ' + esc(v.label) + ' · edit it directly</label><span id="counter" class="chip ' + (over ? "warn" : "ok") + ' counter">' + n.toLocaleString() + ' / ' + lim.toLocaleString() + '</span></div>' +
+        '<textarea id="draft-text" rows="' + (d.platform === "linkedin" ? 12 : 6) + '" data-action="draft-input">' + esc(v.text) + '</textarea>' +
+        '<p id="over-note" class="error"' + (over ? "" : " hidden") + '>Too long for ' + PNAME[d.platform] + '. Shorten it to approve.</p>' +
+        '<div class="row"><span class="label">Status</span><span class="chip ' + (d.status === "Approved" ? "orange" : d.status === "Published" ? "ok" : "") + '">' + d.status + '</span>' + (d.scheduled ? '<span class="chip blue">Scheduled · ' + esc(d.scheduled) + '</span>' : "") + '</div></div>' +
+        '<div class="card stack"><span class="label">Tell it what to change</span><div class="pick">' +
+          [["shorter", "Shorter"], ["punchier", "Punchier"], ["casual", "More casual"]].map(function (r) { return '<button type="button" data-action="revise" data-kind="' + r[0] + '">' + r[1] + '</button>'; }).join("") + '</div>' +
+          '<form class="row" data-form="revise"><label for="revise-text" class="hint" style="flex-basis:100%">Or type an instruction</label><input id="revise-text" type="text" placeholder="e.g. mention it took 2 days" style="flex:1 1 220px"><button class="btn dark" type="submit">Revise</button></form></div>' +
+        '<div class="row"><button class="btn ship" type="button" data-action="approve-send"' + (over ? " disabled" : "") + '>' + send + '</button><button class="btn" type="button" data-action="approve-schedule"' + (over ? " disabled" : "") + '>Approve &amp; schedule</button></div>' +
+        '<p class="hint">Nothing is sent until you approve. Telegram is posted by the bot; X and LinkedIn open their own composer for you to press Post.</p>' +
+      '</div>' +
+      '<div class="stack">' +
+        '<div class="card stack"><h3>Learned from your posts</h3><p class="example">2/10 — #10DaysGrind | STATUS REPORT 🪖 Progress: 2 / 8 Hours, Codebase refactored…</p><p class="example">MILITARY LOG - #10DaysGrind Operation: Ramadan Challenge - Day 4…</p><p class="example">Progress is built on the days you didn\'t feel like showing up but did anyway. @fetedev</p><p class="hint">+ 5 more · written by gemini-flash</p></div>' +
+        '<div class="card stack versions"><h3>Versions</h3>' + d.versions.map(function (x, i) { return '<button type="button" data-action="version" data-i="' + i + '" aria-current="' + (i === d.cur) + '"><span>v' + (i + 1) + ' · ' + esc(x.label) + '</span><span class="hint">' + (i === d.cur ? "showing" : "view") + '</span></button>'; }).reverse().join("") +
+        '<button type="button" data-action="prompt"><span>See the exact prompt</span><span class="hint">debug</span></button></div>' +
+        (S.ui.prompt ? '<div class="card stack"><h3>Prompt (shortened)</h3><pre class="mono" style="white-space:pre-wrap;margin:0">You write ' + PNAME[d.platform] + ' posts as ' + esc(S.account.profile.name) + '.\nState only facts from SUMMARY and CHECK-IN.\n\nVOICE: Short, energetic… signs off @fetedev\nRULES: limit ' + lim + ' chars\nSUMMARY: ' + esc((S.account.summary || summaryOf(S.account.profile)).slice(0, 120)) + '…\nEXAMPLES (8): 2/10 — #10DaysGrind…\nCHECK-IN: Day 4: finished the Telegram importer…</pre></div>' : "") +
+      '</div></div>';
+  }
+
+  function viewCalendar() {
+    var d = S.draft, days = ["Mon 13", "Tue 14", "Wed 15", "Thu 16", "Fri 17", "Sat 18", "Sun 19"];
+    var ev = { 0: '<div class="ev"><b>Telegram · 19:00</b>2/10 status report<span class="hint">Published</span></div>', 1: '<div class="ev"><b>X · 20:30</b>Why I build in public<span class="hint">Published</span></div>', 4: '<div class="ev li"><b>LinkedIn · 09:00</b>What 10 days of grinding taught me<span class="hint">Draft · not approved</span></div>' };
+    if (d && d.scheduled) ev[3] = (ev[3] || "") + '<a class="ev ' + (d.platform === "telegram" ? "tg" : d.platform === "x" ? "x" : "li") + '" href="#draft"><b>' + PNAME[d.platform] + ' · 18:00</b>' + esc(d.versions[d.cur].text.split("\n")[0].slice(0, 40)) + '<span class="hint">' + (d.platform === "telegram" ? "Approved · the bot sends it" : "Approved · reminder, then you post") + '</span></a>';
+    return '<div class="row between"><div class="stack" style="gap:4px"><h1>This week</h1><span class="hint">13–19 October · shown in your time zone (Addis Ababa), stored in UTC</span></div></div>' +
+      '<div class="cal-scroll"><div class="cal">' + days.map(function (x, i) { return '<div class="head' + (i === 3 ? " today" : "") + '">' + x + (i === 3 ? " · today" : "") + '</div>'; }).join("") +
+      days.map(function (x, i) { return '<div class="day">' + (ev[i] || "") + '</div>'; }).join("") + '</div></div>' +
+      '<div class="grid2"><div class="card stack"><h3>Who sends what</h3><p><b>Telegram:</b> once approved, the bot posts at the time, even with your laptop closed.</p><p><b>X and LinkedIn:</b> you get a reminder, then one click opens the composer.</p></div>' +
+      '<div class="card stack"><h3>Not scheduled yet</h3>' + (d && !d.scheduled ? '<a class="ev" href="#draft"><b>' + PNAME[d.platform] + '</b>' + esc(d.versions[d.cur].text.split("\n")[0].slice(0, 50)) + '</a>' : '<p class="hint">Everything you approved has a time.</p>') + '</div></div>';
+  }
+
+  var SECTIONS = [
+    { id: "about", title: "About", fields: [["name", "Name"], ["role", "What you do"], ["focus", "Current focus"], ["goal", "Posting goal"]] },
+    { id: "work", title: "What you're building", fields: [["projects", "Projects"], ["stack", "Stack"]] },
+    { id: "links", title: "Portfolio & links", fields: [["portfolio", "Portfolio"], ["github", "GitHub"], ["website", "Website"]] },
+    { id: "posting", title: "Topics & voice", fields: [["topics", "Topics"], ["avoid", "Avoid"], ["voice", "Voice words"], ["language", "Language"]] },
+    { id: "audience", title: "Audience", fields: [["audience", "Readers live in"]] }
+  ];
+  function viewProfile() {
+    var A = S.account, P = A.profile, ed = S.ui.editing;
+    return '<div class="card"><div class="profile-head"><div class="big-avatar" aria-hidden="true">' + initials(P.name) + '</div><div class="stack" style="gap:4px;flex:1 1 240px"><h1 style="font-size:32px">' + esc(P.name) + '</h1><p class="muted">' + esc(P.role) + ' · ' + esc(P.stack) + '</p><div class="row">' + [P.portfolio, P.github, P.website].filter(Boolean).map(function (l) { return '<a href="' + esc(l) + '" target="_blank" rel="noopener">' + esc(l.replace(/^https?:\/\//, "")) + '</a>'; }).join("") + '</div></div></div></div>' +
+      '<p class="hint">Edit any section, any time, like a LinkedIn profile. Saving refreshes your summary card, and the next drafts use the new facts.</p>' +
+      SECTIONS.map(function (s) {
+        if (ed === s.id) {
+          return '<form class="card stack" data-form="section" data-section="' + s.id + '"><div class="section-head"><h2>' + s.title + '</h2></div>' +
+            s.fields.map(function (f) { var long = (P[f[0]] || "").length > 60; return '<div class="field"><label for="e-' + f[0] + '">' + f[1] + '</label>' + (long ? '<textarea id="e-' + f[0] + '" name="' + f[0] + '" rows="2">' + esc(P[f[0]]) + '</textarea>' : '<input id="e-' + f[0] + '" name="' + f[0] + '" type="text" value="' + esc(P[f[0]]) + '">') + '</div>'; }).join("") +
+            '<div class="row"><button class="btn primary" type="submit">Save</button><button class="btn" type="button" data-action="cancel-edit">Cancel</button></div></form>';
+        }
+        return '<section class="card stack" aria-labelledby="h-' + s.id + '"><div class="section-head"><h2 id="h-' + s.id + '">' + s.title + '</h2><button class="btn small" type="button" data-action="edit" data-section="' + s.id + '" aria-label="Edit ' + s.title + '">Edit</button></div>' +
+          '<dl class="kv">' + s.fields.map(function (f) { return '<dt>' + f[1] + '</dt><dd>' + (esc(P[f[0]]) || '<span class="hint">Not set</span>') + '</dd>'; }).join("") + (s.id === "audience" ? '<dt>Usual posting time</dt><dd>' + esc(P.hours.join(", ")) + '</dd>' : "") + '</dl></section>';
+      }).join("") +
+      '<section class="card stack"><div class="section-head"><h2>Summary card</h2><span class="chip blue">Used in every draft</span></div><label class="hint" for="summary2">Rewritten when you save a section. Your own edits here are kept.</label><textarea id="summary2" rows="5" data-bind="summary">' + esc(A.summary || summaryOf(P)) + '</textarea></section>';
+  }
+
+  function viewSettings() {
+    var tab = S.ui.tab || "telegram";
+    var tabs = '<div class="seg" role="group" aria-label="Settings section">' + [["telegram", "Telegram"], ["x", "X"], ["linkedin", "LinkedIn"], ["import", "Import"], ["account", "Account & data"]].map(function (t) { return '<button type="button" data-action="tab" data-tab="' + t[0] + '" aria-pressed="' + (tab === t[0]) + '">' + t[1] + '</button>'; }).join("") + '</div>';
+    var body;
+    if (tab === "telegram") body = '<div class="grid2">' + voiceCard() + '<div class="stack"><div class="card stack"><h3>Telegram rules</h3><div class="row"><span class="chip">Limit 4,096</span><span class="chip">Plain count</span></div><div class="field"><label for="tone">Tone notes, used in every Telegram prompt</label><input id="tone" type="text" value="Relaxed and personal; longer is fine; emoji welcome."></div></div><div class="card stack"><h3>Connected channel</h3><div class="row between"><span><b>FeteScript</b> · @fetescript</span><span class="chip ok">Bot is admin · verified</span></div></div></div></div>' + excludedCard();
+    else if (tab === "import") body = viewImport(false);
+    else if (tab === "account") body = '<div class="grid2"><div class="card stack"><h3>Export my data</h3><p class="muted">Everything Voxlace stores about you, as one JSON file.</p><button class="btn" type="button" data-action="export">Prepare export</button></div><div class="card stack"><h3>Delete my account</h3><p class="muted">Removes every post, embedding, draft, check-in and setting. This can\'t be undone.</p>' + (S.ui.confirmDelete ? '<p class="error">Are you sure? Everything will be deleted.</p><div class="row"><button class="btn ship" type="button" data-action="delete-yes">Yes, delete everything</button><button class="btn" type="button" data-action="delete-no">Keep my account</button></div>' : '<button class="btn" type="button" data-action="delete-ask">Delete account…</button>') + '</div><div class="card stack"><h3>This device</h3><p class="muted">You stay logged in here until you log out.</p><button class="btn" type="button" data-action="logout">Log out</button></div></div>';
+    else body = '<div class="card stack"><h3>' + PNAME[tab] + ' isn\'t imported yet</h3><p class="muted">' + (tab === "x" ? "Request your archive from X; it arrives in about a day." : "LinkedIn takes 1–2 days to send your archive.") + ' Then upload it from the Import tab and this page shows your ' + PNAME[tab] + ' voice card and rules.</p><button class="btn" type="button" data-action="tab" data-tab="import">Go to Import</button></div>';
+    return '<h1>Settings</h1>' + tabs + body;
+  }
+
+  function viewHow() {
+    var lane = LANES.filter(function (l) { return l.id === S.howLane; })[0] || LANES[0], st = lane.steps[S.howStep] || lane.steps[0];
+    var back = S.session && S.account && S.account.setupDone ? '<a class="btn" href="#chat">Back to the app</a>' : S.session ? '<a class="btn" href="#setup-' + (S.account.setupStep || 1) + '">Back to setup</a>' : '<a class="btn" href="#welcome">Back to the welcome page</a>';
+    return '<section class="how">' +
+      '<div class="row between"><div class="stack" style="gap:6px"><h1>How Voxlace works inside</h1><p class="muted">Pick a lane, then click any step to see what happens, who builds it and where it lives in the code.</p></div>' + back + '</div>' +
+      '<div class="row between"><div class="seg" role="group" aria-label="Lane">' + LANES.map(function (l) { return '<button type="button" data-action="lane" data-lane="' + l.id + '" aria-pressed="' + (l.id === lane.id) + '">' + l.name + '</button>'; }).join("") + '</div>' +
+      '<div class="legend"><span class="chip blue">Fetehadin · Data &amp; AI</span><span class="chip orange">Nezira · App &amp; Platform</span><span class="chip">Both</span></div></div>' +
+      '<p class="eyebrow">' + esc(lane.name) + ' · ' + esc(lane.when) + '</p>' +
+      '<div class="lane">' + lane.steps.map(function (s, i) {
+        return (i ? '<span class="arrow" aria-hidden="true">→</span>' : "") + '<button class="step ' + s.o + '" type="button" data-action="step" data-i="' + i + '" aria-pressed="' + (s === st) + '"><span class="n">Step ' + (i + 1) + '</span><span class="t">' + esc(s.t) + '</span><span class="o">' + (s.o === "F" ? "Fetehadin" : s.o === "N" ? "Nezira" : "Both") + '</span></button>';
+      }).join("") + '</div>' +
+      '<div class="card stack" aria-live="polite"><div class="row between"><h2>' + (lane.steps.indexOf(st) + 1) + ' · ' + esc(st.t) + '</h2><span class="chip ' + (st.o === "F" ? "blue" : st.o === "N" ? "orange" : "") + '">' + OWNER[st.o] + '</span></div>' +
+      '<div class="detail"><dl><dt>What happens</dt><dd>' + esc(st.what) + '</dd></dl><dl><dt>Where in the code</dt><dd class="mono">' + esc(st.code) + '</dd><dt>Requirements</dt><dd>' + esc(st.req) + '</dd><dt>Built in</dt><dd>' + esc(st.phase) + '</dd></dl></div>' +
+      (st.go ? '<div class="row"><a class="btn primary" href="#' + st.go + '" data-action="see">See it in the prototype</a><span class="hint">' + (S.session ? "" : "You'll be asked to sign up or log in first.") + '</span></div>' : "") +
+      '<div class="row between"><button class="btn small" type="button" data-action="prev-step"' + (lane.steps.indexOf(st) === 0 ? " disabled" : "") + '>Previous step</button><button class="btn small" type="button" data-action="next-step"' + (lane.steps.indexOf(st) === lane.steps.length - 1 ? " disabled" : "") + '>Next step</button></div></div>' +
+      '<div class="card stack"><h3>The system in one line</h3><p>Browser (React) → FastAPI backend → Postgres + pgvector for your posts and drafts · Gemini for embeddings and writing · a worker that posts to Telegram on time. All on one Contabo server; Supabase is used only for login.</p></div>' +
+    '</section>';
+  }
+
+  // --- After render: focus and live bits ---
+  function after(r) {
+    var h = document.querySelector("#view h1"); if (h) { h.setAttribute("tabindex", "-1"); }
+    if (r === "verify") { var c = document.getElementById("code"); if (c) c.focus(); }
+  }
+
+  // --- Actions ---
+  function startSession(email, mode) {
+    if (mode === "signup") {
+      S.account = { email: email, profile: JSON.parse(JSON.stringify(EXAMPLE_PROFILE)), excluded: EXCLUDED.slice(), setupDone: false, setupStep: 1, setupMax: 1, privacy: false, imported: false, firstDraft: false, summary: "" };
+      S.chat = []; S.draft = null;
+    }
+    S.session = { email: email, since: Date.now() }; S.pending = null; S.ui = {}; save();
+    if (!S.account.setupDone) { go("setup-" + (S.account.setupStep || 1)); toast(mode === "signup" ? "Account created. Setup takes about 5 minutes." : "Logged in. Picking up setup where you left it."); }
+    else { go("chat"); toast("Logged in. You'll stay logged in on this device until you log out."); }
+  }
+  function authSubmit(mode) {
+    var email = (document.getElementById("auth-email").value || "").trim();
+    S.ui.email = email;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { S.ui.authError = "Enter a valid email address, like you@example.com."; render(); return; }
+    if (mode === "signup") {
+      var inv = (document.getElementById("auth-invite").value || "").trim(); S.ui.invite = inv;
+      if (inv.length < 4) { S.ui.authError = "Enter the invite code the team sent you. Any 4+ characters work in this prototype."; render(); return; }
+      if (S.account && S.account.email === email) { S.ui.authError = "There's already an account for this email. Log in instead."; render(); return; }
+    } else if (!S.account || S.account.email !== email) {
+      S.ui.authError = S.account ? "No account for " + email + ". This prototype's account is " + S.account.email + "." : "No account for this email yet. Create one first.";
+      render(); return;
+    }
+    S.ui.authError = ""; S.pending = { email: email, mode: mode }; save(); go("verify");
+  }
+  function google(mode) {
+    var email = S.account ? S.account.email : "fetehadin@gmail.com";
+    if (mode === "signup" && S.account) { startSession(S.account.email, "login"); return; }
+    if (mode === "login" && !S.account) { S.ui.authError = "No account for this Google account yet. Create one first."; render(); return; }
+    startSession(email, S.account ? "login" : "signup");
+  }
+
+  var importTimer;
+  function runImport() {
+    var phases = [["Reading the file…", "Keeping only your posts", 12], ["Cleaning…", "Skipped 134 forwards, 4 personal topics, 11 too short", 30], ["Choosing your best posts…", "Ranked by reactions and recency", 42]];
+    var i = 0; S.ui.importing = { label: phases[0][0], sub: phases[0][1], pct: 5 }; render();
+    clearInterval(importTimer);
+    importTimer = setInterval(function () {
+      var im = S.ui.importing; if (!im) { clearInterval(importTimer); return; }
+      if (i < phases.length) { im.label = phases[i][0]; im.sub = phases[i][1]; im.pct = phases[i][2]; i++; }
+      else { im.pct = Math.min(100, im.pct + 12); var done = Math.round((im.pct - 42) / 58 * 415); im.label = "Learning your voice…"; im.sub = "Embedded " + Math.max(0, Math.min(415, done)) + " of 415 posts"; }
+      if (im.pct >= 100) { clearInterval(importTimer); S.ui.importing = null; S.account.imported = true; save(); toast("415 Telegram posts learned."); }
+      if (/^setup-4$|^settings$/.test(route())) render();
+    }, 450);
+  }
+
+  function setDraftText(t) { var d = ensureDraft(); d.versions[d.cur].text = t; save(); }
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-action]"); if (!b) { if (S.ui.menu && !e.target.closest(".menu")) { S.ui.menu = false; render(); } return; }
+    var a = b.getAttribute("data-action"), d;
+    if (a === "reset") { try { localStorage.removeItem(KEY); } catch (x) {} S = fresh(); clearInterval(importTimer); go("welcome"); toast("Cleared. You're a brand-new visitor on a new device."); }
+    else if (a === "reopen") { S.ui = {}; boot(false); if (!S.session) toast("No session on this device, so you see the welcome page."); }
+    else if (a === "google") google(b.getAttribute("data-mode"));
+    else if (a === "privacy") { S.account.privacy = b.checked; save(); render(); }
+    else if (a === "next") {
+      var n = +b.getAttribute("data-step");
+      if (n === 6) { S.account.setupDone = true; S.chat = [{ kind: "checkin", text: "Day 4: finished the Telegram importer. It keeps 415 posts; forwards and personal hashtags get skipped. Tomorrow: the embedding queue." }, { kind: "draft", platform: "telegram", text: DRAFTS.telegram }]; save(); go("chat"); toast("Setup done. Welcome to your chat board."); return; }
+      S.account.setupMax = Math.max(S.account.setupMax || 1, n + 1); save(); go("setup-" + (n + 1));
+    }
+    else if (a === "hour") { var h = b.getAttribute("data-hour"), hs = S.account.profile.hours, k = hs.indexOf(h); if (k >= 0) { if (hs.length > 1) hs.splice(k, 1); } else hs.push(h); save(); render(); }
+    else if (a === "tg-example") runImport();
+    else if (a === "untag") { S.account.excluded.splice(+b.getAttribute("data-i"), 1); save(); render(); }
+    else if (a === "first-draft") { S.account.firstDraft = true; save(); render(); }
+    else if (a === "menu") { S.ui.menu = !S.ui.menu; render(); }
+    else if (a === "logout") { S.session = null; S.ui = {}; save(); go("welcome"); toast("Logged out on this device. Next time you open Voxlace, you'll see the login page."); }
+    else if (a === "open-draft") { S.draft = null; ensureDraft(b.getAttribute("data-platform")); save(); go("draft"); }
+    else if (a === "platform") { S.draft = null; ensureDraft(b.getAttribute("data-platform")); S.ui.prompt = false; save(); render(); }
+    else if (a === "revise") { d = ensureDraft(); var kind = b.getAttribute("data-kind"); d.versions.push({ label: '"' + b.textContent.toLowerCase() + '"', text: REVISE[kind][d.platform] }); d.cur = d.versions.length - 1; save(); render(); toast("New version made. The old one is still in Versions."); }
+    else if (a === "version") { d = ensureDraft(); d.cur = +b.getAttribute("data-i"); save(); render(); }
+    else if (a === "prompt") { S.ui.prompt = !S.ui.prompt; render(); }
+    else if (a === "approve-send") {
+      d = ensureDraft(); d.status = d.platform === "telegram" ? "Published" : "Approved"; save(); render();
+      if (d.platform === "telegram") toast("Approved and sent to FeteScript by the bot (simulated).");
+      else if (d.platform === "x") toast("Approved. The real app opens x.com with this text pre-filled; you press Post.");
+      else { var txt = d.versions[d.cur].text; try { navigator.clipboard.writeText(txt).then(function () { toast("Copied. The real app now opens LinkedIn's composer; paste and post."); }, function () { toast("Approved. The real app copies the text and opens LinkedIn."); }); } catch (x) { toast("Approved. The real app copies the text and opens LinkedIn."); } }
+    }
+    else if (a === "approve-schedule") { d = ensureDraft(); d.status = "Approved"; d.scheduled = "Thu 16 Oct, 18:00"; save(); go("calendar"); toast("Approved and scheduled for 18:00 today."); }
+    else if (a === "edit") { S.ui.editing = b.getAttribute("data-section"); render(); var f = document.querySelector('[data-form="section"] input, [data-form="section"] textarea'); if (f) f.focus(); }
+    else if (a === "cancel-edit") { S.ui.editing = null; render(); }
+    else if (a === "tab") { S.ui.tab = b.getAttribute("data-tab"); S.ui.confirmDelete = false; render(); }
+    else if (a === "export") toast("The real app prepares a JSON file of all your data here.");
+    else if (a === "delete-ask") { S.ui.confirmDelete = true; render(); }
+    else if (a === "delete-no") { S.ui.confirmDelete = false; render(); }
+    else if (a === "delete-yes") { try { localStorage.removeItem(KEY); } catch (x) {} S = fresh(); go("welcome"); toast("Account and all its data deleted."); }
+    else if (a === "lane") { S.howLane = b.getAttribute("data-lane"); S.howStep = 0; save(); render(); }
+    else if (a === "step") { S.howStep = +b.getAttribute("data-i"); save(); render(); var c = document.querySelector(".how .card h2"); if (c && window.innerWidth < 760) c.scrollIntoView({ block: "start" }); }
+    else if (a === "prev-step") { S.howStep = Math.max(0, S.howStep - 1); save(); render(); }
+    else if (a === "next-step") { S.howStep = S.howStep + 1; save(); render(); }
+  });
+
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.getAttribute("data-action") === "tg-file" && t.files && t.files.length) { toast("Got " + t.files[0].name + ". The prototype simulates the import; nothing is uploaded."); runImport(); }
+    else if (t.getAttribute("data-action") === "later-file" && t.files && t.files.length) toast("Got " + t.files[0].name + ". X and LinkedIn import arrive in Phase 3.");
+    else if (t.tagName === "SELECT" && t.getAttribute("data-bind")) bind(t);
+  });
+  document.addEventListener("input", function (e) {
+    var t = e.target;
+    if (t.getAttribute("data-bind")) bind(t);
+    if (t.id === "checkin") S.ui.checkin = t.value;
+    if (t.getAttribute("data-action") === "draft-input") {
+      var d = ensureDraft(); setDraftText(t.value);
+      var n = count(d.platform, t.value), lim = LIMITS[d.platform], over = n > lim, c = document.getElementById("counter");
+      c.textContent = n.toLocaleString() + " / " + lim.toLocaleString(); c.className = "chip counter " + (over ? "warn" : "ok");
+      document.getElementById("over-note").hidden = !over;
+      document.querySelectorAll('[data-action="approve-send"],[data-action="approve-schedule"]').forEach(function (b) { b.disabled = over; });
+    }
+  });
+  function bind(t) {
+    var k = t.getAttribute("data-bind");
+    if (k === "summary") S.account.summary = t.value; else if (k.indexOf("p.") === 0) { S.account.profile[k.slice(2)] = t.value; S.account.summary = ""; }
+    save();
+  }
+
+  document.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.target, kind = f.getAttribute("data-form");
+    if (kind === "signup" || kind === "login") authSubmit(kind);
+    else if (kind === "verify") {
+      var code = (document.getElementById("code").value || "").replace(/\D/g, "");
+      if (code.length !== 6) { S.ui.codeError = "The code has 6 digits. Check your email and try again."; render(); return; }
+      startSession(S.pending.email, S.pending.mode);
+    }
+    else if (kind === "addtag") {
+      var v = (document.getElementById("newtag").value || "").trim(); if (!v) return;
+      if (v[0] !== "#") v = "#" + v; v = v.replace(/\s+/g, "");
+      if (S.account.excluded.map(function (x) { return x.toLowerCase(); }).indexOf(v.toLowerCase()) < 0) S.account.excluded.push(v);
+      save(); render(); toast("Posts tagged " + v + " won't be used to learn your voice.");
+    }
+    else if (kind === "checkin") {
+      var ta = document.getElementById("checkin"), text = (ta.value || "").trim(), p = (e.submitter && e.submitter.getAttribute("data-platform")) || "telegram";
+      if (text) S.chat.push({ kind: "checkin", text: text });
+      S.chat.push({ kind: "draft", platform: p, text: DRAFTS[p] }); S.ui.checkin = ""; save(); render();
+      toast(PNAME[p] + " draft ready. (The prototype shows a sample draft.)");
+    }
+    else if (kind === "revise") {
+      var inp = document.getElementById("revise-text"), ins = (inp.value || "").trim(); if (!ins) return;
+      var d = ensureDraft(); d.versions.push({ label: '"' + ins.slice(0, 30) + '"', text: REVISE.punchier[d.platform] }); d.cur = d.versions.length - 1; save(); render(); toast("New version made from your instruction (sample text in the prototype).");
+    }
+    else if (kind === "section") {
+      var P = S.account.profile; Array.prototype.forEach.call(f.querySelectorAll("input,textarea"), function (x) { P[x.name] = x.value; });
+      S.account.summary = ""; S.ui.editing = null; save(); render(); toast("Saved. Your summary card was refreshed, and the next drafts will use it.");
+    }
+  });
+
+  window.addEventListener("hashchange", function () { S.ui.menu = false; if (S.ui.authError && !isAuth(route())) S.ui.authError = ""; render(); });
+  boot(true);
+})();
+</script>
+</body>
+</html>

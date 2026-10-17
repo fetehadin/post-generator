@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Product** | Voxlace (working name) |
-| **Version** | 1.1 — final V1 scope |
+| **Version** | 1.2 — final V1 scope |
 | **Date** | 13 October 2026 |
 | **Authors** | Fetehadin Negash, Nezira |
 | **Status** | Locked. Changes go through a pull request that edits this file. |
@@ -139,6 +139,7 @@ flowchart LR
 | FR-3 | A malformed file is rejected with a readable error, and nothing is half-saved. | Must | Upload a broken file; no rows are added. |
 | FR-4 | Every imported post is embedded and stored with its user, platform and original date. | Must | After import, no post lacks an embedding. |
 | FR-39 | The importer reads only the posts file from each export and discards everything else. | Must | Upload a full X archive; only posts are stored. |
+| FR-44 | Import skips posts carrying any hashtag on the user's editable excluded list (default: religious, personal-life and shared-content tags), and embeds the best ~1,000 posts first, ranked by reactions and recency; the rest stay queued. | Must | Import a channel with #Family posts; none are stored. Import 2,000 posts; drafting works after the first 1,000 are embedded. |
 | FR-32 | If the embedding service is unavailable, imports are queued and retried. The app never switches embedding models by itself. | Must | Block the embedding call; the import resumes later with no mixed vectors. |
 
 ### 3.2 Voice, profile and settings
@@ -166,6 +167,8 @@ flowchart LR
 | FR-8 | X, LinkedIn and Telegram each have their own generate action. | Must | Generate for one platform; the other two are untouched. |
 | FR-9 | Each draft shows a live length count using that platform's rule, and blocks copy or publish when over the limit. | Must | Paste a 300-character draft for X; it is flagged. |
 | FR-10 | An edit instruction revises the current draft, and earlier versions stay available. The user can also edit the text by hand. | Must | Ask "shorter"; a new version exists and the old one is viewable. |
+| FR-40 | Each draft has a chat panel. The assistant knows the user's voice card, profile, platform rules and the day's check-in; every reply that changes the text creates a version. It can revise only a selected sentence, convert a draft to another platform, and asks a question instead of inventing a missing fact. | Must | Ask "mention my other project" with two projects in the profile; it asks which one. Select one sentence and ask "fix this"; only that sentence changes. |
+| FR-41 | The app detects the type of post being drafted (launch, progress, lesson, opinion, humor, tip, event) and adds structure examples from the user's inspiration posts that are strongest at that type. They shape structure only; voice comes from the user's own posts and facts from FR-19. The editor names the creator it used, and the user can change or turn it off. | Should | Draft a launch; the editor shows a launch-strong creator. No 5-word phrase from any inspiration post appears in the draft. |
 | FR-11 | Every draft is labelled AI-generated and has a status the user sets: draft, approved, published, discarded. | Must | Change the status; it persists after reload. |
 | FR-19 | A draft may state facts only from the summary card, the day's check-in, or GitHub items the user approved. | Must | Request a draft with an empty check-in; it invents no metrics or projects. |
 | FR-31 | Draft generation tries an ordered list of models from configuration, moves to the next when one is unavailable, rate-limited or removed, and records which model wrote each draft. | Must | Disable the first model; the draft arrives and names the second. |
@@ -178,6 +181,8 @@ flowchart LR
 | FR-12 | Approving a draft hands it off. **X:** opens the composer pre-filled. **LinkedIn:** copies the text and opens the composer. **Telegram:** "Publish now" sends it through the bot, or, if it has a scheduled time, the bot sends it then (FR-35). | Must | Approve one draft per platform; each behaves as described and the text arrives intact. |
 | FR-13 | The user can place a draft on a calendar date and time and move it, and the app marks it due when the time arrives. | Must | Drag a draft to another day; it saves. |
 | FR-35 | A due post triggers a reminder in the app, plus a Telegram message when a channel is connected. For Telegram, a scheduled job sends an **approved** post through the bot at its due time. | Must | Schedule an approved Telegram draft for the next minute; it appears in the channel within 5 minutes. |
+| FR-42 | The user sets daily check-in reminders (days, local time, quiet hours, channel: in-app or Telegram DM from the bot). The worker sends them on time and skips days that already have a check-in. | Must | Set a reminder for the next minute; it arrives within 5 minutes and not again that day after a check-in. |
+| FR-43 | Replying to a reminder in the Telegram bot saves the reply as that day's check-in and offers a draft back in the same chat. | Should | Reply to the bot; the check-in appears on the chat board. |
 | FR-36 | A user connects a Telegram channel by adding the app's bot as an admin and entering the channel. The app confirms it can post before saving. | Must | Connect a channel without admin rights; it is refused with a message. |
 | FR-16 | Suggested posting windows use the audience answers (location, discipline, usual hours) and are shown in the user's own time. | Should | Change the audience location; the window shifts. |
 | FR-34 | Posting-time suggestions start from study-based defaults and switch to the user's own archive data once they have at least 50 posts with engagement numbers. | Should | Import 60 posts with likes; the suggestion cites the user's own data. |
@@ -273,19 +278,27 @@ erDiagram
     users ||--o{ platform_settings : sets
     users ||--o{ provider_usage : uses
     users ||--o| telegram_connections : connects
+    users ||--o{ imports : runs
+    drafts ||--o{ draft_messages : chats
+    users ||--o{ inspiration_posts : collects
+    users ||--o{ reminder_settings : sets
     invites |o--o| users : "used by"
 ```
 
 | Table | Main columns | Purpose |
 |---|---|---|
 | `users` | id (from login provider), email, name, timezone, language, privacy_accepted_at, created_at | Accounts. |
-| `source_posts` | id, user_id, platform, text, posted_at, external_id, likes, reposts, pinned, excluded, embedding `vector(768)` | Imported history. Unique on (user_id, platform, external_id). |
+| `source_posts` | id, user_id, import_id, platform, origin (import, voxlace), text, posted_at, external_id, likes, reposts, pinned, excluded, embedding `vector(768)`, embedding_model | Imported history, plus drafts the user published through Voxlace. Unique on (user_id, platform, external_id). |
+| `imports` | id, user_id, platform, status, parsed, skipped (JSON), embedded, error, created_at, finished_at | One row per upload; progress for `GET /imports/{id}`. |
 | `voice_cards` | user_id, platform, card_text, hand_edits, stats (JSON), updated_at | Style summary and measured habits. |
 | `checkins` | id, user_id, day, text, created_at | Daily notes. |
 | `drafts` | id, user_id, platform, topic, status, scheduled_for, reminder_sent_at, published_at, created_at | One row per post in progress. |
 | `draft_versions` | id, draft_id, text, instruction, model, created_at | Every revision. |
-| `prompt_logs` | id, draft_id, prompt, model, provider, created_at | Exact prompt behind each draft. |
-| `profiles` | user_id, role, stack, current_projects, focus, goal, topics, audience, avoid_list, voice_words, links, discipline, usual_hours, summary_card | About-you form and summary card. |
+| `prompt_logs` | id, draft_id, draft_version_id, prompt, model, provider, created_at | Exact prompt behind each draft and each revision. |
+| `draft_messages` | id, draft_id, role (user, assistant), text, draft_version_id, created_at | The chat panel's conversation (FR-40). |
+| `inspiration_posts` | id, user_id, creator, platform, text, post_type, likes, posted_at, embedding | Posts from creators the user admires; structure examples only (FR-41). Never shown to other users. |
+| `reminder_settings` | user_id, kind, days, local_time, timezone, channel, enabled, last_sent_at | Check-in and posting reminders (FR-42). |
+| `profiles` | user_id, role, stack, current_projects, focus, goal, topics, audience, avoid_list, voice_words, links, discipline, usual_hours, excluded_hashtags, summary_card | About-you form, summary card and import exclusions; editable any time from the Profile page. |
 | `platform_settings` | user_id, platform, audience_location, audience_timezone | Where each audience lives. |
 | `uploads` | id, user_id, kind (resume, website), source, extracted_text, cleaned_text, created_at | Extracted and cleaned text. |
 | `platform_profiles` | platform, char_limit, counting_rule, tone_notes, structure_notes, updated_at | Shared, editable platform rules. |
@@ -339,11 +352,11 @@ Seed values for `platform_profiles`, as of October 2026.
 | Phase in [`BUILD_PLAN.md`](BUILD_PLAN.md) | Requirements delivered |
 |---|---|
 | 0 — Foundations | NFR-2, NFR-5, NFR-8 (CI), NFR-9 |
-| 1 — Core voice loop (Telegram) | FR-1 (Telegram), FR-2, FR-3, FR-4, FR-7, FR-39, NFR-15 |
+| 1 — Core voice loop (Telegram) | FR-1 (Telegram), FR-2, FR-3, FR-4, FR-7, FR-39, FR-44, NFR-15 |
 | 2 — Accounts and isolation | FR-27, FR-28, FR-29, FR-37, NFR-7, NFR-13, NFR-18 |
-| 3 — All platforms and voice | FR-1 (X, LinkedIn), FR-5, FR-9, FR-17, FR-18, FR-22–FR-26, FR-33 |
-| 4 — Drafting workflow | FR-6, FR-8, FR-10, FR-11, FR-19, FR-12 (X, LinkedIn) |
-| 5 — Calendar and Telegram publishing | FR-12 (Telegram), FR-13, FR-35, FR-36, NFR-14, NFR-16 |
+| 3 — All platforms and voice | FR-1 (X, LinkedIn), FR-5, FR-9, FR-17, FR-18, FR-22–FR-26, FR-33, FR-41 |
+| 4 — Drafting workflow | FR-6, FR-8, FR-10, FR-11, FR-19, FR-40, FR-12 (X, LinkedIn) |
+| 5 — Calendar, Telegram publishing and reminders | FR-12 (Telegram), FR-13, FR-35, FR-36, FR-42, FR-43, NFR-14, NFR-16 |
 | 6 — SaaS hardening and deploy | FR-30, FR-31, FR-32, FR-38, NFR-1, NFR-3, NFR-4, NFR-10, NFR-11, NFR-17 |
 | 7 — Private beta | FR-15, success metrics |
 | Stretch | FR-14, FR-16, FR-20, FR-21, FR-34, NFR-12 |
@@ -354,5 +367,6 @@ Seed values for `platform_profiles`, as of October 2026.
 
 | Version | Date | Change |
 |---|---|---|
+| 1.2 | 17 Oct 2026 | Added FR-40 (chat panel on each draft), FR-41 (inspiration picked by post type), FR-42 (daily check-in reminders), FR-43 (reply to the bot = check-in), FR-44 (excluded hashtags, best-1,000 import cap). New tables `imports`, `draft_messages`, `inspiration_posts`, `reminder_settings`; `source_posts` gains `origin`, `import_id`, `embedding_model`. Decisions behind them: OPEN_QUESTIONS Q2, Q3, Q5, Q24–Q27. |
 | 1.1 | 14 Oct 2026 | Hosting moved to the team's Contabo VPS: always-on worker replaces the external cron; Supabase used for login only; added NFR-17 (backups) and NFR-18 (server hardening). |
 | 1.0 | 13 Oct 2026 | First locked V1. Built from the Pre-Build Plan. Clarified: Telegram is sent by the app at the due time because bots cannot schedule natively (FR-12, FR-35); NFR-6 reworded to "never without explicit approval"; NFR-11 reworded for a hosted app; added NFR-15, NFR-16 and a priority column. |
