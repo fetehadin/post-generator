@@ -6,6 +6,7 @@ the configured chain and records which model actually answered (FR-31, NFR-15).
 """
 
 import logging
+import re
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -21,6 +22,9 @@ DOC_PREFIX = "title: none | text: "
 QUERY_PREFIX = "task: search result | query: "
 EMBED_BATCH = 100
 RETRYABLE = {429, 500, 502, 503, 504}
+MAX_WAIT = 90.0
+# Gemini says how long to wait: "Please retry in 15.4s" or a RetryInfo retryDelay "15s".
+RETRY_HINT = re.compile(r"retry in ([\d.]+)\s*s|retryDelay\W+([\d.]+)s", re.IGNORECASE)
 
 
 class AIUnavailable(Exception):
@@ -88,7 +92,7 @@ class AIClient:
             except errors.APIError as e:
                 if e.code not in RETRYABLE or attempt == self.max_attempts:
                     raise EmbeddingUnavailable(f"{e.code}: {e.message}") from e
-                self._backoff(attempt, e.code)
+                self._backoff(attempt, e)
         raise EmbeddingUnavailable("unreachable")
 
     # ---- generation ----
@@ -127,13 +131,25 @@ class AIClient:
                 # 429 and 5xx get a few retries on the same model; anything else moves on.
                 if e.code not in RETRYABLE or attempt == self.max_attempts:
                     raise
-                self._backoff(attempt, e.code)
+                self._backoff(attempt, e)
         raise AIUnavailable("unreachable")
 
-    def _backoff(self, attempt: int, code: int) -> None:
+    def _backoff(self, attempt: int, err: errors.APIError) -> None:
+        """Exponential backoff, but never shorter than what the server asked for."""
         wait = min(60.0, 2.0**attempt)
-        logger.info("AI call got %s, retrying in %.0fs", code, wait)
+        hinted = retry_after(err)
+        if hinted is not None:
+            wait = min(MAX_WAIT, max(wait, hinted + 1.0))
+        logger.info("AI call got %s, retrying in %.0fs", err.code, wait)
         self._sleep(wait)
+
+
+def retry_after(err: errors.APIError) -> float | None:
+    text = f"{getattr(err, 'message', '')} {getattr(err, 'details', '')}"
+    m = RETRY_HINT.search(text)
+    if not m:
+        return None
+    return float(m.group(1) or m.group(2))
 
 
 _default: AIClient | None = None
