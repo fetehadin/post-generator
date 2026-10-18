@@ -25,12 +25,20 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["app*"]
 
+[tool.setuptools.package-data]
+# Prompt templates ship with the code.
+app = ["ai/prompts/*.md"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Migrations hold seed text and generated column lists; wrapping them hurts readability.
+"migrations/versions/*" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

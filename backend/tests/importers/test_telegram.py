@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from app.importers.common import ImportFormatError
-from app.importers.telegram import flatten_text, parse_telegram
+from app.importers.telegram import flatten_text, parse_telegram, tidy_text
 
 SAMPLES = Path(__file__).resolve().parents[3] / "samples"
 SAMPLE = SAMPLES / "telegram" / "result.json"
@@ -131,3 +131,16 @@ def test_flatten_text_handles_both_shapes():
     assert flatten_text("plain") == "plain"
     assert flatten_text(["a ", {"type": "bold", "text": "b"}, " c"]) == "a b c"
     assert flatten_text(None) == ""
+
+
+def test_tidy_text_removes_layout_tricks_only():
+    raw = (
+        "Join us!   #ALX"
+        + " " * 60
+        + "https://t.me/fetedev"
+        + " " * 60
+        + "https://t.me/fetedev\n\n\n\nBye 👋  "
+    )
+    assert tidy_text(raw) == "Join us! #ALX https://t.me/fetedev\n\nBye 👋"
+    assert tidy_text("line one\nline two") == "line one\nline two"
+    assert tidy_text("a.co https://a.co/x https://b.co") == "a.co https://a.co/x https://b.co"

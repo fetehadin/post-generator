@@ -41,9 +41,10 @@ def test_tables_exist_with_row_level_security(owner_engine):
 def test_import_saves_posts_and_reimport_adds_none(make_user):
     user = make_user()
     with user_session(user) as s:
-        assert save_posts(s, user, "telegram", sample_posts()) == 5
+        assert save_posts(s, user, "telegram", sample_posts()).new == 5
     with user_session(user) as s:
-        assert save_posts(s, user, "telegram", sample_posts()) == 0  # FR-2
+        again = save_posts(s, user, "telegram", sample_posts())  # FR-2
+        assert (again.new, again.updated) == (0, 0)
     assert count_posts(user) == 5
 
 
@@ -75,7 +76,7 @@ def test_same_posts_on_two_users_are_separate(make_user):
     a, b = make_user(), make_user()
     for u in (a, b):
         with user_session(u) as s:
-            assert save_posts(s, u, "telegram", sample_posts()) == 5
+            assert save_posts(s, u, "telegram", sample_posts()).new == 5
 
 
 def test_vector_round_trip_and_model_is_required(make_user):
@@ -91,3 +92,27 @@ def test_vector_round_trip_and_model_is_required(make_user):
     with pytest.raises(IntegrityError, match="embedding_has_model"):
         with user_session(user) as s:
             s.scalars(select(SourcePost)).one().embedding_model = None
+
+
+def test_reimport_refreshes_changed_posts_and_requeues_only_them(make_user):
+    from dataclasses import replace
+
+    user = make_user()
+    posts = sample_posts()
+    with user_session(user) as s:
+        save_posts(s, user, "telegram", posts)
+        for p in s.scalars(select(SourcePost)).all():
+            p.embedding, p.embedding_model = [0.1] * 768, "gemini-embedding-2"
+    edited = [
+        replace(posts[0], text=posts[0].text + " (edited)"),
+        replace(posts[1], reactions=9),
+    ] + posts[2:]
+    with user_session(user) as s:
+        result = save_posts(s, user, "telegram", edited)
+    assert (result.new, result.updated) == (0, 2)
+    with user_session(user) as s:
+        rows = {p.external_id: p for p in s.scalars(select(SourcePost)).all()}
+    assert rows[posts[0].external_id].text.endswith("(edited)")
+    assert rows[posts[0].external_id].embedding is None  # text changed: back in the queue
+    assert rows[posts[1].external_id].likes == 9
+    assert rows[posts[1].external_id].embedding is not None  # only reactions changed: kept

@@ -21,6 +21,8 @@ from app.importers.common import (
 
 URL = re.compile(r"https?://\S+|t\.me/\S+")
 LETTER = re.compile(r"[^\W\d_]", re.UNICODE)
+SPACE_RUN = re.compile(r"[ \t\u00a0]{2,}")
+REPEATED_LINK = re.compile(r"(https?://\S+|t\.me/\S+)(?:\s+\1)+")
 
 
 def parse_telegram(
@@ -42,7 +44,7 @@ def parse_telegram(
             result.skipped["forwarded"] += 1
             continue
 
-        text = flatten_text(msg.get("text", "")).strip()
+        text = tidy_text(flatten_text(msg.get("text", "")))
         if not text:
             result.skipped["empty"] += 1
             continue
@@ -91,6 +93,18 @@ def flatten_text(value: object) -> str:
             if isinstance(part, str | dict)
         )
     return ""
+
+
+def tidy_text(text: str) -> str:
+    """Remove layout tricks that are noise for learning a voice.
+
+    Long runs of spaces (used to push a link onto its own line) become one space, a link
+    repeated straight after itself is kept once, and 3+ blank lines become one.
+    Words, emoji and line breaks are untouched.
+    """
+    lines = [SPACE_RUN.sub(" ", line).rstrip() for line in text.split("\n")]
+    text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
+    return REPEATED_LINK.sub(r"\1", text).strip()
 
 
 def _load(data: bytes) -> dict:

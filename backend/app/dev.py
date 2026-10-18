@@ -3,6 +3,7 @@
     python -m app.dev import-telegram path/to/result.json
     python -m app.dev embed [--limit 1000]
     python -m app.dev search "a topic" [--platform telegram]
+    python -m app.dev draft "today's check-in" [--platform telegram] [--show-prompt]
 
 Everything is stored under one fixed dev user, the same way real users will be.
 """
@@ -16,6 +17,7 @@ from sqlalchemy.dialects.postgresql import insert
 from app.core.db import user_session
 from app.importers.telegram import parse_telegram
 from app.models import Import, User
+from app.services.drafting import DraftError, generate_draft, prompt_for
 from app.services.embedding import DEFAULT_LIMIT, embed_pending
 from app.services.posts import save_posts
 from app.services.retrieval import find_examples
@@ -40,9 +42,10 @@ def import_telegram(path: Path) -> None:
         )
         s.add(imp)
         s.flush()
-        new = save_posts(s, DEV_USER_ID, "telegram", result.posts, import_id=imp.id)
+        saved = save_posts(s, DEV_USER_ID, "telegram", result.posts, import_id=imp.id)
     print(
-        f"{result.source_name}: {len(result.posts)} posts parsed, {new} new, "
+        f"{result.source_name}: {len(result.posts)} posts parsed, {saved.new} new, "
+        f"{saved.updated} updated, "
         f"skipped {dict(result.skipped)}"
     )
 
@@ -60,6 +63,19 @@ def search(topic: str, platform: str) -> None:
         print(f"{i}. {e.similarity:.3f}{tag}  {' '.join(e.text.split())[:90]}")
 
 
+def draft(topic: str, platform: str, show_prompt: bool) -> None:
+    try:
+        r = generate_draft(DEV_USER_ID, platform, topic)
+    except DraftError as e:
+        raise SystemExit(str(e)) from e
+    over = "  OVER THE LIMIT" if r.over_limit else ""
+    print(f"--- {platform} draft · {r.length}/{r.char_limit}{over} · {r.model_version} ---")
+    print(r.text)
+    print(f"--- based on {len(r.examples)} of your posts · draft id {r.draft_id} ---")
+    if show_prompt:
+        print("\n=== exact prompt ===\n" + prompt_for(DEV_USER_ID, r.draft_id).prompt)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.dev")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -70,6 +86,10 @@ def main() -> None:
     src = sub.add_parser("search", help="show the 8 posts the prompt would use for a topic")
     src.add_argument("topic")
     src.add_argument("--platform", default="telegram", choices=["telegram", "x", "linkedin"])
+    drf = sub.add_parser("draft", help="write a draft in your voice and save it")
+    drf.add_argument("topic")
+    drf.add_argument("--platform", default="telegram", choices=["telegram", "x", "linkedin"])
+    drf.add_argument("--show-prompt", action="store_true")
     args = parser.parse_args()
     if args.command == "import-telegram":
         import_telegram(args.path)
@@ -77,6 +97,8 @@ def main() -> None:
         embed(args.limit)
     elif args.command == "search":
         search(args.topic, args.platform)
+    elif args.command == "draft":
+        draft(args.topic, args.platform, args.show_prompt)
 
 
 if __name__ == "__main__":
