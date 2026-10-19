@@ -7,7 +7,7 @@ flowchart LR
     B[Branch + commits] --> PR[Pull request]
     PR --> CI{CI}
     CI -->|backend| BE[Ruff · migrations · pytest<br/>against Postgres + pgvector]
-    CI -->|frontend| FE[ESLint · Vitest · build]
+    CI -->|frontend| FE[oxlint + Prettier · Vitest · build]
     CI -->|always| SS[Secret scan]
     BE & FE & SS --> OK[CI passed]
     OK --> RV[Teammate review]
