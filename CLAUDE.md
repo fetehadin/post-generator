@@ -17,7 +17,7 @@ Read the relevant doc before changing behaviour. Don't contradict it; if the cod
 - `samples/README.md` — expected parser counts for each sample file, and the format traps they contain.
 - `docs/DESIGN.md` — UI/UX principles, screen specs and tokens. Read it before any UI work.
 
-**Current phase:** 0 — Foundations. (Update this line when a phase's demo passes.)
+**Current phase:** 2 — Accounts and isolation. Phase 0 and Phase 1 demos passed on 19 Oct 2026 (Phase 1: real Telegram export → 412 posts → a draft in the browser). (Update this line when a phase's demo passes.)
 
 ## Stack
 

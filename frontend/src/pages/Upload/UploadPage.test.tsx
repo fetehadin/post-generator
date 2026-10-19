@@ -96,3 +96,19 @@ test('refuses a file over 64 MB before uploading', async () => {
   expect(screen.getByRole('button', { name: 'Import posts' })).toBeDisabled()
   expect(api).not.toHaveBeenCalled()
 })
+
+test('a re-import says nothing was added twice, without counting it as skipped', async () => {
+  vi.mocked(api).mockResolvedValue(
+    job({
+      status: 'done',
+      skipped: { forwarded: 135, already_imported: 412 },
+      embedded: 412,
+      waiting: 0,
+    }),
+  )
+  renderPage()
+  await userEvent.upload(screen.getByLabelText(/Choose result.json/), exportFile())
+  await userEvent.click(screen.getByRole('button', { name: 'Import posts' }))
+  expect(await screen.findByText(/All of them were already imported/)).toBeInTheDocument()
+  expect(screen.getByText('135 messages skipped')).toBeInTheDocument()
+})
