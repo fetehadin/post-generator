@@ -67,7 +67,7 @@
 
 :root {
   /* Type. Latin first, then Ethiopic for Amharic (FR-24). */
-  --font-ui: 'Instrument Sans', 'Noto Sans Ethiopic', system-ui, sans-serif;
+  --font-ui: 'Archivo', 'Noto Sans Ethiopic', system-ui, sans-serif;
   --font-writing: 'Source Serif 4', 'Noto Serif Ethiopic', Georgia, serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
