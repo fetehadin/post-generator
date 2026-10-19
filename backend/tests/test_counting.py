@@ -15,7 +15,10 @@ from app.counting import post_length, x_weighted_length
         ("👍🏽", 4),  # emoji + skin tone modifier
         ("👨‍💻", 4),  # joiner adds nothing
         ("❤️", 2),  # variation selector adds nothing
-        ("ሰላም Addis", 9),  # Ethiopic counts as one
+        ("ሰላም Addis", 3 * 2 + 6),  # Ethiopic (Amharic) weighs 2, like CJK
+        ("ዛሬ፦ done", 3 * 2 + 5),  # Ethiopic punctuation too
+        ("café — “ok”", 11),  # accents, em dash and curly quotes weigh 1
+        ("→ next", 2 + 5),  # arrows are outside the light ranges
     ],
 )
 def test_x_weighted_length(text, expected):
