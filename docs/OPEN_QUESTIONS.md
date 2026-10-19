@@ -167,6 +167,20 @@ The README says "not chosen". Choose one before inviting beta testers or making 
 
 **Recommendation:** replace `Read(./.env.*)` with specific patterns such as `Read(./.env.local)`, `Read(./.env.*.local)`, `Read(./.env.production)` and `Read(./.env.development)`. In Claude Code, deny rules win over allow rules, so adding an allow for `.env.example` doesn't help. This is a permissions change, so a person should make it.
 
+## Design
+
+### Q24 🟡 (Phase 2) Component library: shadcn/ui
+
+`docs/DESIGN.md` §6 recommends shadcn/ui: accessible components copied into `frontend/src/components/ui`, restyled with our tokens. It's a new dependency (and brings headless UI primitives with it), so both of you agree before Phase 2.
+
+**Recommendation:** adopt it for dialogs, menus, popovers, tabs, toasts and form controls; build the product components (DraftEditor, PlatformPreview, LengthCounter …) ourselves on top.
+
+### Q25 🟡 (Phase 2) Visual tokens and fonts
+
+DESIGN.md §5 proposes colors, Instrument Sans for the interface and Source Serif 4 for the user's writing. They're a starting point, not final.
+
+**Recommendation:** in the first `/design-screen` pass (the draft editor), try the proposal plus one alternative, compare screenshots side by side, then lock the tokens in DESIGN.md.
+
 ---
 
 ## Decided
