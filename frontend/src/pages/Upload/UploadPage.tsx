@@ -99,7 +99,9 @@ export function UploadPage() {
 }
 
 function Result({ job }: { job: ImportJob }) {
-  const skipped = Object.entries(job.skipped) as Array<[SkipReason, number]>
+  // "Already imported" isn't a skip: those posts are kept, just not added twice (FR-2).
+  const { already_imported: already = 0, ...rest } = job.skipped
+  const skipped = (Object.entries(rest) as Array<[SkipReason, number]>).sort((a, b) => b[1] - a[1])
   const totalSkipped = skipped.reduce((n, [, c]) => n + c, 0)
   const done = job.status === 'done'
 
@@ -108,6 +110,12 @@ function Result({ job }: { job: ImportJob }) {
       <h1 className="text-2xl font-semibold tracking-tight">
         {job.parsed.toLocaleString('en')} posts found
       </h1>
+      {already > 0 && (
+        <p className="mt-2 text-sm text-muted">
+          {already === job.parsed ? 'All of them were' : `${already.toLocaleString('en')} were`}{' '}
+          already imported, so nothing was added twice.
+        </p>
+      )}
       {totalSkipped > 0 && (
         <details className="mt-2 text-sm text-muted">
           <summary className="cursor-pointer">

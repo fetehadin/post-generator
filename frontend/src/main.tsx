@@ -7,6 +7,7 @@ import './index.css'
 import { applyTheme, savedTheme } from './lib/theme'
 import { Placeholder } from './pages/Placeholder/Placeholder'
 import { StatusPage } from './pages/Status/StatusPage'
+import { TodayPage } from './pages/Today/TodayPage'
 import { UploadPage } from './pages/Upload/UploadPage'
 
 applyTheme(savedTheme())
@@ -17,10 +18,7 @@ const router = createBrowserRouter([
   {
     element: <AppShell />,
     children: [
-      {
-        path: '/',
-        element: <Placeholder title="Today" when="the next step, once its features are decided" />,
-      },
+      { path: '/', element: <TodayPage /> },
       { path: '/import', element: <UploadPage /> },
       { path: '/drafts', element: <Placeholder title="Drafts" when="Phase 4" /> },
       { path: '/calendar', element: <Placeholder title="Calendar" when="Phase 5" /> },
