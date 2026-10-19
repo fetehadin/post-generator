@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
+import { supabase } from '../lib/auth'
 import { applyTheme, nextTheme, savedTheme, type Theme } from '../lib/theme'
 
 const PLACES = [
@@ -63,10 +64,49 @@ export function AppShell() {
               <NavLink to="/status" className="rounded-control px-3 py-2 text-sm hover:bg-sunken">
                 System status
               </NavLink>
+              {supabase && (
+                <button
+                  type="button"
+                  onClick={() => supabase?.auth.signOut()}
+                  className="rounded-control px-3 py-2 text-left text-sm hover:bg-sunken"
+                >
+                  Log out
+                </button>
+              )}
             </div>
           </details>
         </div>
       </aside>
+
+      <details className="fixed top-3 right-3 z-20 md:hidden">
+        <summary
+          aria-label="Account and settings"
+          className="grid size-9 cursor-pointer list-none place-items-center rounded-full bg-ink font-semibold text-on-ink"
+        >
+          F
+        </summary>
+        <div className="absolute right-0 mt-1 flex w-52 flex-col rounded-panel border border-line bg-surface p-1 shadow-float">
+          <button
+            type="button"
+            onClick={switchTheme}
+            className="rounded-control px-3 py-2 text-left text-sm hover:bg-sunken"
+          >
+            Theme: {theme ?? 'system'}
+          </button>
+          <NavLink to="/status" className="rounded-control px-3 py-2 text-sm hover:bg-sunken">
+            System status
+          </NavLink>
+          {supabase && (
+            <button
+              type="button"
+              onClick={() => supabase?.auth.signOut()}
+              className="rounded-control px-3 py-2 text-left text-sm hover:bg-sunken"
+            >
+              Log out
+            </button>
+          )}
+        </div>
+      </details>
 
       <main id="main" className="page min-w-0 bg-surface pb-16 md:pb-0">
         <Outlet />
