@@ -5,6 +5,8 @@
 import type { Draft, ImportJob } from '../types'
 
 const imports = new Map<string, ImportJob>()
+// Mock users start fully set up; set admitted/privacy_accepted to false to try those steps.
+let me = { id: 'mock-user', email: 'you@example.com', admitted: true, privacy_accepted: true }
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -15,6 +17,25 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
   await new Promise((r) => setTimeout(r, 300))
 
   if (path === '/health') return json(200, { api: 'ok', db: 'ok' })
+
+  if (path === '/me') return json(200, me)
+  if (path === '/me/invite') {
+    const { code } = JSON.parse(String(init?.body)) as { code: string }
+    if (code.trim().toUpperCase() !== 'VX-DEMO') {
+      return json(400, {
+        error: {
+          code: 'invalid_invite',
+          message: "That invite code isn't valid or has been used.",
+        },
+      })
+    }
+    me = { ...me, admitted: true }
+    return json(200, me)
+  }
+  if (path === '/me/privacy-accept') {
+    me = { ...me, privacy_accepted: true }
+    return json(200, me)
+  }
 
   if (path === '/imports' && init?.method === 'POST') {
     const file = (init.body as FormData).get('file') as File
