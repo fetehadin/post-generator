@@ -1,0 +1,28 @@
+# HTTPS certificates are automatic once the domain's A record points at the server.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	# Uploads are at most 64 MB (docs/API.md); allow a little room for the form.
+	request_body /api/* {
+		max_size 70MB
+	}
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	# The React app: unknown paths fall back to index.html so routes like /import work.
+	handle {
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+	}
+}
