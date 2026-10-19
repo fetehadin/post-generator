@@ -1,6 +1,6 @@
 # Frontend (React)
 
-React + Vite + TypeScript · React Router · TanStack Query · Tailwind CSS · FullCalendar · Supabase JS (login only) · Vitest + Testing Library · ESLint + Prettier.
+React + Vite + TypeScript · React Router · TanStack Query · Tailwind CSS · FullCalendar · Supabase JS (login only) · Vitest + Testing Library · oxlint + Prettier.
 
 ## Design
 

@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens from docs/DESIGN.md §5. Components use these names only, never raw hex.
+ * The visual direction is being redesigned (docs/DESIGN.md §5, OPEN_QUESTIONS Q30);
+ * when it's approved, only the values below change.
+ */
+:root {
+  --ink: #1c2433;
+  --muted: #4a5568;
+  --paper: #f6f7f9;
+  --surface: #ffffff;
+  --line: #d9dee6;
+  --thread: #2f7363;
+  --signal: #b7791f;
+  --danger: #b3362f;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e6e9ef;
+    --muted: #a7b0bf;
+    --paper: #12161e;
+    --surface: #1a202b;
+    --line: #2b3341;
+    --thread: #5fb8a3;
+    --signal: #e3a94b;
+    --danger: #e06a62;
+  }
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-thread: var(--thread);
+  --color-signal: var(--signal);
+  --color-danger: var(--danger);
+  --radius-control: 6px;
+  --radius-panel: 10px;
+  --font-sans: system-ui, 'Noto Sans Ethiopic', sans-serif;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--thread);
+  outline-offset: 2px;
+}
