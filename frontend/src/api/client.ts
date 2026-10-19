@@ -1,3 +1,4 @@
+import { accessToken } from '../lib/auth'
 import { mockFetch } from './mocks/handlers'
 
 /** Every backend error has the shape {"error": {"code", "message"}} (docs/API.md). */
@@ -21,7 +22,10 @@ const send: typeof fetch =
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
-    res = await send(BASE + path, init)
+    const token = await accessToken()
+    const headers = new Headers(init?.headers)
+    if (token) headers.set('Authorization', `Bearer ${token}`)
+    res = await send(BASE + path, { ...init, headers })
   } catch {
     throw new ApiError(0, 'network_error', "Can't reach the server. Check your connection.")
   }

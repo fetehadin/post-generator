@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { AppShell } from './components/AppShell'
+import { AuthGate } from './components/AuthGate'
 // Self-hosted fonts (no third-party requests from user pages). Archivo for the interface;
 // Source Serif 4 for the user's writing; Noto Ethiopic so Amharic renders in both.
 import '@fontsource/archivo/400.css'
@@ -14,6 +15,7 @@ import '@fontsource/source-serif-4/400.css'
 import '@fontsource/source-serif-4/600.css'
 import './index.css'
 import { applyTheme, savedTheme } from './lib/theme'
+import { LoginPage } from './pages/Login/LoginPage'
 import { Placeholder } from './pages/Placeholder/Placeholder'
 import { StatusPage } from './pages/Status/StatusPage'
 import { TodayPage } from './pages/Today/TodayPage'
@@ -24,8 +26,13 @@ applyTheme(savedTheme())
 const queryClient = new QueryClient()
 
 const router = createBrowserRouter([
+  { path: '/login', element: <LoginPage /> },
   {
-    element: <AppShell />,
+    element: (
+      <AuthGate>
+        <AppShell />
+      </AuthGate>
+    ),
     children: [
       { path: '/', element: <TodayPage /> },
       { path: '/import', element: <UploadPage /> },
