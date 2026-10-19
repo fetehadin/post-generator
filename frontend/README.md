@@ -10,7 +10,13 @@ npm install
 npm run dev        # http://localhost:5173 — /api is forwarded to the API on :8000
 ```
 
-Start the API first (`cd backend && uvicorn app.main:app --reload`). The home page shows **API: ok, Database: ok** (the Phase 0 demo).
+Start the API first (`cd backend && uvicorn app.main:app --reload`). Pages so far:
+
+- `/import`: upload a Telegram export, see what was found and skipped, and watch the voice being learned (Phase 1).
+- `/status`: **API: ok, Database: ok** (the Phase 0 demo). Also in the avatar menu.
+- Today, Drafts, Calendar and Voice are placeholders until their features are decided (`docs/SCREEN_FEATURES.md`).
+
+**No backend?** `VITE_USE_MOCKS=true npm run dev` answers like the real API (`src/api/mocks/handlers.ts`, shapes from `docs/API.md`).
 
 ## Checks
 
