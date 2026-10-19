@@ -14,348 +14,176 @@
     <link rel="stylesheet" href="app.css" />
     <script src="proto.js" defer></script>
     <style>
-      .day {
-        flex: 1;
+      .home {
         width: 100%;
         max-width: var(--column);
         margin: 0 auto;
-        padding: var(--space-8) var(--space-6) var(--space-4);
+        padding: 12vh var(--space-6) var(--space-12);
         display: flex;
         flex-direction: column;
-        gap: var(--space-4);
+        gap: var(--space-8);
       }
-      .day-head {
+      .home__head {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
+        gap: var(--space-4);
       }
-      .day h1 {
+      .date {
+        margin: 0 0 var(--space-1);
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+      }
+      .home h1 {
         margin: 0;
         font-size: var(--text-2xl);
         font-weight: 600;
         letter-spacing: var(--tracking-tight);
       }
-      .day .sub {
-        margin: 0 0 var(--space-4);
-        color: var(--ink-2);
-      }
-      .day-label {
-        font-size: var(--text-xs);
-        font-weight: 600;
-        color: var(--ink-2);
-        margin-top: var(--space-2);
-      }
-      .checkin {
-        padding: var(--space-4) var(--space-6);
-      }
-      .checkin .meta {
-        margin-bottom: var(--space-2);
-      }
-      .checkin p,
-      .draft p {
-        margin: 0;
-      }
-      .draft {
-        padding: var(--space-4) var(--space-6);
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: var(--space-2) var(--space-4);
-        align-items: start;
-      }
-      .draft .meta {
-        grid-column: 1 / -1;
-      }
-      .draft p {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      .platform {
-        display: inline-grid;
-        place-items: center;
-        min-width: 22px;
-        height: 20px;
-        padding: 0 var(--space-1);
-        border-radius: var(--radius-control);
-        border: 1px solid var(--line);
-        font-size: var(--text-xs);
-        font-weight: 600;
-        color: var(--ink);
-      }
-      .writing-placeholder {
-        padding: var(--space-4) var(--space-6);
-        color: var(--ink-2);
-        display: flex;
-        gap: var(--space-2);
-        align-items: center;
-      }
-      .writing-placeholder .icon {
-        color: var(--thread);
-      }
-      .composer-wrap {
-        position: sticky;
-        bottom: 0;
-        padding: var(--space-3) var(--space-6) var(--space-6);
-        background: var(--paper);
-        border-top: 1px solid var(--line);
-      }
-      .starters {
-        max-width: var(--column);
-        margin: 0 auto var(--space-3);
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-2);
-      }
-      .composer {
-        max-width: var(--column);
-        margin: 0 auto;
-        padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
-        border: 1px solid var(--edge);
-        border-radius: var(--radius-panel);
-        background: var(--surface);
-      }
-      .composer:focus-within {
-        border-color: var(--thread);
-        box-shadow: 0 0 0 1px var(--thread);
-      }
-      .composer textarea {
-        width: 100%;
-        min-height: var(--space-12);
-        border: 0;
-        resize: none;
-        background: transparent;
+      .ask textarea {
         font-family: var(--font-writing);
         font-size: var(--text-lg);
         line-height: var(--leading-writing);
       }
-      .composer textarea:focus-visible {
-        outline: none;
-      }
-      .composer textarea::placeholder {
+      .ideas h2,
+      .drafts h2 {
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-sm);
+        font-weight: 400;
         color: var(--ink-2);
       }
-      .composer__row {
+      .ideas {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: var(--space-2);
+        margin-top: calc(var(--space-6) * -1);
       }
-      .composer__row .spacer {
-        flex: 1;
+      .ideas h2 {
+        margin: 0;
       }
-      .upnext {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-      }
-      .upnext li {
-        list-style: none;
-        padding: var(--space-3) 0;
-        border-top: 1px solid var(--line);
-        font-size: var(--text-sm);
-      }
-      .upnext ul {
+      .ideas ul {
         margin: 0;
         padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0;
+        list-style: none;
+        display: contents;
       }
-      .upnext .meta {
-        margin-top: var(--space-1);
-      }
-      .strength {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        font-size: var(--text-sm);
-      }
-      .strength div {
-        display: flex;
-        justify-content: space-between;
-      }
-      .hint {
+      .drafts ul {
         margin: 0;
-        font-size: var(--text-xs);
+        padding: 0;
+        list-style: none;
+      }
+      .drafts li a {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+        padding: var(--space-3) var(--space-2);
+        border-top: 1px solid var(--line);
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .drafts li a:hover {
+        background: var(--paper);
+      }
+      .drafts .platform {
+        width: 72px;
+        flex: none;
+        font-size: var(--text-sm);
         color: var(--ink-2);
       }
-      /* The sticky composer (~190px) must not hide the focused element (WCAG 2.4.11). */
-      html {
-        scroll-padding-bottom: 224px;
+      .drafts .first {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-family: var(--font-writing);
+      }
+      .drafts .writing-now {
+        color: var(--ink-2);
+        font-family: var(--font-ui);
       }
       @media (max-width: 767px) {
-        html {
-          scroll-padding-bottom: calc(var(--tabbar-height) + 200px);
+        .home {
+          padding: var(--space-12) var(--space-4) var(--space-8);
+          gap: var(--space-6);
         }
-        .shell--two {
-          padding-bottom: var(--tabbar-height);
+        .drafts li a {
+          flex-wrap: wrap;
+          gap: var(--space-1) var(--space-3);
         }
-        .draft {
-          grid-template-columns: minmax(0, 1fr);
+        .drafts .first {
+          flex-basis: 100%;
+          order: -1;
         }
-        .draft .btn {
-          justify-self: start;
-        }
-        .day {
-          padding: var(--space-6) var(--space-4) var(--space-2);
-        }
-        .composer-wrap {
-          bottom: var(--tabbar-height);
-          padding: var(--space-2) var(--space-4) var(--space-3);
-        }
-        /* The day already has items; starters return when the composer is the only thing. */
-        .starters {
-          display: none;
-        }
-        .composer textarea {
-          min-height: 32px;
+        .drafts .platform {
+          width: auto;
         }
       }
     </style>
   </head>
   <body>
-    <div class="shell shell--two">
-      <nav class="nav" aria-label="Main">
-        <div class="brand">
-          <span class="brand__name"
-            ><span class="brand__mark" aria-hidden="true"><svg class="icon"><use href="#i-check" /></svg></span
-            ><span>Voxlace</span></span
-          >
-          <button class="btn btn--quiet btn--icon" data-theme-toggle>
-            <svg class="icon" aria-hidden="true"><use href="#i-theme-light" /></svg>
-          </button>
-        </div>
-        <a class="nav__item" href="#" aria-current="page"
-          ><svg class="icon" aria-hidden="true"><use href="#i-today" /></svg
-          ><span class="nav__label">Today</span></a
-        >
-        <a class="nav__item" href="editor.html"
-          ><svg class="icon" aria-hidden="true"><use href="#i-drafts" /></svg
-          ><span class="nav__label">Drafts</span></a
-        >
-        <a class="nav__item" href="#"
-          ><svg class="icon" aria-hidden="true"><use href="#i-calendar" /></svg
-          ><span class="nav__label">Calendar</span></a
-        >
-        <a class="nav__item" href="#"
-          ><svg class="icon" aria-hidden="true"><use href="#i-voice" /></svg
-          ><span class="nav__label">Voice</span></a
-        >
-        <a class="nav__item" href="#"
-          ><svg class="icon" aria-hidden="true"><use href="#i-settings" /></svg
-          ><span class="nav__label">Settings</span></a
-        >
-        <div class="nav__foot">
-          <div class="usage">
-            12 of 30 drafts today
-            <div class="usage__bar" role="presentation"><span style="width: 40%"></span></div>
-          </div>
-          <div class="me">
-            <span class="avatar" aria-hidden="true">F</span>
-            <div>Fetehadin<small>3 platforms connected</small></div>
-          </div>
-        </div>
-      </nav>
+    <div class="shell">
+      <div data-sidebar="today"></div>
 
-      <main class="work" id="main">
-        <div class="day page-flow">
-          <div class="day-head">
-            <h1>Wednesday, 21 October</h1>
-            <button class="btn btn--quiet btn--icon mobile-only" type="button" data-theme-toggle>
-              <svg class="icon" aria-hidden="true"><use href="#i-theme-light" /></svg>
-            </button>
-          </div>
-
-          <article class="page checkin" aria-label="Check-in, 09:12">
-            <div class="meta"><span>Check-in</span><span>09:12</span></div>
-            <p class="writing">Finished the Telegram importer, 412 posts in. Skipped 31: service messages, forwards and link-only posts.</p>
-          </article>
-
-          <article class="page draft" aria-label="X draft">
-            <div class="meta">
-              <span><span class="platform" aria-hidden="true">X</span>X draft</span>
-              <span>Draft</span>
-              <span class="count count--ok">238 / 280</span>
-              <span class="badge--ai badge"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-sparkle" /></svg>AI-generated · based on 8 of your posts</span>
+      <main class="work page" id="main">
+        <div class="home">
+          <header class="home__head">
+            <div>
+              <p class="date">Wednesday, 21 October</p>
+              <h1>What did you work on today?</h1>
             </div>
-            <p class="writing">Small win today: the Telegram importer works end to end. 412 posts in, 31 skipped (service messages, forwards, link-only). Next: teach it to sound like me, not like a press release.</p>
-            <a class="btn" href="editor.html">Open</a>
-          </article>
+            <div data-mobile-account></div>
+          </header>
 
-          <article class="page draft" aria-label="LinkedIn draft">
-            <div class="meta">
-              <span><span class="platform" aria-hidden="true">in</span>LinkedIn draft</span>
-              <span>Approved · Thu 09:00 your time</span>
-              <span class="count count--ok">1,104 / 3,000</span>
-              <span class="badge--ai badge"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-sparkle" /></svg>AI-generated · based on 8 of your posts</span>
-            </div>
-            <p class="writing">I spent this week on the least glamorous part of an AI writing tool: reading exports. Telegram gives you JSON where a message can be a string or a list of pieces. Here's what 412 real posts taught me about cleaning data before any model sees it.</p>
-            <a class="btn" href="editor.html">Open</a>
-          </article>
-
-          <div class="page writing-placeholder" role="status" aria-live="polite" data-scroll-into-view>
-            <svg class="icon" aria-hidden="true"><use href="#i-sparkle" /></svg>
-            Writing your Telegram draft…
-          </div>
-        </div>
-
-        <div class="composer-wrap">
-          <div class="starters" role="group" aria-label="Prompt starters">
-            <button class="chip" type="button">What did you ship today?</button>
-            <button class="chip" type="button">A lesson from this week</button>
-            <button class="chip" type="button">Turn a commit into a post</button>
-          </div>
-          <form class="composer page" onsubmit="return false">
+          <form class="ask" onsubmit="return false">
             <label for="checkin" class="visually-hidden">Today's check-in</label>
-            <textarea id="checkin" placeholder="What did you work on today?"></textarea>
-            <div class="composer__row">
-              <div role="group" aria-label="Platforms" class="composer__row">
-                <button class="chip" type="button" aria-pressed="true"><span class="tick" aria-hidden="true">✓</span>X</button>
-                <button class="chip" type="button" aria-pressed="true"><span class="tick" aria-hidden="true">✓</span>LinkedIn</button>
-                <button class="chip" type="button" aria-pressed="false"><span class="tick" aria-hidden="true">✓</span>Telegram</button>
+            <textarea id="checkin" rows="2" placeholder="Finished the Telegram importer, 412 posts in…"></textarea>
+            <div class="ask__row">
+              <div role="group" aria-label="Write for" class="ask__row">
+                <button class="chip chip--toggle" type="button" aria-pressed="true"><span class="tick" aria-hidden="true">✓</span>X</button>
+                <button class="chip chip--toggle" type="button" aria-pressed="true"><span class="tick" aria-hidden="true">✓</span>LinkedIn</button>
+                <button class="chip chip--toggle" type="button" aria-pressed="false"><span class="tick" aria-hidden="true">✓</span>Telegram</button>
               </div>
-              <span class="spacer"></span>
-              <button class="btn btn--quiet" type="button">Save check-in</button>
-              <button class="btn btn--primary" type="submit">
-                <svg class="icon" aria-hidden="true"><use href="#i-sparkle" /></svg>Generate 2 drafts
-              </button>
+              <button class="btn btn--primary" type="submit">Generate 2 drafts</button>
             </div>
           </form>
+
+          <section class="ideas" aria-labelledby="ideas-h">
+            <h2 id="ideas-h">Try:</h2>
+            <ul>
+              <li><button class="chip" type="button">What did you ship today?</button></li>
+              <li><button class="chip" type="button">A lesson from this week</button></li>
+              <li><button class="chip" type="button">Something you'd tell a beginner</button></li>
+            </ul>
+          </section>
+
+          <section class="drafts" aria-labelledby="drafts-h">
+            <h2 id="drafts-h">Today's drafts</h2>
+            <ul>
+              <li>
+                <a href="editor.html"
+                  ><span class="platform">X</span><span class="first">Small win today: the Telegram importer works end to end.</span
+                  ><span class="tag">Draft</span></a
+                >
+              </li>
+              <li>
+                <a href="editor.html"
+                  ><span class="platform">LinkedIn</span
+                  ><span class="first">I spent this week on the least glamorous part of an AI writing tool…</span
+                  ><span class="tag">Approved · Thu 09:00 your time</span></a
+                >
+              </li>
+              <li>
+                <span class="visually-hidden" role="status">Writing your Telegram draft</span>
+                <a href="#" aria-disabled="true" tabindex="-1"
+                  ><span class="platform">Telegram</span><span class="first writing-now">Writing…</span></a
+                >
+              </li>
+            </ul>
+          </section>
         </div>
       </main>
-
-      <aside class="context" aria-label="This week">
-        <section class="upnext">
-          <h2>Up next</h2>
-          <ul>
-            <li>
-              LinkedIn: “I spent this week on the least glamorous part…”
-              <div class="meta"><span>Approved</span><span>Thu 09:00 your time</span><span>Reminder, then copy</span></div>
-            </li>
-            <li>
-              Telegram: “Day 7 of #10DaysGrind…”
-              <div class="meta"><span>Scheduled</span><span>Fri 18:00 your time</span><span>Sends automatically</span></div>
-            </li>
-          </ul>
-        </section>
-
-        <section class="strength">
-          <h2>Your voice</h2>
-          <div><span>Telegram</span><span class="badge">412 posts · strong</span></div>
-          <div><span>X</span><span class="badge">186 posts · strong</span></div>
-          <div><span>LinkedIn</span><span class="count count--near">12 posts · still learning</span></div>
-          <p class="hint">Import your LinkedIn posts for a closer match. <a href="#">How to export</a></p>
-        </section>
-      </aside>
     </div>
-
-    <nav class="tabbar" aria-label="Main">
-      <a href="#" aria-current="page"><svg class="icon" aria-hidden="true"><use href="#i-today" /></svg>Today</a>
-      <a href="editor.html"><svg class="icon" aria-hidden="true"><use href="#i-drafts" /></svg>Drafts</a>
-      <a href="#"><svg class="icon" aria-hidden="true"><use href="#i-calendar" /></svg>Calendar</a>
-      <a href="#"><svg class="icon" aria-hidden="true"><use href="#i-voice" /></svg>Voice</a>
-      <a href="#"><svg class="icon" aria-hidden="true"><use href="#i-settings" /></svg>Settings</a>
-    </nav>
   </body>
 </html>

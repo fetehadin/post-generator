@@ -36,10 +36,10 @@ What makes [scholarxiv.com](https://www.scholarxiv.com) feel the way it does, an
 - **Why it works:** flat layers look calm and precise, so a shadow can be kept for things that really float.
 - **Voxlace:** this is already our rule (§5: shadows only for menus, dialogs and toasts). We keep it and add a `--sunken` tint for side-panel notes.
 
-### Q4. Three columns: navigation, work, context
+### Q4. A floating nav card, one work column (and a right panel we don't take)
 - **Observed:** the app has a left nav with an icon + label for each item and a theme toggle in the header. The nav collapses to an icon rail (`user-search-rail-dark.png`). In the middle is a centered work column of about 850px. On the right is a context panel ("Selected papers", "Referenced papers") with helpful empty states written as sentences.
 - **Why it works:** the context the AI uses is always visible next to the work, without covering it. The icon rail gives the work room on smaller screens.
-- **Voxlace:** this is the draft editor exactly. The left nav is our 5 places. The center is the editor and preview. The right column is **"Based on 8 of your posts"** (principle 2, "Show your sources"), which is visible by default instead of hidden behind a button.
+- **Voxlace (revised 19 Oct 2026):** we keep the left card and the single centered column, but **drop the right panel**. In testing it made our editor feel crowded, and the product owner decided drafts shouldn't show their sources. The preview became an Edit / Preview switch, and context moved to Calendar and Voice.
 
 ### Q5. Ask first: a centered question and starters
 - **Observed:** the empty app home is a single centered question ("What would you like to research about?") with a short muted subtitle and a large rounded input. The input holds an attach icon, a mic icon and a round send button, with a small "Auto" chip below. **Prompt suggestions** are listed underneath as rounded chips (`user-app-home-light.png`).
@@ -83,7 +83,7 @@ What makes [scholarxiv.com](https://www.scholarxiv.com) feel the way it does, an
 |---|---|
 | Centered question + suggestion chips on an empty home | **Daily loop**, step 1: Today's empty state. The chips are our prompt starters. |
 | Search box that docks to the bottom once results exist | Today's composer is pinned to the bottom once the day has items (§4.1). |
-| Right context panel with "Selected" / "Referenced" lists | Editor `SourcesPanel`: the posts the draft used, with Pin and Exclude (FR-25). |
+| Right context panel with "Selected" / "Referenced" lists | **Not taken.** Pin and Exclude (FR-25) live on the Voice screen instead. |
 | Collapsible nav → icon rail | Our sidebar collapses to a rail at 1024–1279px, and to a bottom bar below 768px. |
 | "Auto" chip beside the input (automatic model choice) | A "Platforms" chip group under the composer (X · LinkedIn · Telegram). |
 | Bookmark / Save on a card | "Pin as an example" on a source post. Not on drafts, which already have statuses. |

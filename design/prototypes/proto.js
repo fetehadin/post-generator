@@ -41,6 +41,8 @@ const ICONS = {
   pin: P('M9 4h6l-1 6 3 3H7l3-3zM12 13v7'),
   hide: P('M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 6c5 0 9 6 9 6a15 15 0 0 1-3 3.6M6.1 7.5A15 15 0 0 0 3 12s4 6 9 6a8.9 8.9 0 0 0 3.5-.7'),
   clock: '<circle cx="12" cy="12" r="9"/>' + P('M12 7v5l3 2'),
+  plus: P('M12 5v14M5 12h14'),
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
   layers: P('M12 3l9 5-9 5-9-5zM3 13l9 5 9-5'),
   quote: P('M7 7h4v4c0 3-2 5-4 6M14 7h4v4c0 3-2 5-4 6'),
   alert: P('M12 3l10 18H2z') + P('M12 10v5M12 18v.5'),
@@ -70,12 +72,60 @@ document.addEventListener('click', (e) => {
   applyTheme(next)
 })
 
-// Mobile editor: Edit / Preview switch.
+// One sidebar and one mobile tab bar for every page: <div data-sidebar="today"></div>.
+const NAV = [
+  ['today', 'Today', 'today.html'],
+  ['drafts', 'Drafts', 'editor.html'],
+  ['calendar', 'Calendar', '#'],
+  ['voice', 'Voice', '#'],
+]
+document.querySelectorAll('[data-sidebar]').forEach((slot) => {
+  const current = slot.dataset.sidebar
+  const items = NAV.map(
+    ([id, label, href]) =>
+      `<a class="nav__item" href="${href}"${id === current ? ' aria-current="page"' : ''}><svg class="icon" aria-hidden="true"><use href="#i-${id}"/></svg><span class="nav__label">${label}</span></a>`,
+  ).join('')
+  slot.outerHTML = `
+  <aside class="sidebar"><div class="sidebar__card">
+    <div class="brand"><a class="brand__name" href="today.html"><span class="brand__mark" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></span><span>Voxlace</span></a></div>
+    <a class="btn sidebar__new" href="today.html" aria-label="New post"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span>New post</span></a>
+    <nav class="nav" aria-label="Main">${items}</nav>
+    <details class="account">
+      <summary aria-label="Account and settings"><span class="avatar" aria-hidden="true">F</span><span class="account__name">Fetehadin<small>Free plan</small></span></summary>
+      <ul class="menu">
+        <li><a class="btn btn--quiet" href="#"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg>Settings</a></li>
+        <li><button class="btn btn--quiet" type="button" data-theme-toggle><svg class="icon" aria-hidden="true"><use href="#i-theme-light"/></svg>Theme</button></li>
+        <li><hr></li>
+        <li class="meta">12 of 30 drafts used today</li>
+      </ul>
+    </details>
+  </div></aside>`
+  document.querySelectorAll('[data-mobile-account]').forEach((m) => {
+    m.outerHTML = `<details class="mobile-account mobile-only">
+      <summary aria-label="Account and settings"><span class="avatar" aria-hidden="true">F</span></summary>
+      <ul class="menu">
+        <li><a class="btn btn--quiet" href="#">Settings</a></li>
+        <li><button class="btn btn--quiet" type="button" data-theme-toggle>Theme</button></li>
+        <li><hr></li>
+        <li class="meta">12 of 30 drafts used today</li>
+      </ul></details>`
+  })
+  document.body.insertAdjacentHTML(
+    'beforeend',
+    `<nav class="tabbar" aria-label="Main">${NAV.map(
+      ([id, label, href]) =>
+        `<a href="${href}"${id === current ? ' aria-current="page"' : ''}><svg class="icon" aria-hidden="true"><use href="#i-${id}"/></svg>${label}</a>`,
+    ).join('')}</nav>`,
+  )
+})
+applyTheme(document.documentElement.dataset.theme)
+
+// Editor: Edit / Preview switch.
 document.querySelectorAll('[data-view-switch] button').forEach((b) =>
   b.addEventListener('click', () => {
     const view = b.dataset.view
     document.querySelectorAll('[data-view-switch] button').forEach((o) =>
-      o.setAttribute('aria-pressed', String(o === b)),
+      o.setAttribute('aria-pressed', String(o.dataset.view === view)),
     )
     document.body.dataset.view = view
   }),

@@ -16,8 +16,10 @@ for (const name of PAGES) {
   for (const theme of THEMES) {
     for (const [vp, viewport] of Object.entries(VIEWPORTS)) {
       const page = await browser.newPage({ viewport })
-      await page.goto(new URL(`${name}.html?theme=${theme}`, DIR).href)
-      await page.evaluate(() => document.fonts.ready)
+      // Web fonts can hang on a slow network: wait for the page, then give fonts up to 8 s.
+      const url = new URL(`${name}.html?theme=${theme}`, DIR).href
+      await page.goto(url, { waitUntil: 'domcontentloaded' }).catch(() => page.goto(url, { waitUntil: 'domcontentloaded' }))
+      await Promise.race([page.evaluate(() => document.fonts.ready), page.waitForTimeout(8000)])
       await page.waitForTimeout(300)
       await page.screenshot({ path: `${OUT}${name}-${vp}-${theme}.png`, fullPage: name === 'states' })
       if (name === 'editor' && vp === 'mobile') {

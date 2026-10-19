@@ -1,150 +1,118 @@
-/* Draft editor (DESIGN.md §4.2). Shared by editor.html and states.html. */
+/* Draft editor (DESIGN.md §4.2): one column, the draft, a feedback box. */
 
 .topbar {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-6);
-  border-bottom: 1px solid var(--line);
-}
-.topbar__row {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  background: var(--surface);
   white-space: nowrap;
-}
-.topbar__row .spacer {
-  flex: 1;
 }
 .topbar h1 {
   margin: 0;
   font-size: var(--text-md);
   font-weight: 600;
 }
-.topbar .meta {
-  padding-left: var(--space-1);
-}
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--edge);
-  font-size: var(--text-xs);
-  color: var(--ink-2);
-}
-.edit {
+.topbar .spacer {
   flex: 1;
-  padding: var(--space-8) var(--space-6) var(--space-6);
+}
+.switch {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--sunken);
+}
+.switch.mobile-only {
+  display: none;
+  align-self: flex-start;
+  margin-bottom: var(--space-6);
+}
+.switch button {
+  min-height: 32px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.switch button[aria-pressed='true'] {
+  background: var(--surface);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.more {
+  position: relative;
+}
+.more summary {
+  list-style: none;
+}
+.more summary::-webkit-details-marker {
+  display: none;
+}
+.more .menu {
+  right: 0;
+  top: calc(100% + var(--space-1));
+}
+.column {
+  flex: 1;
+  width: 100%;
+  max-width: var(--column);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  max-width: calc(var(--measure) + var(--space-12) * 2);
-  width: 100%;
-  margin: 0 auto;
 }
-.editor {
-  padding: var(--space-6);
+.draft {
+  /* The draft is plain text on the page; a teal edge shows where you are typing. */
+  border-left: 2px solid transparent;
+  padding-left: var(--space-4);
+  margin-left: calc(var(--space-4) * -1 - 2px);
+  transition: border-color var(--duration) var(--ease);
 }
-.editor textarea {
+.draft:hover {
+  border-left-color: var(--line);
+}
+.draft:focus-within {
+  border-left-color: var(--thread);
+}
+.draft textarea {
+  cursor: text;
   display: block;
   width: 100%;
-  min-height: 260px;
+  min-height: 300px;
   border: 0;
-  resize: vertical;
+  padding: 0;
+  resize: none;
+  field-sizing: content;
   background: transparent;
   color: var(--ink);
   font-family: var(--font-writing);
   font-size: var(--text-lg);
   line-height: var(--leading-writing);
 }
-.editor textarea:focus-visible,
-.revise textarea:focus-visible {
+.draft textarea:focus-visible {
   outline: none;
 }
-.editor:focus-within,
-.revise:focus-within {
-  border-color: var(--thread);
-  box-shadow: 0 0 0 1px var(--thread);
-}
-.editor__foot {
+.draft__foot {
   display: flex;
-  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-3);
   margin-top: var(--space-4);
   padding-top: var(--space-3);
   border-top: 1px solid var(--line);
 }
-.quick {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-.revise {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
-  border: 1px solid var(--edge);
-  border-radius: var(--radius-panel);
-  background: var(--surface);
-}
-.revise textarea {
-  flex: 1;
-  border: 0;
-  background: transparent;
-  resize: none;
-  field-sizing: content; /* grows with its text */
-  min-height: 24px;
-  max-height: 160px;
-  padding: var(--space-2) 0;
-  line-height: var(--leading-ui);
-}
-.revise textarea::placeholder {
-  color: var(--ink-2);
-}
-.hint {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--ink-2);
-}
-.actionbar {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--space-6);
-  border-top: 1px solid var(--line);
-  background: var(--paper);
-}
-.actionbar .spacer {
-  flex: 1;
-}
-.actionbar .hint {
-  flex-basis: 100%;
-  order: 3;
-}
-.when {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
-}
-.when select {
-  min-height: 36px;
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-control);
-  border: 1px solid var(--edge);
-  background: var(--surface);
-}
-/* Platform-true preview: the platform's own system stack and size, not our scale. */
+/* Preview: the platform's own system font and size, not our scale. */
 .preview {
+  display: none;
   padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Ethiopic', sans-serif;
   font-size: 15px;
   line-height: 1.35;
@@ -165,60 +133,72 @@
   margin: 0;
   white-space: pre-line;
 }
-/* Sources: a plain list divided by rules, not tinted boxes. */
-.sources {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.sources li {
-  padding: var(--space-3) 0;
-  border-top: 1px solid var(--line);
-}
-.sources p {
-  margin: var(--space-1) 0 var(--space-2);
-  font-family: var(--font-writing);
-  font-size: var(--text-sm);
-  line-height: 1.55;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.sources .row {
-  display: flex;
-  gap: var(--space-1);
-}
-.sources .btn {
-  min-height: 28px;
-  padding: 0 var(--space-2);
-  font-size: var(--text-xs);
-}
-.view-switch,
-.more {
+body[data-view='preview'] .draft textarea {
   display: none;
 }
-.more {
-  position: relative;
+body[data-view='preview'] .preview {
+  display: block;
 }
-.more ul {
-  position: absolute;
-  right: 0;
-  top: calc(100% + var(--space-1));
-  margin: 0;
-  padding: var(--space-1);
-  list-style: none;
+.feedback {
+  position: sticky;
+  bottom: 0;
+  margin-top: var(--space-8);
+  padding: var(--space-3) 0 var(--space-6);
   background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.feedback .suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.feedback textarea {
+  font-size: var(--text-md);
+}
+
+/* Approve dialog (shown in states.html). */
+.dialog {
+  width: min(420px, 100%);
+  padding: var(--space-6);
   border: 1px solid var(--line);
   border-radius: var(--radius-panel);
+  background: var(--surface);
   box-shadow: var(--shadow-float);
-  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
-.more:not([open]) ul {
-  display: none;
+.dialog h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-tight);
 }
-.more summary {
-  list-style: none;
+.dialog p {
+  margin: 0;
+  color: var(--ink-2);
+}
+.dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.dialog select {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--edge);
+  background: var(--surface);
+  font-weight: 400;
+}
+.dialog .actions {
+  white-space: nowrap;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 /* States (DESIGN.md §7). */
@@ -241,10 +221,7 @@
 .alert p {
   margin: 0 0 var(--space-2);
 }
-.streaming {
-  position: relative;
-}
-.streaming .caret {
+.caret {
   display: inline-block;
   width: 2px;
   height: 1.1em;
@@ -258,99 +235,36 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .streaming .caret {
+  .caret {
     animation: none;
   }
 }
 
-@media (max-width: 1023px) {
-  .shell--editor {
-    grid-template-columns: var(--rail-width) minmax(0, 1fr);
-  }
-  .shell--editor .context {
-    display: flex;
-    position: static;
-    height: auto;
-    grid-column: 2;
-    border-left: 0;
-    border-top: 1px solid var(--line);
-    padding: var(--space-6);
-  }
-}
 @media (max-width: 767px) {
-  /* Fixed action bar (~108px) + tab bar: keep focused controls out from under them (WCAG 2.4.11). */
-  html:has(.shell--editor) {
-    --bars: calc(var(--tabbar-height) + 108px);
-    scroll-padding-bottom: calc(var(--bars) + var(--space-4));
+  .switch.mobile-only {
+    display: inline-flex;
   }
-  .shell--editor {
-    grid-template-columns: minmax(0, 1fr);
-    padding-bottom: var(--bars);
-  }
-  .shell--editor .context {
-    grid-column: 1;
-    padding: var(--space-4);
+  html:has(.column) {
+    scroll-padding-bottom: calc(var(--tabbar-height) + 180px);
   }
   .topbar {
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-3);
   }
-  .topbar__row {
-    gap: var(--space-2);
-  }
-  .back {
-    width: 36px;
-    padding: 0;
-  }
-  .hide-sm {
+  .topbar .hide-sm {
     display: none;
   }
-  .edit {
-    padding: var(--space-4);
+  .column {
+    padding: var(--space-4) var(--space-4) 0;
   }
-  .editor {
-    padding: var(--space-4);
+  .draft textarea {
+    min-height: 200px;
   }
-  .actionbar {
-    position: fixed;
-    left: 0;
-    right: 0;
+  .feedback {
     bottom: var(--tabbar-height);
-    z-index: 5;
-    padding: var(--space-3) var(--space-4);
+    padding-bottom: var(--space-3);
   }
-  .actionbar .btn--primary {
-    width: 100%;
-  }
-  .actionbar .hint {
-    display: none;
-  }
-  .view-switch {
-    display: inline-flex;
-    gap: var(--space-1);
-    padding: var(--space-1);
-    border-radius: var(--radius-pill);
-    background: var(--sunken);
-  }
-  .view-switch button {
-    min-height: 28px;
-    padding: 0 var(--space-3);
-    border: 0;
-    border-radius: var(--radius-pill);
-    background: transparent;
-    font-size: var(--text-sm);
-    cursor: pointer;
-  }
-  .view-switch button[aria-pressed='true'] {
-    background: var(--surface);
-    font-weight: 600;
-  }
-  .more {
-    display: block;
-  }
-  body:not([data-view='preview']) .shell--editor .context {
-    display: none;
-  }
-  body[data-view='preview'] .shell--editor .edit {
-    display: none;
+  .draft {
+    margin-left: 0;
+    padding-left: var(--space-3);
   }
 }

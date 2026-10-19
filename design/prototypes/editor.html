@@ -12,92 +12,46 @@
     />
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="app.css" />
-    <script src="proto.js" defer></script>
     <link rel="stylesheet" href="editor.css" />
+    <script src="proto.js" defer></script>
   </head>
   <body>
-    <div class="shell shell--editor">
-      <nav class="nav" aria-label="Main">
-        <div class="brand">
-          <span class="brand__name"
-            ><span class="brand__mark" aria-hidden="true"><svg class="icon"><use href="#i-check" /></svg></span
-            ><span>Voxlace</span></span
-          >
-          <button class="btn btn--quiet btn--icon" data-theme-toggle>
-            <svg class="icon" aria-hidden="true"><use href="#i-theme-light" /></svg>
-          </button>
-        </div>
-        <a class="nav__item" href="today.html"
-          ><svg class="icon" aria-hidden="true"><use href="#i-today" /></svg
-          ><span class="nav__label">Today</span></a
-        >
-        <a class="nav__item" href="#" aria-current="page"
-          ><svg class="icon" aria-hidden="true"><use href="#i-drafts" /></svg
-          ><span class="nav__label">Drafts</span></a
-        >
-        <a class="nav__item" href="#"
-          ><svg class="icon" aria-hidden="true"><use href="#i-calendar" /></svg
-          ><span class="nav__label">Calendar</span></a
-        >
-        <a class="nav__item" href="#"
-          ><svg class="icon" aria-hidden="true"><use href="#i-voice" /></svg
-          ><span class="nav__label">Voice</span></a
-        >
-        <a class="nav__item" href="#"
-          ><svg class="icon" aria-hidden="true"><use href="#i-settings" /></svg
-          ><span class="nav__label">Settings</span></a
-        >
-        <div class="nav__foot">
-          <div class="usage">
-            12 of 30 drafts today
-            <div class="usage__bar" role="presentation"><span style="width: 40%"></span></div>
-          </div>
-          <div class="me">
-            <span class="avatar" aria-hidden="true">F</span>
-            <div>Fetehadin<small>3 platforms connected</small></div>
-          </div>
-        </div>
-      </nav>
+    <div class="shell">
+      <div data-sidebar="drafts"></div>
 
       <main class="work page" id="main">
         <header class="topbar">
-          <div class="topbar__row">
-            <a class="btn btn--quiet back" href="#" aria-label="Back to drafts"
-              ><svg class="icon" aria-hidden="true"><use href="#i-back" /></svg><span class="hide-sm">Drafts</span></a
-            >
-            <h1>X draft</h1>
-            <span class="status">Draft</span>
-            <span class="spacer"></span>
-            <div class="view-switch" data-view-switch role="group" aria-label="Show">
-              <button type="button" data-view="edit" aria-pressed="true">Edit</button>
-              <button type="button" data-view="preview" aria-pressed="false">Preview</button>
-            </div>
-            <button class="btn btn--quiet hide-sm" type="button" aria-haspopup="menu">
-              <svg class="icon" aria-hidden="true"><use href="#i-history" /></svg>Versions
-            </button>
-            <button class="btn btn--quiet hide-sm" type="button">
-              <svg class="icon" aria-hidden="true"><use href="#i-trash" /></svg>Discard
-            </button>
-            <details class="more">
-              <summary class="btn btn--quiet btn--icon" aria-label="More actions">⋯</summary>
-              <ul>
-                <li><button class="btn btn--quiet" type="button">Versions</button></li>
-                <li><button class="btn btn--quiet" type="button">Discard</button></li>
-                <li><button class="btn btn--quiet" type="button" data-theme-toggle>Theme</button></li>
-              </ul>
-            </details>
+          <a class="btn btn--quiet btn--icon" href="today.html" aria-label="Back to Today"
+            ><svg class="icon" aria-hidden="true"><use href="#i-back" /></svg
+          ></a>
+          <h1>X draft</h1>
+          <span class="tag">Draft</span>
+          <span class="spacer"></span>
+          <div class="switch hide-sm" data-view-switch role="group" aria-label="Show">
+            <button type="button" data-view="edit" aria-pressed="true">Edit</button>
+            <button type="button" data-view="preview" aria-pressed="false">Preview</button>
           </div>
-          <div class="meta">
-            <span class="badge badge--ai"
-              ><svg class="icon icon--sm" aria-hidden="true"><use href="#i-sparkle" /></svg>AI-generated · review before posting</span
-            >
-            <span>v3 · Punchier</span>
-            <a href="#sources">Based on 8 of your posts</a>
-          </div>
+          <button class="btn btn--quiet btn--icon hide-sm" type="button" aria-label="Versions">
+            <svg class="icon" aria-hidden="true"><use href="#i-history" /></svg>
+          </button>
+          <details class="more">
+            <summary class="btn btn--quiet btn--icon" aria-label="More actions"><svg class="icon" aria-hidden="true"><use href="#i-more" /></svg></summary>
+            <ul class="menu">
+              <li><button class="btn btn--quiet" type="button"><svg class="icon" aria-hidden="true"><use href="#i-history" /></svg>Versions</button></li>
+              <li><button class="btn btn--quiet" type="button"><svg class="icon" aria-hidden="true"><use href="#i-trash" /></svg>Discard draft</button></li>
+            </ul>
+          </details>
+          <div data-mobile-account></div>
+          <button class="btn btn--primary" type="button" aria-haspopup="dialog"><span>Approve<span class="hide-sm"> and schedule</span>…</span></button>
         </header>
 
-        <section class="edit" aria-label="Edit the draft">
-          <div class="page editor">
+        <div class="column">
+          <div class="switch mobile-only" data-view-switch role="group" aria-label="Show">
+            <button type="button" data-view="edit" aria-pressed="true">Edit</button>
+            <button type="button" data-view="preview" aria-pressed="false">Preview</button>
+          </div>
+
+          <section class="draft" aria-label="The draft">
             <label for="draft" class="visually-hidden">Draft text</label>
             <textarea id="draft" spellcheck="true">
 Small win today: the Telegram importer works end to end.
@@ -108,108 +62,42 @@ Next: teach it to sound like me, not like a press release.
 
 ዛሬ ትንሽ ድል፦ የቴሌግራም አስመጪው ሰርቷል።</textarea
             >
-            <div class="editor__foot">
-              <span class="count count--ok"
-                ><svg class="icon icon--sm" aria-hidden="true"><use href="#i-check" /></svg>238 / 280 · fits on X</span
-              >
-              <span class="badge">Saved</span>
-            </div>
-          </div>
-
-          <div class="quick" role="group" aria-label="Quick revisions">
-            <button class="chip" type="button">Shorter</button>
-            <button class="chip" type="button">Punchier</button>
-            <button class="chip" type="button">More casual</button>
-            <button class="chip" type="button">Add a hook</button>
-            <button class="chip" type="button">Remove emoji</button>
-          </div>
-
-          <form class="revise" onsubmit="return false">
-            <label for="revise" class="visually-hidden">Tell it what to change</label>
-            <textarea id="revise" rows="1" placeholder="Tell it what to change…" aria-describedby="revise-hint"></textarea>
-            <button class="btn" type="submit">Revise</button>
-          </form>
-          <p class="hint" id="revise-hint">
-            For example: “Mention that it took 3 tries”. Select a sentence first to change only that part. Ctrl+Enter
-            (⌘+Enter on Mac) revises.
-          </p>
-        </section>
-
-        <footer class="actionbar">
-          <label class="when" for="when"
-            ><svg class="icon" aria-hidden="true"><use href="#i-calendar" /></svg>Schedule
-            <select id="when">
-              <option>Thu 22 Oct, 18:00 your time</option>
-              <option>Fri 23 Oct, 09:00 your time</option>
-            </select></label
-          >
-          <span class="spacer"></span>
-          <button class="btn btn--primary" type="button">
-            <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Approve · remind me Thu 18:00
-          </button>
-          <p class="hint">Voxlace never posts to X for you. At 18:00 you get a reminder and open X with this text filled in.</p>
-        </footer>
-      </main>
-
-      <aside class="context" aria-label="Preview and sources">
-        <section>
-          <h2>Preview on X</h2>
-          <div class="page preview">
-            <div class="preview__head">
-              <span class="avatar" aria-hidden="true">F</span>
-              <span><b>Fetehadin</b><small>@fetebuilds · now</small></span>
-            </div>
-            <p>Small win today: the Telegram importer works end to end.
+            <div class="preview" aria-label="Preview on X">
+              <div class="preview__head">
+                <span class="avatar" aria-hidden="true">F</span>
+                <span><b>Fetehadin</b><small>@fetebuilds · now</small></span>
+              </div>
+              <p>Small win today: the Telegram importer works end to end.
 
 412 posts in, 31 skipped (service messages, forwards, link-only).
 
 Next: teach it to sound like me, not like a press release.
 
 ዛሬ ትንሽ ድል፦ የቴሌግራም አስመጪው ሰርቷል።</p>
-          </div>
-        </section>
+            </div>
+            <div class="draft__foot">
+              <span class="count">238 / 280</span>
+              <span class="tag">AI draft</span>
+            </div>
+          </section>
 
-        <section id="sources">
-          <h2>
-            <span>Based on 8 of your posts</span>
-            <a href="#" class="badge">See all 8</a>
-          </h2>
-          <ul class="sources">
-            <li>
-              <div class="meta"><span>Telegram</span><span>14 reactions</span><span>Sep 2026</span></div>
-              <p>Ship log: fixed the timezone bug. Everything is UTC in the database now and only converted at the edges. Should have done that on day one.</p>
-              <div class="row">
-                <button class="btn btn--quiet" type="button" aria-label="Pin: Ship log: fixed the timezone bug"><svg class="icon" aria-hidden="true"><use href="#i-pin" /></svg>Pin</button>
-                <button class="btn btn--quiet" type="button" aria-label="Exclude: Ship log: fixed the timezone bug"><svg class="icon" aria-hidden="true"><use href="#i-hide" /></svg>Exclude</button>
+          <form class="feedback" onsubmit="return false">
+            <div class="suggest" role="group" aria-label="Quick changes">
+              <button class="chip" type="button">Shorter</button>
+              <button class="chip" type="button">Punchier</button>
+              <button class="chip" type="button">More casual</button>
+              <button class="chip" type="button">Add a hook</button>
+            </div>
+            <div class="ask">
+              <div class="ask__row">
+                <label for="change" class="visually-hidden">Tell it what to change</label>
+                <textarea id="change" rows="1" placeholder="Tell it what to change…"></textarea>
+                <button class="btn" type="submit">Revise</button>
               </div>
-            </li>
-            <li>
-              <div class="meta"><span>Telegram</span><span>22 reactions</span><span>Aug 2026</span></div>
-              <p>#buildinpublic week 3: 41 users, 2 bug reports, 1 very kind email. Small numbers, real people.</p>
-              <div class="row">
-                <button class="btn btn--quiet" type="button" aria-label="Pin: #buildinpublic week 3"><svg class="icon" aria-hidden="true"><use href="#i-pin" /></svg>Pin</button>
-                <button class="btn btn--quiet" type="button" aria-label="Exclude: #buildinpublic week 3"><svg class="icon" aria-hidden="true"><use href="#i-hide" /></svg>Exclude</button>
-              </div>
-            </li>
-            <li>
-              <div class="meta"><span>Telegram</span><span>9 reactions</span><span>Jul 2026</span></div>
-              <p>Shipped v0.2 of the CSV cleaner. What changed: streaming reads, so 2 GB files don't kill my laptop; better error messages.</p>
-              <div class="row">
-                <button class="btn btn--quiet" type="button" aria-label="Pin: Shipped v0.2 of the CSV cleaner"><svg class="icon" aria-hidden="true"><use href="#i-pin" /></svg>Pin</button>
-                <button class="btn btn--quiet" type="button" aria-label="Exclude: Shipped v0.2 of the CSV cleaner"><svg class="icon" aria-hidden="true"><use href="#i-hide" /></svg>Exclude</button>
-              </div>
-            </li>
-          </ul>
-        </section>
-      </aside>
+            </div>
+          </form>
+        </div>
+      </main>
     </div>
-
-    <nav class="tabbar" aria-label="Main">
-      <a href="today.html"><svg class="icon" aria-hidden="true"><use href="#i-today" /></svg>Today</a>
-      <a href="#" aria-current="page"><svg class="icon" aria-hidden="true"><use href="#i-drafts" /></svg>Drafts</a>
-      <a href="#"><svg class="icon" aria-hidden="true"><use href="#i-calendar" /></svg>Calendar</a>
-      <a href="#"><svg class="icon" aria-hidden="true"><use href="#i-voice" /></svg>Voice</a>
-      <a href="#"><svg class="icon" aria-hidden="true"><use href="#i-settings" /></svg>Settings</a>
-    </nav>
   </body>
 </html>

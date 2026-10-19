@@ -95,12 +95,12 @@
   --radius-control: 8px;
   --radius-panel: 12px;
   --radius-pill: 999px;
+  --radius-ask: 24px; /* the big ask box: composer and feedback */
 
   /* Layout. */
-  --nav-width: 232px;
-  --rail-width: 64px;
-  --context-width: 360px;
-  --column: 760px; /* Today's stream and composer */
+  --sidebar-width: 264px; /* floating card, inset by --space-3 */
+  --rail-width: 72px;
+  --column: 720px; /* the one centered column */
   --tabbar-height: 56px;
 
   /* Motion: color only, quick; the draft streaming in is the one signature moment. */

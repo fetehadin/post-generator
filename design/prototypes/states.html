@@ -34,16 +34,18 @@
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-        gap: var(--space-6);
+        gap: var(--space-8) var(--space-6);
       }
       .state > h2 {
-        margin: 0 0 var(--space-2);
+        margin: 0 0 var(--space-3);
         font-size: var(--text-sm);
-        font-weight: 600;
+        font-weight: 400;
         color: var(--ink-2);
       }
       .frame {
         padding: var(--space-4);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-panel);
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
@@ -60,166 +62,138 @@
       .row .spacer {
         flex: 1;
       }
-      .empty {
-        text-align: center;
-        padding: var(--space-8) var(--space-4);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--space-3);
-      }
-      .empty h3 {
-        margin: 0;
-        font-size: var(--text-xl);
-        letter-spacing: var(--tracking-tight);
-      }
-      .empty p {
-        margin: 0;
-        color: var(--ink-2);
-      }
-      .mini-composer {
-        width: 100%;
-        padding: var(--space-3);
-        border: 1px solid var(--edge);
-        border-radius: var(--radius-panel);
-        text-align: left;
-        font-family: var(--font-writing);
-        color: var(--ink-2);
-      }
       .reason {
         font-size: var(--text-xs);
         color: var(--danger);
-        display: inline-flex;
-        gap: var(--space-1);
-        align-items: center;
       }
     </style>
   </head>
   <body>
-    <main class="gallery" id="main">
+    <main class="gallery page" id="main">
       <header>
-        <h1>States (DESIGN.md §7)</h1>
+        <h1>States</h1>
         <button class="btn" type="button" data-theme-toggle>
           <svg class="icon" aria-hidden="true"><use href="#i-theme-light" /></svg>Theme
         </button>
       </header>
 
       <div class="grid">
-        <section class="state" aria-labelledby="s-near">
-          <h2 id="s-near">Near the limit (within 10%)</h2>
-          <div class="page frame">
-            <p class="writing">Small win today: the Telegram importer works end to end, 412 posts in and 31 skipped. Next up: teach it to sound like me, not like a press release. Tomorrow: the X importer, which needs weighted counting.</p>
-            <div class="editor__foot">
-              <span class="count count--near"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-clock" /></svg>262 / 280 · 18 left</span>
+        <section class="state" aria-labelledby="s-approve-x">
+          <h2 id="s-approve-x">Approve and schedule: X (says what will happen)</h2>
+          <div class="dialog" role="dialog" aria-labelledby="d-x">
+            <h2 id="d-x">Schedule this X post</h2>
+            <label>When<select><option>Thu 22 Oct, 18:00 your time</option></select></label>
+            <p>Voxlace never posts to X for you. At 18:00 you get a reminder, and one tap opens X with this text filled in.</p>
+            <div class="actions">
+              <button class="btn btn--quiet" type="button">Cancel</button>
+              <button class="btn btn--primary" type="button">Approve and remind me</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-approve-tg">
+          <h2 id="s-approve-tg">Approve and schedule: Telegram</h2>
+          <div class="dialog" role="dialog" aria-labelledby="d-tg">
+            <h2 id="d-tg">Schedule this Telegram post</h2>
+            <label>When<select><option>Fri 23 Oct, 18:00 your time</option></select></label>
+            <p>At 18:00 Voxlace's bot posts it to your channel. You can cancel until then.</p>
+            <div class="actions">
+              <button class="btn btn--quiet" type="button">Cancel</button>
+              <button class="btn btn--primary" type="button">Approve · send Fri 18:00</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-approve-li">
+          <h2 id="s-approve-li">Approve and schedule: LinkedIn</h2>
+          <div class="dialog" role="dialog" aria-labelledby="d-li">
+            <h2 id="d-li">Schedule this LinkedIn post</h2>
+            <label>When<select><option>Thu 22 Oct, 09:00 your time</option></select></label>
+            <p>At 09:00 you get a reminder. One tap copies the text and opens LinkedIn, ready to paste.</p>
+            <div class="actions">
+              <button class="btn btn--quiet" type="button">Cancel</button>
+              <button class="btn btn--primary" type="button">Approve and remind me</button>
             </div>
           </div>
         </section>
 
         <section class="state" aria-labelledby="s-over">
-          <h2 id="s-over">Over the limit: Approve disabled, reason shown</h2>
-          <div class="page frame">
+          <h2 id="s-over">Over the limit</h2>
+          <div class="frame">
             <p class="writing">Small win today: the Telegram importer works end to end, 412 posts in and 31 skipped (service messages, forwards and link-only posts). Next up: teach it to sound like me, not like a press release. Tomorrow: X.</p>
-            <div class="editor__foot">
+            <div class="draft__foot">
               <span class="count count--over"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-alert" /></svg>297 / 280 · cut 17 characters</span>
+              <span class="tag">AI draft</span>
             </div>
             <div class="row">
               <span class="reason" id="over-reason">Cut 17 characters to approve.</span>
               <span class="spacer"></span>
-              <button class="btn btn--primary" type="button" aria-disabled="true" aria-describedby="over-reason">
-                <svg class="icon" aria-hidden="true"><use href="#i-check" /></svg>Approve · remind me Thu 18:00
-              </button>
+              <button class="btn btn--primary" type="button" aria-disabled="true" aria-describedby="over-reason">Approve and schedule…</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-near">
+          <h2 id="s-near">Near the limit (within 10%)</h2>
+          <div class="frame">
+            <p class="writing">Small win today: the Telegram importer works end to end, 412 posts in and 31 skipped. Next up: teach it to sound like me, not like a press release. Tomorrow: the X importer, which needs weighted counting.</p>
+            <div class="draft__foot">
+              <span class="count count--near"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-clock" /></svg>262 / 280 · 18 left</span>
+              <span class="tag">AI draft</span>
             </div>
           </div>
         </section>
 
         <section class="state" aria-labelledby="s-gen">
-          <h2 id="s-gen">Revising: text streams in, actions wait</h2>
-          <div class="page frame">
-            <p class="badge badge--ai" role="status"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-sparkle" /></svg>Revising: Shorter…</p>
-            <p class="writing streaming">Small win today: the Telegram importer works. 412 posts in, 31 skipped. Next: make it sound like<span class="caret" aria-hidden="true"></span></p>
-            <div class="quick" role="group" aria-label="Quick revisions">
+          <h2 id="s-gen">Changing the draft: text streams in</h2>
+          <div class="frame">
+            <p class="hint" role="status">Making it shorter…</p>
+            <p class="writing">Small win today: the Telegram importer works. 412 posts in, 31 skipped. Next: make it sound like<span class="caret" aria-hidden="true"></span></p>
+            <div class="row">
               <button class="chip" type="button" aria-disabled="true">Shorter</button>
               <button class="chip" type="button" aria-disabled="true">Punchier</button>
-              <button class="chip" type="button" aria-disabled="true">More casual</button>
             </div>
           </div>
         </section>
 
         <section class="state" aria-labelledby="s-slow">
-          <h2 id="s-slow">Slow: after 3 s, then after 20 s</h2>
-          <div class="page frame">
-            <p class="badge badge--ai"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-sparkle" /></svg>Writing your X draft… Still working.</p>
-            <div class="alert" role="status">
-              <svg class="icon" aria-hidden="true"><use href="#i-clock" /></svg>
-              <div>
-                <p>This is taking longer than usual. Your topic is saved.</p>
-                <div class="row">
-                  <button class="btn" type="button">Try again</button>
-                  <button class="btn btn--quiet" type="button">Cancel</button>
-                </div>
+          <h2 id="s-slow">Slow (after 20 seconds)</h2>
+          <div class="alert" role="status">
+            <svg class="icon" aria-hidden="true"><use href="#i-clock" /></svg>
+            <div>
+              <p>This is taking longer than usual. What you wrote is saved.</p>
+              <div class="row">
+                <button class="btn" type="button">Try again</button>
+                <button class="btn btn--quiet" type="button">Cancel</button>
               </div>
             </div>
           </div>
         </section>
 
         <section class="state" aria-labelledby="s-429">
-          <h2 id="s-429">Rate-limited (429)</h2>
-          <div class="page frame">
-            <div class="alert alert--danger" role="alert">
-              <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>
-              <div>
-                <p>The AI is busy right now. Your text is saved. Try again in a minute.</p>
-                <button class="btn" type="button">Try again</button>
-              </div>
+          <h2 id="s-429">AI busy (429)</h2>
+          <div class="alert alert--danger" role="alert">
+            <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>
+            <div>
+              <p>The AI is busy right now. Your text is saved. Try again in a minute.</p>
+              <button class="btn" type="button">Try again</button>
             </div>
           </div>
         </section>
 
         <section class="state" aria-labelledby="s-503">
           <h2 id="s-503">AI unavailable (503)</h2>
-          <div class="page frame">
-            <div class="alert alert--danger" role="alert">
-              <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>
-              <div><p>Drafts are unavailable right now. Your check-in is saved.</p></div>
-            </div>
-            <p class="writing">Finished the Telegram importer, 412 posts in.</p>
-          </div>
-        </section>
-
-        <section class="state" aria-labelledby="s-fallback">
-          <h2 id="s-fallback">Backup model used (FR-31)</h2>
-          <div class="page frame">
-            <p class="writing">Small win today: the Telegram importer works end to end. 412 posts in, 31 skipped.</p>
-            <p class="hint">Written by the backup model.</p>
+          <div class="alert alert--danger" role="alert">
+            <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>
+            <div><p>Drafts are unavailable right now. Your check-in is saved.</p></div>
           </div>
         </section>
 
         <section class="state" aria-labelledby="s-limit">
           <h2 id="s-limit">Daily limit reached</h2>
-          <div class="page frame">
-            <div class="alert" role="status">
-              <svg class="icon" aria-hidden="true"><use href="#i-clock" /></svg>
-              <div><p>You've used today's 30 drafts. You can generate more tomorrow. Your check-in is saved.</p></div>
-            </div>
-            <div class="row">
-              <span class="spacer"></span>
-              <button class="btn" type="button">Save check-in</button>
-              <button class="btn btn--primary" type="button" aria-disabled="true">Generate drafts</button>
-            </div>
-          </div>
-        </section>
-
-        <section class="state" aria-labelledby="s-empty">
-          <h2 id="s-empty">Empty day: ask first</h2>
-          <div class="page empty">
-            <h3>What did you work on today?</h3>
-            <p>Write a check-in. Voxlace drafts it for each platform in your voice.</p>
-            <div class="row">
-              <button class="chip" type="button">What did you ship today?</button>
-              <button class="chip" type="button">A lesson from this week</button>
-              <button class="chip" type="button">Turn a commit into a post</button>
-            </div>
-            <div class="mini-composer">What did you work on today?</div>
+          <div class="alert" role="status">
+            <svg class="icon" aria-hidden="true"><use href="#i-clock" /></svg>
+            <div><p>You've used today's 30 drafts. You can generate more tomorrow. Your check-in is saved.</p></div>
           </div>
         </section>
       </div>
