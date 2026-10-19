@@ -8,7 +8,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import drafts, health, imports, posts
+from app.api import drafts, health, imports, me, posts
 from app.core import errors
 from app.core.config import get_settings
 
@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Voxlace API",
         version="0.1.0",
-        description="Drafts posts in your own voice. Phase 1: Telegram, single dev user.",
+        description="Drafts posts in your own voice. Send the Supabase login token as Bearer.",
     )
     app.add_middleware(
         CORSMiddleware,
@@ -29,7 +29,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     errors.install(app)
-    for module in (health, imports, posts, drafts):
+    for module in (health, me, imports, posts, drafts):
         app.include_router(module.router, prefix=API_PREFIX)
     return app
 
