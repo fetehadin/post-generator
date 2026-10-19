@@ -117,7 +117,7 @@ Run the checks for every part you touched before saying a task is done.
 - Telegram `result.json` text can be a string or a list of string/entity parts. Flatten it. `date` is the exporter's local time; use `date_unixtime`.
 - X `full_text` is HTML-escaped (`&amp;`) and has `t.co` links; expand them from `entities.urls`.
 - `db/init/*` runs only on an empty volume. After changing it: `docker compose down -v && docker compose up -d` (this wipes local data, so ask first).
-- X length is weighted: URLs count 23, most emoji 2, CJK characters 2. Never use plain `len()`.
+- X length is weighted (twitter-text v3): URLs count 23; characters outside U+0000–U+10FF and a few punctuation ranges count 2, which includes **Amharic (Ethiopic)**, CJK and emoji. Never use plain `len()`.
 - pgvector: start without a vector index (exact search). Query shape is `ORDER BY embedding <=> :q LIMIT :n`.
 - Gemini free tier returns 429 under load. Back off and retry; keep the user's input.
 - Telegram bots can't use Telegram's native scheduled messages. Our worker sends at the due time.
