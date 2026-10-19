@@ -179,41 +179,133 @@ Profile and summary card (FR-17, FR-18), audience per platform (FR-33), language
 
 ## 5. Visual direction
 
-A starting proposal. Settle it in the first design pass (§11) and then treat it as tokens, not suggestions.
+**Decided 19 Oct 2026 (v2).** Derived from a study of ScholarXIV ([`design/REFERENCE_SCHOLARXIV.md`](../design/REFERENCE_SCHOLARXIV.md)): we take its principles, not its identity. Prototypes: [`design/prototypes/`](../design/prototypes/), which open in any browser. The tokens live in [`design/prototypes/tokens.css`](../design/prototypes/tokens.css). `frontend/src/index.css` still has the v1 values and switches to these in the next frontend PR.
 
-**Concept: "your words in ink, the tool in pencil."** The user's writing is the hero, set in a readable serif like a manuscript. Everything the app says is set in a quiet sans. One color carries meaning: the thread that runs from your old posts to the new draft.
+**Concept: "ink on paper, with one thread."**
+- The user's words are ink on a page, set in a serif.
+- The app is the desk around that page: warm, quiet and flat.
+- One teal **thread** marks everything the AI drew on: sources, focus, links and the AI label.
+
+What we kept from the study:
+- a monochrome base where color carries meaning
+- borders and tinted boxes instead of shadows
+- three columns: navigation, work, context
+- an empty screen that asks first, with starter prompts
+- a quiet metadata line on each card
+- real dark themes
+- 150 ms color-only motion
+
+What's ours:
+- warm paper neutrals (theirs are cool zinc)
+- a serif for the user's writing
+- the teal thread
+- a **mixed** theme
+- Ethiopic-ready fonts
+
+### Themes
+
+| Theme | What it is | When |
+|---|---|---|
+| Light | Paper background, white page | Default when the system is light |
+| Dark | Warm off-black, never pure black | Default when the system is dark |
+| **Mixed** | Dark chrome (sidebar, panels, background) around a **light page** (editor, draft cards, previews): a desk lamp on paper | Writing at night without losing the page's look; only Voxlace has it |
+
+How it works:
+- The toggle sits in the sidebar header and cycles light → dark → mixed.
+- The choice is saved per user, and the system preference is the first default.
+- In code it's `<html data-theme="…">`. Anything marked `.page` switches back to the light tokens in the mixed theme.
 
 ### Color tokens
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--ink` | `#1C2433` | `#E6E9EF` | Main text |
-| `--paper` | `#F6F7F9` | `#12161E` | App background |
-| `--surface` | `#FFFFFF` | `#1A202B` | Editor, panels |
-| `--line` | `#D9DEE6` | `#2B3341` | Borders, dividers |
-| `--thread` | `#2F7363` | `#5FB8A3` | Primary actions, focus, links (the one accent) |
-| `--signal` | `#B7791F` | `#E3A94B` | Near the limit, scheduled, warnings |
-| `--danger` | `#B3362F` | `#E06A62` | Over the limit, errors, delete |
+| `--paper` | `#F7F6F3` | `#161513` | App background (the desk) |
+| `--surface` | `#FFFFFF` | `#1E1C19` | The page: editor, cards, previews |
+| `--sunken` | `#EFEDE8` | `#282622` | Notes, source posts, inactive chips |
+| `--line` | `#E2DFD8` | `#34312C` | Dividers and card borders (decorative) |
+| `--edge` | `#8A8478` | `#7A7469` | Outlines of inputs and buttons (≥ 3:1) |
+| `--ink` | `#1F1D1A` | `#EDEAE4` | Main text |
+| `--ink-2` | `#5C574E` | `#A9A399` | Secondary text, meta lines, placeholders |
+| `--on-ink` | `#FAF9F6` | `#1F1D1A` | Text on ink (avatar, brand mark) |
+| `--thread` | `#2B6B5B` | `#72C4AE` | The one accent: **primary buttons**, links, focus ring, AI label, sources, selected chips |
+| `--on-thread` | `#FFFFFF` | `#161513` | Text on primary buttons |
+| `--thread-soft` | `#E2EEE9` | `#1F3530` | Current nav item, selected chip fill |
+| `--signal` | `#8F5508` | `#E3A64C` | Near the limit, "still learning", scheduled |
+| `--danger` | `#B42318` | `#F2806F` | Over the limit, errors, delete |
 
-- **Platform colors only in small badges**, never as backgrounds, so the app doesn't look like three brands fighting.
-- **Check contrast** of every pair before use: body text at least 4.5:1, large text and UI parts at least 3:1.
+**Contrast, all measured (WCAG 2.2 AA: 4.5:1 for text, 3:1 for UI parts):**
+
+| Pair | Light | Dark |
+|---|---|---|
+| `--ink` on `--paper` / `--surface` / `--sunken` | 15.6 / 16.8 / 14.4 | 15.2 / 14.2 / 12.6 |
+| `--ink-2` on `--paper` / `--surface` / `--sunken` | 6.6 / 7.2 / 6.1 | 7.3 / 6.8 / 6.0 |
+| `--thread` on `--paper` / `--surface` / `--thread-soft` | 5.8 / 6.3 / 5.3 | 8.9 / 8.3 / 6.4 |
+| `--signal` on `--paper` / `--surface` | 5.6 / 6.1 | 8.5 / 8.0 |
+| `--danger` on `--paper` / `--surface` | 6.1 / 6.6 | 7.0 / 6.6 |
+| `--on-thread` on `--thread` (primary button) | 6.3 | 8.9 |
+| `--on-ink` on `--ink` (avatar) | 16.0 | 14.0 |
+| `--edge` on `--surface` / `--paper` (input outlines) | 3.7 / 3.4 | 3.7 / 3.9 |
+| Focus ring `--thread` on `--paper` | 5.8 | 8.9 |
+
+Mixed uses the dark values for chrome and the light values on `.page`, so every pair above still applies.
+
+- **Platform colors only in small badges**, never as backgrounds.
+- **Status never by color alone:** the counter has an icon and words ("fits on X", "24 left", "12 over"); selected chips show ✓.
 - Avoid the common generated looks: purple-to-blue gradients, cream with terracotta, black with acid green, identical cards with the same soft shadow.
 
 ### Type
 
-| Role | Typeface (proposal) | Notes |
-|---|---|---|
-| Interface | **Instrument Sans** | Labels, buttons, navigation. Sentence case, no all-caps labels. |
-| The user's writing | **Source Serif 4** | Editor text and check-ins, at 17–18px with 1.6 line-height, max ~70 characters a line. |
-| Platform previews | The platform's own system font stack | So the preview looks like the real post. |
+| Role | Typeface | Fallback for Amharic (FR-24) | Notes |
+|---|---|---|---|
+| Interface | **Instrument Sans** 400/600 | **Noto Sans Ethiopic** | Labels, buttons, navigation. Sentence case. |
+| The user's writing | **Source Serif 4** 400/600 | **Noto Serif Ethiopic** | Editor, check-ins, draft cards, source posts: 18px, line-height 1.7, at most 68 characters a line |
+| Platform previews | The platform's own system stack (+ Noto Sans Ethiopic) | same | So the preview looks like the real post |
+| Numbers in counters | Interface font with `tabular-nums` | — | Digits don't jump while typing |
 
-Type scale (rem): 0.8125 · 0.875 · 1 · 1.125 · 1.375 · 1.75. Weights: 400 and 600 only.
+Neither Latin face has Ethiopic letters, so the browser takes each Amharic character from the Noto Ethiopic fallback named right after it. Both Noto faces match the x-height and weight closely, and the prototypes test this with an Amharic line. All four fonts are on Google Fonts under the OFL licence. **Self-host them in the app** (no third-party font requests from user pages).
+
+| Token | Size | Use |
+|---|---|---|
+| `--text-xs` | 13px | Meta lines, badges, hints |
+| `--text-sm` | 14px | Buttons, navigation, labels |
+| `--text-md` | 16px | Interface body |
+| `--text-lg` | 18px | The user's writing |
+| `--text-xl` | 22px | Brand, panel titles |
+| `--text-2xl` | 30px | Page questions ("What did you work on today?") |
+
+Headings 22px and up use `--tracking-tight` (−0.02em). Interface line-height is 1.5; writing line-height is 1.7. **Weights: 400 and 600 only.**
 
 ### Space and shape
 
-- 4px grid; spacing steps 4, 8, 12, 16, 24, 32, 48.
-- Radius by meaning: 6px for controls, 10px for panels, none for the editor's text area edges against its panel.
-- Shadows only for things that float (menus, dialogs, toasts). Panels separate with `--line` borders.
+- 4px grid: `--space-1` to `--space-12` = 4, 8, 12, 16, 24, 32, 48.
+- Radius: `--radius-control` 8px (buttons, inputs, nav items), `--radius-panel` 12px (cards, panels, composer), `--radius-pill` (chips, send button, status badges).
+- **Borders separate, shadows float.** Cards and panels get a 1px `--line` border. Only menus, dialogs and toasts use `--shadow-float`. Focused inputs get a 1px `--thread` ring around the border.
+- **Bars never hide focus** (WCAG 2.4.11): pages with a sticky composer or action bar set `scroll-padding-bottom` to the bars' height.
+- Layout: nav `232px` → icon rail `64px` below 1280px → bottom bar below 768px. Context column `360px`, hidden below 1024px (the editor moves it under the editor instead). Today's stream is `--column` (760px) wide, and the writing is at most `68ch` wide. Context panels are plain lists divided by `--line` rules, not tinted boxes.
+
+### Motion
+
+- `--duration` 150ms with `--ease` `cubic-bezier(0.2, 0, 0, 1)`, for color and background only.
+- The one signature moment is the draft text streaming in (§10).
+- `prefers-reduced-motion` sets the duration to 0.
+
+### Side by side: their measured values → ours
+
+| Property | ScholarXIV (measured) | Voxlace |
+|---|---|---|
+| Interface font | Archivo (app), Inter (docs) | Instrument Sans + Noto Sans Ethiopic |
+| Content font | Same sans | Source Serif 4 + Noto Serif Ethiopic (the user's ink) |
+| Background light / dark | `#FFFFFF` / `#171717` | `#F7F6F3` warm paper / `#161513` warm off-black |
+| Neutral hue | Cool zinc (hue 240) | Warm stone (hue ~40) |
+| Primary button | Near-black `hsl(240 5.9% 10%)`, flips to white in dark | Teal `--thread`: the AI's color is also the "go" color |
+| Accent | Almost none; green status dot, green docs nav | One teal `--thread` with a single meaning: "the AI drew on this" |
+| Border | `#E4E4E7`, 1px | `--line #E2DFD8` decorative, `--edge #8A8478` for controls (≥ 3:1) |
+| Radius controls / cards | 6px / 12px | 8px / 12px, pills for chips |
+| Shadows | None, except floating tabs | None, except menus, dialogs and toasts |
+| Reading text | 16px / 1.7, max 808px | 18px serif / 1.7, max 68ch |
+| Headings | 36px/500, −0.9px tracking | 30px/600, −0.02em |
+| Motion | 150ms `cubic-bezier(0.4,0,0.2,1)`, color + shadow | 150ms `cubic-bezier(0.2,0,0,1)`, color only |
+| Themes | Light, dark (`html.dark`) | Light, dark, **mixed** (`html[data-theme]`) |
 
 ---
 

@@ -218,11 +218,13 @@ The user shouldn't have to say "write like DHH". The app detects what kind of po
 
 **Recommendation:** adopt it for dialogs, menus, popovers, tabs, toasts and form controls; build the product components (DraftEditor, PlatformPreview, LengthCounter …) ourselves on top.
 
-### Q30 🟡 (Phase 2) Visual tokens and fonts
+### Q30 ✅ (Phase 2) Visual tokens and fonts
 
 DESIGN.md §5 proposes colors, Instrument Sans for the interface and Source Serif 4 for the user's writing. They're a starting point, not final.
 
 **Recommendation:** in the first `/design-screen` pass (the draft editor), try the proposal plus one alternative, compare screenshots side by side, then lock the tokens in DESIGN.md.
+
+**Decided (19 Oct 2026):** visual direction v2, from a study of ScholarXIV (`design/REFERENCE_SCHOLARXIV.md`). Warm paper neutrals; Instrument Sans + Noto Sans Ethiopic for the interface, Source Serif 4 + Noto Serif Ethiopic for the user's writing; one teal accent (`--thread`) that is also the primary button color; light, dark and a new **mixed** theme. Every pair passes WCAG AA. Tokens and contrast table: DESIGN.md §5; prototypes: `design/prototypes/`. Q29 (shadcn/ui) is still open.
 
 ---
 
@@ -241,4 +243,5 @@ DESIGN.md §5 proposes colors, Instrument Sans for the interface and Source Seri
 | Q23 | Narrow the `.claude/settings.json` deny rule so `.env.example` is readable. A person must make this change (auto mode blocks agent edits to its own permissions) | 15 Oct 2026 |
 | Q16 | `models/gemini-embedding-2` accepts our key and returns 768 values with `output_dimensionality=768`. (`-2-preview` and `-001` also exist; we use `gemini-embedding-2`) | 15 Oct 2026 |
 | Q26–Q27 | Smart inspiration by post type; draft chat + daily reminders (SRS 1.2) | 17 Oct 2026 |
+| Q30 | Visual direction v2: warm paper neutrals, Instrument Sans + Source Serif 4 with Noto Ethiopic fallbacks, teal `--thread` accent and primary, light/dark/mixed themes (DESIGN.md §5) | 19 Oct 2026 |
 | Others | Use the recommendation written under each question when its phase starts | 15 Oct 2026 |
