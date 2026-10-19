@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Today · Voxlace prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Noto+Sans+Ethiopic:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap"
+    />
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="app.css" />
+    <script src="proto.js" defer></script>
+    <style>
+      .home {
+        width: 100%;
+        max-width: var(--column);
+        margin: 0 auto;
+        padding: 12vh var(--space-6) var(--space-12);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-8);
+      }
+      .home__head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--space-4);
+      }
+      .date {
+        margin: 0 0 var(--space-1);
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+      }
+      .home h1 {
+        margin: 0;
+        font-size: var(--text-2xl);
+        font-weight: 600;
+        letter-spacing: var(--tracking-tight);
+      }
+      .ask textarea {
+        font-family: var(--font-writing);
+        font-size: var(--text-lg);
+        line-height: var(--leading-writing);
+      }
+      .ideas h2,
+      .drafts h2 {
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-sm);
+        font-weight: 400;
+        color: var(--ink-2);
+      }
+      .ideas {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        margin-top: calc(var(--space-6) * -1);
+      }
+      .ideas h2 {
+        margin: 0;
+      }
+      .ideas ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: contents;
+      }
+      .drafts ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .drafts li a {
+        display: flex;
+        align-items: center;
+        gap: var(--space-4);
+        padding: var(--space-3) var(--space-2);
+        border-top: 1px solid var(--line);
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .drafts li a:hover {
+        background: var(--paper);
+      }
+      .drafts .platform {
+        width: 72px;
+        flex: none;
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+      }
+      .drafts .first {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-family: var(--font-writing);
+      }
+      .drafts .writing-now {
+        color: var(--ink-2);
+        font-family: var(--font-ui);
+      }
+      @media (max-width: 767px) {
+        .home {
+          padding: var(--space-12) var(--space-4) var(--space-8);
+          gap: var(--space-6);
+        }
+        .drafts li a {
+          flex-wrap: wrap;
+          gap: var(--space-1) var(--space-3);
+        }
+        .drafts .first {
+          flex-basis: 100%;
+          order: -1;
+        }
+        .drafts .platform {
+          width: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div data-sidebar="today"></div>
+
+      <main class="work page" id="main">
+        <div class="home">
+          <header class="home__head">
+            <div>
+              <p class="date">Wednesday, 21 October</p>
+              <h1>What did you work on today?</h1>
+            </div>
+            <div data-mobile-account></div>
+          </header>
+
+          <form class="ask" onsubmit="return false">
+            <label for="checkin" class="visually-hidden">Today's check-in</label>
+            <textarea id="checkin" rows="2" placeholder="Finished the Telegram importer, 412 posts in…"></textarea>
+            <div class="ask__row">
+              <div role="group" aria-label="Write for" class="ask__row">
+                <button class="chip chip--toggle" type="button" aria-pressed="true"><span class="tick" aria-hidden="true">✓</span>X</button>
+                <button class="chip chip--toggle" type="button" aria-pressed="true"><span class="tick" aria-hidden="true">✓</span>LinkedIn</button>
+                <button class="chip chip--toggle" type="button" aria-pressed="false"><span class="tick" aria-hidden="true">✓</span>Telegram</button>
+              </div>
+              <button class="btn btn--primary" type="submit">Generate 2 drafts</button>
+            </div>
+          </form>
+
+          <section class="ideas" aria-labelledby="ideas-h">
+            <h2 id="ideas-h">Try:</h2>
+            <ul>
+              <li><button class="chip" type="button">What did you ship today?</button></li>
+              <li><button class="chip" type="button">A lesson from this week</button></li>
+              <li><button class="chip" type="button">Something you'd tell a beginner</button></li>
+            </ul>
+          </section>
+
+          <section class="drafts" aria-labelledby="drafts-h">
+            <h2 id="drafts-h">Today's drafts</h2>
+            <ul>
+              <li>
+                <a href="editor.html"
+                  ><span class="platform">X</span><span class="first">Small win today: the Telegram importer works end to end.</span
+                  ><span class="tag">Draft</span></a
+                >
+              </li>
+              <li>
+                <a href="editor.html"
+                  ><span class="platform">LinkedIn</span
+                  ><span class="first">I spent this week on the least glamorous part of an AI writing tool…</span
+                  ><span class="tag">Approved · Thu 09:00 your time</span></a
+                >
+              </li>
+              <li>
+                <span class="visually-hidden" role="status">Writing your Telegram draft</span>
+                <a href="#" aria-disabled="true" tabindex="-1"
+                  ><span class="platform">Telegram</span><span class="first writing-now">Writing…</span></a
+                >
+              </li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

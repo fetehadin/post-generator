@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>States · Voxlace prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Noto+Sans+Ethiopic:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap"
+    />
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="editor.css" />
+    <script src="proto.js" defer></script>
+    <style>
+      .gallery {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--space-8) var(--space-6) var(--space-12);
+      }
+      .gallery > header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--space-6);
+      }
+      .gallery h1 {
+        margin: 0;
+        font-size: var(--text-2xl);
+        letter-spacing: var(--tracking-tight);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: var(--space-8) var(--space-6);
+      }
+      .state > h2 {
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-sm);
+        font-weight: 400;
+        color: var(--ink-2);
+      }
+      .frame {
+        padding: var(--space-4);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-panel);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+      .frame .writing {
+        margin: 0;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      .row .spacer {
+        flex: 1;
+      }
+      .reason {
+        font-size: var(--text-xs);
+        color: var(--danger);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="gallery page" id="main">
+      <header>
+        <h1>States</h1>
+        <button class="btn" type="button" data-theme-toggle>
+          <svg class="icon" aria-hidden="true"><use href="#i-theme-light" /></svg>Theme
+        </button>
+      </header>
+
+      <div class="grid">
+        <section class="state" aria-labelledby="s-approve-x">
+          <h2 id="s-approve-x">Approve and schedule: X (says what will happen)</h2>
+          <div class="dialog" role="dialog" aria-labelledby="d-x">
+            <h2 id="d-x">Schedule this X post</h2>
+            <label>When<select><option>Thu 22 Oct, 18:00 your time</option></select></label>
+            <p>Voxlace never posts to X for you. At 18:00 you get a reminder, and one tap opens X with this text filled in.</p>
+            <div class="actions">
+              <button class="btn btn--quiet" type="button">Cancel</button>
+              <button class="btn btn--primary" type="button">Approve and remind me</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-approve-tg">
+          <h2 id="s-approve-tg">Approve and schedule: Telegram</h2>
+          <div class="dialog" role="dialog" aria-labelledby="d-tg">
+            <h2 id="d-tg">Schedule this Telegram post</h2>
+            <label>When<select><option>Fri 23 Oct, 18:00 your time</option></select></label>
+            <p>At 18:00 Voxlace's bot posts it to your channel. You can cancel until then.</p>
+            <div class="actions">
+              <button class="btn btn--quiet" type="button">Cancel</button>
+              <button class="btn btn--primary" type="button">Approve · send Fri 18:00</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-approve-li">
+          <h2 id="s-approve-li">Approve and schedule: LinkedIn</h2>
+          <div class="dialog" role="dialog" aria-labelledby="d-li">
+            <h2 id="d-li">Schedule this LinkedIn post</h2>
+            <label>When<select><option>Thu 22 Oct, 09:00 your time</option></select></label>
+            <p>At 09:00 you get a reminder. One tap copies the text and opens LinkedIn, ready to paste.</p>
+            <div class="actions">
+              <button class="btn btn--quiet" type="button">Cancel</button>
+              <button class="btn btn--primary" type="button">Approve and remind me</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-over">
+          <h2 id="s-over">Over the limit</h2>
+          <div class="frame">
+            <p class="writing">Small win today: the Telegram importer works end to end, 412 posts in and 31 skipped (service messages, forwards and link-only posts). Next up: teach it to sound like me, not like a press release. Tomorrow: X.</p>
+            <div class="draft__foot">
+              <span class="count count--over"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-alert" /></svg>297 / 280 · cut 17 characters</span>
+              <span class="tag">AI draft</span>
+            </div>
+            <div class="row">
+              <span class="reason" id="over-reason">Cut 17 characters to approve.</span>
+              <span class="spacer"></span>
+              <button class="btn btn--primary" type="button" aria-disabled="true" aria-describedby="over-reason">Approve and schedule…</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-near">
+          <h2 id="s-near">Near the limit (within 10%)</h2>
+          <div class="frame">
+            <p class="writing">Small win today: the Telegram importer works end to end, 412 posts in and 31 skipped. Next up: teach it to sound like me, not like a press release. Tomorrow: the X importer, which needs weighted counting.</p>
+            <div class="draft__foot">
+              <span class="count count--near"><svg class="icon icon--sm" aria-hidden="true"><use href="#i-clock" /></svg>262 / 280 · 18 left</span>
+              <span class="tag">AI draft</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-gen">
+          <h2 id="s-gen">Changing the draft: text streams in</h2>
+          <div class="frame">
+            <p class="hint" role="status">Making it shorter…</p>
+            <p class="writing">Small win today: the Telegram importer works. 412 posts in, 31 skipped. Next: make it sound like<span class="caret" aria-hidden="true"></span></p>
+            <div class="row">
+              <button class="chip" type="button" aria-disabled="true">Shorter</button>
+              <button class="chip" type="button" aria-disabled="true">Punchier</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-slow">
+          <h2 id="s-slow">Slow (after 20 seconds)</h2>
+          <div class="alert" role="status">
+            <svg class="icon" aria-hidden="true"><use href="#i-clock" /></svg>
+            <div>
+              <p>This is taking longer than usual. What you wrote is saved.</p>
+              <div class="row">
+                <button class="btn" type="button">Try again</button>
+                <button class="btn btn--quiet" type="button">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-429">
+          <h2 id="s-429">AI busy (429)</h2>
+          <div class="alert alert--danger" role="alert">
+            <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>
+            <div>
+              <p>The AI is busy right now. Your text is saved. Try again in a minute.</p>
+              <button class="btn" type="button">Try again</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-503">
+          <h2 id="s-503">AI unavailable (503)</h2>
+          <div class="alert alert--danger" role="alert">
+            <svg class="icon" aria-hidden="true"><use href="#i-alert" /></svg>
+            <div><p>Drafts are unavailable right now. Your check-in is saved.</p></div>
+          </div>
+        </section>
+
+        <section class="state" aria-labelledby="s-limit">
+          <h2 id="s-limit">Daily limit reached</h2>
+          <div class="alert" role="status">
+            <svg class="icon" aria-hidden="true"><use href="#i-clock" /></svg>
+            <div><p>You've used today's 30 drafts. You can generate more tomorrow. Your check-in is saved.</p></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>X draft · Voxlace prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Noto+Sans+Ethiopic:wght@400;600&family=Noto+Serif+Ethiopic:wght@400;600&display=swap"
+    />
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="editor.css" />
+    <script src="proto.js" defer></script>
+  </head>
+  <body>
+    <div class="shell">
+      <div data-sidebar="drafts"></div>
+
+      <main class="work page" id="main">
+        <header class="topbar">
+          <a class="btn btn--quiet btn--icon" href="today.html" aria-label="Back to Today"
+            ><svg class="icon" aria-hidden="true"><use href="#i-back" /></svg
+          ></a>
+          <h1>X draft</h1>
+          <span class="tag">Draft</span>
+          <span class="spacer"></span>
+          <div class="switch hide-sm" data-view-switch role="group" aria-label="Show">
+            <button type="button" data-view="edit" aria-pressed="true">Edit</button>
+            <button type="button" data-view="preview" aria-pressed="false">Preview</button>
+          </div>
+          <button class="btn btn--quiet btn--icon hide-sm" type="button" aria-label="Versions">
+            <svg class="icon" aria-hidden="true"><use href="#i-history" /></svg>
+          </button>
+          <details class="more">
+            <summary class="btn btn--quiet btn--icon" aria-label="More actions"><svg class="icon" aria-hidden="true"><use href="#i-more" /></svg></summary>
+            <ul class="menu">
+              <li><button class="btn btn--quiet" type="button"><svg class="icon" aria-hidden="true"><use href="#i-history" /></svg>Versions</button></li>
+              <li><button class="btn btn--quiet" type="button"><svg class="icon" aria-hidden="true"><use href="#i-trash" /></svg>Discard draft</button></li>
+            </ul>
+          </details>
+          <div data-mobile-account></div>
+          <button class="btn btn--primary" type="button" aria-haspopup="dialog"><span>Approve<span class="hide-sm"> and schedule</span>…</span></button>
+        </header>
+
+        <div class="column">
+          <div class="switch mobile-only" data-view-switch role="group" aria-label="Show">
+            <button type="button" data-view="edit" aria-pressed="true">Edit</button>
+            <button type="button" data-view="preview" aria-pressed="false">Preview</button>
+          </div>
+
+          <section class="draft" aria-label="The draft">
+            <label for="draft" class="visually-hidden">Draft text</label>
+            <textarea id="draft" spellcheck="true">
+Small win today: the Telegram importer works end to end.
+
+412 posts in, 31 skipped (service messages, forwards, link-only).
+
+Next: teach it to sound like me, not like a press release.
+
+ዛሬ ትንሽ ድል፦ የቴሌግራም አስመጪው ሰርቷል።</textarea
+            >
+            <div class="preview" aria-label="Preview on X">
+              <div class="preview__head">
+                <span class="avatar" aria-hidden="true">F</span>
+                <span><b>Fetehadin</b><small>@fetebuilds · now</small></span>
+              </div>
+              <p>Small win today: the Telegram importer works end to end.
+
+412 posts in, 31 skipped (service messages, forwards, link-only).
+
+Next: teach it to sound like me, not like a press release.
+
+ዛሬ ትንሽ ድል፦ የቴሌግራም አስመጪው ሰርቷል።</p>
+            </div>
+            <div class="draft__foot">
+              <span class="count">238 / 280</span>
+              <span class="tag">AI draft</span>
+            </div>
+          </section>
+
+          <form class="feedback" onsubmit="return false">
+            <div class="suggest" role="group" aria-label="Quick changes">
+              <button class="chip" type="button">Shorter</button>
+              <button class="chip" type="button">Punchier</button>
+              <button class="chip" type="button">More casual</button>
+              <button class="chip" type="button">Add a hook</button>
+            </div>
+            <div class="ask">
+              <div class="ask__row">
+                <label for="change" class="visually-hidden">Tell it what to change</label>
+                <textarea id="change" rows="1" placeholder="Tell it what to change…"></textarea>
+                <button class="btn" type="submit">Revise</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
