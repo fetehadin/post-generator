@@ -116,6 +116,7 @@ Run the checks for every part you touched before saying a task is done.
 - LinkedIn `Shares.csv` has text and dates only, no engagement numbers.
 - Telegram `result.json` text can be a string or a list of string/entity parts. Flatten it. `date` is the exporter's local time; use `date_unixtime`.
 - X `full_text` is HTML-escaped (`&amp;`) and has `t.co` links; expand them from `entities.urls`.
+- X long posts (Premium, over 280) are cut short in `tweets.js`; the full text is in `note-tweet.js`. Read both. The X limit depends on Premium (OPEN_QUESTIONS Q31).
 - `db/init/*` runs only on an empty volume. After changing it: `docker compose down -v && docker compose up -d` (this wipes local data, so ask first).
 - X length is weighted (twitter-text v3): URLs count 23; characters outside U+0000–U+10FF and a few punctuation ranges count 2, which includes **Amharic (Ethiopic)**, CJK and emoji. Never use plain `len()`.
 - pgvector: start without a vector index (exact search). Query shape is `ORDER BY embedding <=> :q LIMIT :n`.
