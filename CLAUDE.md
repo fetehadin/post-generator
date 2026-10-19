@@ -15,6 +15,7 @@ Read the relevant doc before changing behaviour. Don't contradict it; if the cod
 - `docs/CI_CD.md` — what CI checks, how deploys work. CI must be green before merge.
 - `docs/OPEN_QUESTIONS.md` — design gaps not yet settled. Check it before designing schema, auth, jobs or parsers.
 - `samples/README.md` — expected parser counts for each sample file, and the format traps they contain.
+- `docs/DESIGN.md` — UI/UX principles, screen specs and tokens. Read it before any UI work.
 
 **Current phase:** 0 — Foundations. (Update this line when a phase's demo passes.)
 
