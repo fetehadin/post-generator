@@ -5,6 +5,7 @@ only the given facts and the platform's rules, ask the model chain, then save th
 its first version and the exact prompt. AI calls happen outside database transactions.
 """
 
+import logging
 import re
 import uuid
 from dataclasses import dataclass
@@ -14,7 +15,8 @@ from string import Template
 
 from sqlalchemy import select
 
-from app.ai.client import AIClient, GenerationResult, default_client
+from app.ai.client import AIClient, AIUnavailable, GenerationResult, default_client
+from app.checks import invented_numbers, longest_copy
 from app.core.db import user_session
 from app.counting import post_length
 from app.models import Draft, DraftVersion, PlatformProfile, PromptLog
@@ -24,7 +26,7 @@ TEMPLATE = Template((Path(__file__).parents[1] / "ai" / "prompts" / "draft.md").
 PLATFORM_NAMES = {"telegram": "Telegram", "x": "X", "linkedin": "LinkedIn"}
 COUNTING_NOTES = {
     "plain": "every character counts as one",
-    "x_weighted": "links count as 23, most emoji and CJK characters as 2",
+    "x_weighted": "links count as 23; emoji and non-Latin scripts such as Amharic count as 2",
 }
 EXAMPLE_MAX_CHARS = 1200
 
@@ -80,6 +82,55 @@ def clean_output(text: str) -> str:
     return t
 
 
+logger = logging.getLogger(__name__)
+
+COPY_LIMIT = 8  # words in a row shared with one example post
+
+
+def _badness(text: str, topic: str, examples: list[Example]) -> tuple[int, int]:
+    """Lower is better: invented numbers first (facts matter most), then the copied run."""
+    copied = len(longest_copy(text, [e.text for e in examples]))
+    return len(invented_numbers(text, topic)), copied if copied >= COPY_LIMIT else 0
+
+
+def _problems(text: str, topic: str, examples: list[Example]) -> list[str]:
+    """What's wrong with a draft, as instructions for one rewrite (empty when it's fine)."""
+    problems = []
+    copied = longest_copy(text, [e.text for e in examples])
+    if len(copied) >= COPY_LIMIT:
+        problems.append(
+            f'It reused these words from an example: "{" ".join(copied)}". '
+            "Say it in your own words."
+        )
+    numbers = invented_numbers(text, topic)
+    if numbers:
+        problems.append(
+            f"It used numbers that aren't in the facts: {', '.join(numbers)}. Remove them."
+        )
+    return problems
+
+
+def _rewrite_if_needed(ai, prompt, result, text, topic, examples):
+    """The prompt forbids copying and invented numbers, but models still slip sometimes.
+    If they do, ask once more and say exactly what to fix. The log keeps the prompt that
+    made the saved text. A failed or no-better retry keeps the first draft."""
+    problems = _problems(text, topic, examples)
+    if not problems:
+        return prompt, result, text
+    retry = prompt + "\n\n## Fix your first try\n" + "\n".join(f"- {p}" for p in problems)
+    try:
+        second = ai.generate(retry, purpose="draft_rewrite")
+    except AIUnavailable:
+        return prompt, result, text
+    second_text = clean_output(second.text)
+    before, after = _badness(text, topic, examples), _badness(second_text, topic, examples)
+    # Counts only: never log post text (CLAUDE.md, security and privacy).
+    logger.info("draft rewrite: invented numbers/copied words %s -> %s", before, after)
+    if after >= before:
+        return prompt, result, text
+    return retry, second, second_text
+
+
 def generate_draft(
     user_id: uuid.UUID, platform: str, topic: str, ai: AIClient | None = None
 ) -> DraftResult:
@@ -104,6 +155,7 @@ def generate_draft(
     prompt = build_prompt(profile, examples, topic)
     result: GenerationResult = ai.generate(prompt, purpose="draft")
     text = clean_output(result.text)
+    prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, topic, examples)
     length = post_length(text, profile.counting_rule)
 
     with user_session(user_id) as s:

@@ -10,21 +10,18 @@ Each draft gets three automatic checks:
 """
 
 import json
-import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
 from app.ai.client import AIClient, AIUnavailable, EmbeddingUnavailable
+from app.checks import invented_numbers, longest_shared_run
 from app.services.drafting import DraftError, DraftResult, generate_draft
 
 BACKEND = Path(__file__).resolve().parents[1]
 TOPICS = BACKEND / "evals" / "topics.json"
 OUT = BACKEND / "evals" / "out"
-NUMBER = re.compile(r"\d+")
-LIST_MARKER = re.compile(r"^\s*\d+[.)]\s", re.MULTILINE)  # "1. Start small" is not a fact
-WORD = re.compile(r"[^\W_]+", re.UNICODE)
 COPY_WARN = 8  # words in a row shared with one example
 
 
@@ -37,26 +34,6 @@ class Check:
     @property
     def ok(self) -> bool:
         return not self.invented_numbers and not self.over_limit and self.longest_copy < COPY_WARN
-
-
-def invented_numbers(draft: str, topic: str) -> list[str]:
-    given = set(NUMBER.findall(topic))
-    found = NUMBER.findall(LIST_MARKER.sub("", draft))
-    return sorted({n for n in found if n not in given}, key=int)
-
-
-def longest_shared_run(draft: str, example: str) -> int:
-    """Length of the longest run of consecutive words that appears in both texts."""
-    a, b = WORD.findall(draft.lower()), WORD.findall(example.lower())
-    best, prev = 0, [0] * (len(b) + 1)
-    for i in range(1, len(a) + 1):
-        cur = [0] * (len(b) + 1)
-        for j in range(1, len(b) + 1):
-            if a[i - 1] == b[j - 1]:
-                cur[j] = prev[j - 1] + 1
-                best = max(best, cur[j])
-        prev = cur
-    return best
 
 
 def check(result: DraftResult, topic: str) -> Check:

@@ -135,3 +135,76 @@ def test_empty_topic_is_refused(make_user):
 def test_no_posts_yet_gives_a_clear_message(make_user):
     with pytest.raises(DraftError, match="Import your export first"):
         generate_draft(make_user(), "telegram", "topic", ai=FakeAI())
+
+
+COPIED = "Ship log fixed the timezone bug everything is UTC in the database now"
+
+
+class ScriptedAI(FakeAI):
+    """Returns the replies in order; an Exception in the list is raised instead."""
+
+    def __init__(self, replies):
+        super().__init__()
+        self.replies = list(replies)
+
+    def generate(self, prompt, purpose="draft", temperature=0.9):
+        self.prompts.append(prompt)
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return GenerationResult(reply, "gemini-flash-latest", "google", "gemini-3.8-flash")
+
+
+def test_a_copied_draft_is_rewritten_once_and_the_log_keeps_that_prompt(make_user):
+    user = make_user()
+    add_post(user, "1", COPIED + ". Should have done that on day one.")
+    ai = ScriptedAI(
+        [COPIED + " today", "Timezones are finally sorted: UTC inside, local at the edges."]
+    )
+    result = generate_draft(user, "telegram", "fixed the timezone bug", ai=ai)
+    assert result.text.startswith("Timezones are finally sorted")
+    assert len(ai.prompts) == 2 and '"ship log fixed the timezone bug' in ai.prompts[1]
+    assert "Fix your first try" in prompt_for(user, result.draft_id).prompt  # NFR-15
+
+
+def test_a_rewrite_that_copies_just_as_much_is_not_used(make_user):
+    user = make_user()
+    add_post(user, "1", COPIED + ".")
+    ai = ScriptedAI([COPIED + " A", COPIED + " B"])
+    result = generate_draft(user, "telegram", "timezone bug", ai=ai)
+    assert result.text.endswith(" A")
+    assert "Fix your first try" not in prompt_for(user, result.draft_id).prompt
+
+
+def test_a_failed_rewrite_keeps_the_first_draft(make_user):
+    from app.ai.client import AIUnavailable
+
+    user = make_user()
+    add_post(user, "1", COPIED + ".")
+    ai = ScriptedAI([COPIED + " A", AIUnavailable("all models failed")])
+    assert generate_draft(user, "telegram", "timezone bug", ai=ai).text.endswith(" A")
+
+
+def test_an_original_draft_is_not_rewritten(make_user):
+    user = make_user()
+    add_post(user, "1", COPIED + ".")
+    ai = ScriptedAI(["Small win: UTC everywhere now."])
+    generate_draft(user, "telegram", "timezone bug", ai=ai)
+    assert len(ai.prompts) == 1
+
+
+def test_an_invented_number_is_removed_by_one_rewrite(make_user):
+    user = make_user()
+    add_post(user, "1", "200 SUBSCRIBERS! Thank you all.")
+    ai = ScriptedAI(["300 SUBSCRIBERS! 🎉", "A new milestone! Thank you all 🎉"])
+    result = generate_draft(user, "telegram", "passed a new subscriber milestone", ai=ai)
+    assert result.text == "A new milestone! Thank you all 🎉"
+    assert "numbers that aren't in the facts: 300" in ai.prompts[1]
+
+
+def test_a_rewrite_that_copies_less_is_kept(make_user):
+    user = make_user()
+    add_post(user, "1", COPIED + ".")
+    shorter_copy = "Ship log fixed the timezone bug everything is UTC, finally"  # 9 words, not 13
+    ai = ScriptedAI([COPIED + " A", shorter_copy])
+    assert generate_draft(user, "telegram", "timezone bug", ai=ai).text == shorter_copy

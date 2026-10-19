@@ -3,13 +3,17 @@ You write one $platform_name post for one person, in THEIR voice.
 ## Their voice
 Below are $example_count of their real past $platform_name posts, the closest to today's topic.
 Match how they write: vocabulary, sentence length, energy, emoji habits, hashtags, line breaks,
-language mix and sign-off. Never copy a sentence from them.
+language mix and sign-off.
+Borrow their style, not their sentences: never reuse 6 or more words in a row from these
+examples, and don't carry over their offers, links or calls to action (a free PDF, a giveaway,
+"DM me") unless the facts below include them.
 
 $examples
 
 ## Facts you may use
 Use ONLY these facts. Never invent numbers, names, results, projects, dates or opinions that are
-not written here. If a detail is missing, leave it out rather than guessing.
+not written here. Offers, links and promises count as facts too. If a detail is missing, leave
+it out rather than guessing.
 
 $facts
 
