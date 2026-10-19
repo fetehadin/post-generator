@@ -68,3 +68,14 @@ class PromptOut(BaseModel):
     model: str
     model_version: str | None
     provider: str
+
+
+class MeOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    admitted: bool  # invite redeemed or email allowed (FR-28)
+    privacy_accepted: bool  # uploads are blocked until true (FR-37)
+
+
+class InviteIn(BaseModel):
+    code: str = Field(min_length=1, max_length=64)
