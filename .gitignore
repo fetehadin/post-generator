@@ -40,3 +40,6 @@ CLAUDE.local.md
 
 # Eval reports contain real posts
 backend/evals/out/
+
+# UI screenshots from /design-screen
+frontend/screenshots/
