@@ -5,6 +5,7 @@ Tokens are signed here with a test secret, the way Supabase signs them (HS256, a
 """
 
 import json
+import secrets
 import time
 import uuid
 from pathlib import Path
@@ -19,7 +20,8 @@ from app.core.config import get_settings
 from app.main import create_app
 from tests.api.test_api import FakeAI
 
-SECRET = "test-secret-at-least-32-bytes-long-for-hs256"
+# Made fresh each run: nothing secret-like lives in the code (and the secret scan stays quiet).
+SECRET = secrets.token_urlsafe(32)
 SAMPLES = Path(__file__).resolve().parents[3] / "samples"
 
 
@@ -83,7 +85,7 @@ def test_no_token_is_401(login):
     "bad",
     [
         {"exp_in": -10},  # expired
-        {"secret": "someone-else-s-secret-at-least-32-bytes"},  # forged
+        {"secret": secrets.token_urlsafe(32)},  # forged: signed with another key
         {"aud": "anon"},  # not a logged-in user
     ],
 )
