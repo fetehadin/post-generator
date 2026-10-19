@@ -11,6 +11,7 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+import httpx
 from google import genai
 from google.genai import errors, types
 
@@ -89,9 +90,9 @@ class AIClient:
                 if len(vectors) != len(texts):
                     raise EmbeddingUnavailable(f"expected {len(texts)} vectors, got {len(vectors)}")
                 return vectors
-            except errors.APIError as e:
-                if e.code not in RETRYABLE or attempt == self.max_attempts:
-                    raise EmbeddingUnavailable(f"{e.code}: {e.message}") from e
+            except (errors.APIError, httpx.TransportError) as e:
+                if not retryable(e) or attempt == self.max_attempts:
+                    raise EmbeddingUnavailable(describe(e)) from e
                 self._backoff(attempt, e)
         raise EmbeddingUnavailable("unreachable")
 
@@ -109,9 +110,9 @@ class AIClient:
                 continue
             try:
                 return self._generate_google(model, prompt, temperature)
-            except errors.APIError as e:
-                logger.warning("%s generation failed on %s: %s", purpose, model, e.code)
-                failures.append(f"{model} {e.code}")
+            except (errors.APIError, httpx.TransportError) as e:
+                logger.warning("%s generation failed on %s: %s", purpose, model, describe(e))
+                failures.append(f"{model} {describe(e)}")
         raise AIUnavailable("all models failed: " + "; ".join(failures))
 
     def _generate_google(self, model: str, prompt: str, temperature: float) -> GenerationResult:
@@ -127,24 +128,38 @@ class AIClient:
                     provider="google",
                     model_version=getattr(resp, "model_version", None),
                 )
-            except errors.APIError as e:
-                # 429 and 5xx get a few retries on the same model; anything else moves on.
-                if e.code not in RETRYABLE or attempt == self.max_attempts:
+            except (errors.APIError, httpx.TransportError) as e:
+                # 429, 5xx and network drops get a few retries on the same model;
+                # anything else moves on.
+                if not retryable(e) or attempt == self.max_attempts:
                     raise
                 self._backoff(attempt, e)
         raise AIUnavailable("unreachable")
 
-    def _backoff(self, attempt: int, err: errors.APIError) -> None:
+    def _backoff(self, attempt: int, err: Exception) -> None:
         """Exponential backoff, but never shorter than what the server asked for."""
         wait = min(60.0, 2.0**attempt)
         hinted = retry_after(err)
         if hinted is not None:
             wait = min(MAX_WAIT, max(wait, hinted + 1.0))
-        logger.info("AI call got %s, retrying in %.0fs", err.code, wait)
+        logger.info("AI call got %s, retrying in %.0fs", describe(err), wait)
         self._sleep(wait)
 
 
-def retry_after(err: errors.APIError) -> float | None:
+def retryable(err: Exception) -> bool:
+    """Rate limits, server errors and network drops (DNS, refused, timeout) are worth a retry."""
+    if isinstance(err, httpx.TransportError):
+        return True
+    return isinstance(err, errors.APIError) and err.code in RETRYABLE
+
+
+def describe(err: Exception) -> str:
+    if isinstance(err, errors.APIError):
+        return f"{err.code}: {err.message}"
+    return f"network error ({type(err).__name__})"
+
+
+def retry_after(err: Exception) -> float | None:
     text = f"{getattr(err, 'message', '')} {getattr(err, 'details', '')}"
     m = RETRY_HINT.search(text)
     if not m:

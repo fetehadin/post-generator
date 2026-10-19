@@ -2,6 +2,7 @@
 
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from google.genai import errors
 
@@ -15,7 +16,10 @@ from app.ai.client import (
 from app.core.config import Settings
 
 
-def api_error(code: int) -> errors.APIError:
+def api_error(code: int) -> Exception:
+    """A fake Gemini error; code 0 means the network dropped (DNS failure, no connection)."""
+    if code == 0:
+        return httpx.ConnectError("[Errno -3] Temporary failure in name resolution")
     return errors.APIError(
         code, {"error": {"code": code, "message": f"fake {code}", "status": "X"}}
     )
@@ -96,6 +100,19 @@ def test_embedding_never_falls_back_and_raises_after_retries():
     assert {c.model for c in models.embed_calls} == {"gemini-embedding-2"}
 
 
+def test_embedding_retries_network_drops_then_succeeds():
+    models = FakeModels(embed_failures=[0, 0])
+    client, waits = make(models)
+    assert len(client.embed_documents(["post"])) == 1
+    assert waits == [2.0, 4.0]
+
+
+def test_embedding_raises_clearly_when_the_network_stays_down():
+    client, _ = make(FakeModels(embed_failures=[0] * 10))
+    with pytest.raises(EmbeddingUnavailable, match="network error"):
+        client.embed_documents(["post"])
+
+
 def test_embedding_does_not_retry_bad_requests():
     models = FakeModels(embed_failures=[400])
     client, waits = make(models)
@@ -128,6 +145,20 @@ def test_generate_retries_429_on_same_model_before_moving_on():
     client, waits = make(models)
     assert client.generate("prompt").model == "first"
     assert waits == [2.0]
+
+
+def test_generate_survives_a_network_drop():
+    models = FakeModels(gen_failures={"first": [0]})
+    client, waits = make(models)
+    assert client.generate("prompt").model == "first"
+    assert waits == [2.0]
+
+
+def test_generate_raises_ai_unavailable_when_the_network_stays_down():
+    models = FakeModels(gen_failures={"first": [0] * 10, "second": [0] * 10})
+    client, _ = make(models)
+    with pytest.raises(AIUnavailable, match="network error"):
+        client.generate("prompt")
 
 
 def test_generate_skips_unsupported_provider_and_fails_clearly_when_all_fail():
