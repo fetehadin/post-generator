@@ -170,7 +170,7 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 |---|---|
 | X parser: strip the `window.YTD.tweets.part0 =` wrapper, numbers from strings, skip replies/retweets | Onboarding: About-you form + audience questions + language |
 | LinkedIn parser: `Shares.csv` (text + date only) | Settings: tab per platform — rules, voice card, pinned posts |
-| Weighted X counter (URL = 23, emoji = 2, CJK = 2) with tests | Live length counter on the draft card using the platform rule |
+| Weighted X counter (URL = 23; Ethiopic, CJK and emoji = 2, as twitter-text) with tests | Live length counter on the draft card using the platform rule |
 | Voice card + stats per platform; warning under 20 posts; keep hand edits on regenerate | Pin / exclude buttons on posts |
 | Summary card from the profile form (~150 words, editable) | Edit platform rules in Settings (no code change) |
 | Use pinned/excluded posts in retrieval; exemplar pool for thin histories | |

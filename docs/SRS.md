@@ -317,7 +317,7 @@ Seed values for `platform_profiles`, as of October 2026.
 
 | Platform | Limit | Counting rule | V1 hand-off |
 |---|---|---|---|
-| X | 280 (25,000 with Premium) | Weighted: each URL = 23, most emoji = 2, CJK characters = 2 | Pre-filled compose link |
+| X | 280 (25,000 with Premium) | Weighted (twitter-text v3): each URL = 23; Ethiopic (Amharic), CJK and emoji characters = 2 | Pre-filled compose link |
 | LinkedIn | 3,000 | Plain count; ~210 characters show before "see more" | Copy + open composer |
 | Telegram | 4,096 | Plain count | Bot sends now or at the scheduled time |
 

@@ -6,18 +6,22 @@ URL = re.compile(r"https?://\S+")
 X_URL_WEIGHT = 23
 
 
+# twitter-text v3 (the reference X counter): characters in these ranges weigh 1,
+# everything else weighs 2. That includes Ethiopic (Amharic), CJK, Hangul and emoji.
+LIGHT_RANGES = (
+    (0x0000, 0x10FF),  # Latin, Greek, Cyrillic, Arabic, Hebrew, Indic, Georgian …
+    (0x2000, 0x200D),  # spaces and zero-width characters
+    (0x2010, 0x201F),  # dashes and quotation marks
+    (0x2032, 0x2037),  # primes
+)
+
+
 def _weighs_two(cp: int) -> bool:
-    return (
-        cp >= 0x1F000  # most emoji
-        or 0x2600 <= cp <= 0x27BF  # symbols and dingbats used as emoji
-        or 0x1100 <= cp <= 0x115F  # Hangul Jamo
-        or 0x2E80 <= cp <= 0xA4CF  # CJK
-        or 0xAC00 <= cp <= 0xD7A3  # Hangul syllables
-    )
+    return not any(lo <= cp <= hi for lo, hi in LIGHT_RANGES)
 
 
 def x_weighted_length(text: str) -> int:
-    """X counts each link as 23 and most emoji and CJK characters as 2."""
+    """X counts each link as 23 and characters outside the Latin-and-friends ranges as 2."""
     total = X_URL_WEIGHT * len(URL.findall(text))
     for ch in URL.sub("", text):
         cp = ord(ch)
