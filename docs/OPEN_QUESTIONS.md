@@ -102,11 +102,13 @@ Telegram Desktop makes two formats: a single-chat export (`{name, type, id, mess
 
 **Recommendation:** V1 accepts only the single-channel export and rejects the other one with a message explaining how to export one channel.
 
-### Q14 🟡 (Phase 3) One X counter, two languages
+### Q14 ✅ (Phase 3) One X counter, two languages
 
 The frontend counter (live) and the backend check (FR-9 blocks over-limit) must agree exactly.
 
 **Recommendation:** the frontend uses the official `twitter-text` npm package (the reference implementation of weighted counting). The backend implements the same rules. **One shared fixture file** (`samples/x_counter_cases.json`: text → expected weighted length) is tested by both pytest and Vitest.
+
+**Decided (19 Oct 2026):** the shared fixture is in place (16 cases: links, emoji with skin tones, joined emoji and flags, CJK, Amharic, punctuation), and both `backend/app/counting.py` and `frontend/src/lib/xCount.ts` pass it. Instead of adding the `twitter-text` dependency, both sides implement its v3 rules (light ranges, emoji sequences). Known gap: bare domains like `example.com` aren't detected as links yet.
 
 ### Q15 🟢 LinkedIn `Date` time zone
 

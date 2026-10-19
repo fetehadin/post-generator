@@ -1,0 +1,85 @@
+{
+ "about": "X weighted length (twitter-text v3 rules). Shared by backend/tests/test_counting.py and frontend/src/lib/xCount.test.ts: both must give these numbers. Links are http(s) URLs only; bare domains are not detected yet.",
+ "cases": [
+  {
+   "text": "hello",
+   "expected": 5,
+   "why": "plain Latin: 1 each"
+  },
+  {
+   "text": "see https://example.com/a/very/long/path/that/is/way/over/23",
+   "expected": 27,
+   "why": "a link counts 23 whatever its length"
+  },
+  {
+   "text": "two links https://a.co and https://b.co",
+   "expected": 61,
+   "why": "every link counts 23"
+  },
+  {
+   "text": "shipped 🚀",
+   "expected": 10,
+   "why": "an emoji counts 2"
+  },
+  {
+   "text": "ok ✅",
+   "expected": 5,
+   "why": "symbols used as emoji count 2"
+  },
+  {
+   "text": "❤️",
+   "expected": 2,
+   "why": "the variation selector adds nothing"
+  },
+  {
+   "text": "👍🏽",
+   "expected": 2,
+   "why": "a skin tone belongs to its emoji"
+  },
+  {
+   "text": "👨‍💻",
+   "expected": 2,
+   "why": "a joined emoji counts once"
+  },
+  {
+   "text": "👨‍👩‍👧 family",
+   "expected": 9,
+   "why": "a joined family is one emoji"
+  },
+  {
+   "text": "🇪🇹 Ethiopia",
+   "expected": 11,
+   "why": "a flag (two regional letters) is one emoji"
+  },
+  {
+   "text": "🇪🇹🇰🇪",
+   "expected": 4,
+   "why": "two flags are two emoji"
+  },
+  {
+   "text": "日本語",
+   "expected": 6,
+   "why": "CJK counts 2"
+  },
+  {
+   "text": "ሰላም Addis",
+   "expected": 12,
+   "why": "Ethiopic (Amharic) counts 2"
+  },
+  {
+   "text": "ዛሬ፦ done",
+   "expected": 11,
+   "why": "Ethiopic punctuation counts 2"
+  },
+  {
+   "text": "café — “ok”",
+   "expected": 11,
+   "why": "accents, em dash and curly quotes count 1"
+  },
+  {
+   "text": "→ next",
+   "expected": 7,
+   "why": "arrows are outside the light ranges"
+  }
+ ]
+}
