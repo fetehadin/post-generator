@@ -1,3 +1,5 @@
+import { mockFetch } from './mocks/handlers'
+
 /** Every backend error has the shape {"error": {"code", "message"}} (docs/API.md). */
 export class ApiError extends Error {
   readonly code: string
@@ -12,10 +14,14 @@ export class ApiError extends Error {
 
 const BASE = '/api/v1'
 
+// VITE_USE_MOCKS=true npm run dev: build screens against docs/API.md without the backend.
+const send: typeof fetch =
+  import.meta.env.VITE_USE_MOCKS === 'true' ? mockFetch : (...a) => fetch(...a)
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response
   try {
-    res = await fetch(BASE + path, init)
+    res = await send(BASE + path, init)
   } catch {
     throw new ApiError(0, 'network_error', "Can't reach the server. Check your connection.")
   }

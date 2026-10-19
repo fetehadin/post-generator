@@ -1,56 +1,131 @@
 @import 'tailwindcss';
 
 /*
- * Design tokens from docs/DESIGN.md §5. Components use these names only, never raw hex.
- * The visual direction is being redesigned (docs/DESIGN.md §5, OPEN_QUESTIONS Q30);
- * when it's approved, only the values below change.
+ * Design tokens v2.1 (docs/DESIGN.md §5, design/prototypes/tokens.css).
+ * Components use these names only, never raw hex. Themes: <html data-theme="light|dark|mixed">;
+ * with no attribute the system preference decides. In "mixed", anything marked .page is light.
  */
-:root {
-  --ink: #1c2433;
-  --muted: #4a5568;
-  --paper: #f6f7f9;
+:root,
+[data-theme='light'],
+[data-theme='mixed'] .page {
+  --paper: #f7f6f3;
   --surface: #ffffff;
-  --line: #d9dee6;
-  --thread: #2f7363;
-  --signal: #b7791f;
-  --danger: #b3362f;
-  color-scheme: light dark;
+  --sunken: #efede8;
+  --line: #e2dfd8;
+  --edge: #8a8478;
+  --ink: #1f1d1a;
+  --ink-2: #5c574e;
+  --on-ink: #faf9f6;
+  --thread: #2b6b5b;
+  --thread-soft: #e2eee9;
+  --on-thread: #ffffff;
+  --signal: #8f5508;
+  --danger: #b42318;
+  --shadow-float: 0 8px 24px rgb(31 29 26 / 0.12), 0 1px 2px rgb(31 29 26 / 0.08);
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #e6e9ef;
-    --muted: #a7b0bf;
-    --paper: #12161e;
-    --surface: #1a202b;
-    --line: #2b3341;
-    --thread: #5fb8a3;
-    --signal: #e3a94b;
-    --danger: #e06a62;
+  :root:not([data-theme]) {
+    --paper: #161513;
+    --surface: #1e1c19;
+    --sunken: #282622;
+    --line: #34312c;
+    --edge: #7a7469;
+    --ink: #edeae4;
+    --ink-2: #a9a399;
+    --on-ink: #1f1d1a;
+    --thread: #72c4ae;
+    --thread-soft: #1f3530;
+    --on-thread: #161513;
+    --signal: #e3a64c;
+    --danger: #f2806f;
+    --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
+    color-scheme: dark;
   }
 }
 
-@theme inline {
-  --color-ink: var(--ink);
-  --color-muted: var(--muted);
-  --color-paper: var(--paper);
-  --color-surface: var(--surface);
-  --color-line: var(--line);
-  --color-thread: var(--thread);
-  --color-signal: var(--signal);
-  --color-danger: var(--danger);
-  --radius-control: 6px;
-  --radius-panel: 10px;
-  --font-sans: system-ui, 'Noto Sans Ethiopic', sans-serif;
+[data-theme='dark'],
+[data-theme='mixed'] {
+  --paper: #161513;
+  --surface: #1e1c19;
+  --sunken: #282622;
+  --line: #34312c;
+  --edge: #7a7469;
+  --ink: #edeae4;
+  --ink-2: #a9a399;
+  --on-ink: #1f1d1a;
+  --thread: #72c4ae;
+  --thread-soft: #1f3530;
+  --on-thread: #161513;
+  --signal: #e3a64c;
+  --danger: #f2806f;
+  --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
+  color-scheme: dark;
 }
 
+/* Mixed again, after the dark block, so the page wins. */
+[data-theme='mixed'] .page {
+  --paper: #f7f6f3;
+  --surface: #ffffff;
+  --sunken: #efede8;
+  --line: #e2dfd8;
+  --edge: #8a8478;
+  --ink: #1f1d1a;
+  --ink-2: #5c574e;
+  --thread: #2b6b5b;
+  --thread-soft: #e2eee9;
+  --on-thread: #ffffff;
+  --signal: #8f5508;
+  --danger: #b42318;
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-edge: var(--edge);
+  --color-ink: var(--ink);
+  --color-muted: var(--ink-2);
+  --color-on-ink: var(--on-ink);
+  --color-thread: var(--thread);
+  --color-thread-soft: var(--thread-soft);
+  --color-on-thread: var(--on-thread);
+  --color-signal: var(--signal);
+  --color-danger: var(--danger);
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-ask: 24px;
+  --shadow-float: var(--shadow-float);
+  /* Fonts are named here and self-hosted in a later PR; until then the fallbacks render. */
+  --font-sans: 'Instrument Sans', 'Noto Sans Ethiopic', system-ui, sans-serif;
+  --font-serif: 'Source Serif 4', 'Noto Serif Ethiopic', Georgia, serif;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.875rem;
+}
+
+html,
 body {
-  background: var(--paper);
+  background: var(--surface);
   color: var(--ink);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 :focus-visible {
   outline: 2px solid var(--thread);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
 }
