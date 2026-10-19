@@ -43,3 +43,8 @@ backend/evals/out/
 
 # UI screenshots from /design-screen
 frontend/screenshots/
+
+# Design research: reference captures and tool installs
+design/reference/
+design/node_modules/
+design/prototypes/screenshots/
