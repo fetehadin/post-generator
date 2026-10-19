@@ -1,28 +1,19 @@
+import json
+from pathlib import Path
+
 import pytest
 
 from app.counting import post_length, x_weighted_length
 
+CASES = json.loads(
+    (Path(__file__).resolve().parents[2] / "samples" / "x_counter_cases.json").read_text("utf-8")
+)["cases"]
 
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        ("hello", 5),
-        ("see https://example.com/a/very/long/path/that/is/way/over/23", 4 + 23),
-        ("two links https://a.co and https://b.co", 15 + 46),
-        ("shipped 🚀", 8 + 2),
-        ("ok ✅", 3 + 2),
-        ("日本語", 6),
-        ("👍🏽", 4),  # emoji + skin tone modifier
-        ("👨‍💻", 4),  # joiner adds nothing
-        ("❤️", 2),  # variation selector adds nothing
-        ("ሰላም Addis", 3 * 2 + 6),  # Ethiopic (Amharic) weighs 2, like CJK
-        ("ዛሬ፦ done", 3 * 2 + 5),  # Ethiopic punctuation too
-        ("café — “ok”", 11),  # accents, em dash and curly quotes weigh 1
-        ("→ next", 2 + 5),  # arrows are outside the light ranges
-    ],
-)
-def test_x_weighted_length(text, expected):
-    assert x_weighted_length(text) == expected
+
+@pytest.mark.parametrize("case", CASES, ids=[c["why"] for c in CASES])
+def test_x_weighted_length_matches_the_shared_cases(case):
+    """The frontend runs the same file, so both sides always agree."""
+    assert x_weighted_length(case["text"]) == case["expected"]
 
 
 def test_post_length_uses_the_platform_rule():
