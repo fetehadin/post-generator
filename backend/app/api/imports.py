@@ -19,7 +19,7 @@ from app.core.db import user_session
 from app.core.errors import AppError
 from app.importers.common import ImportFormatError
 from app.importers.telegram import parse_telegram
-from app.models import Import, SourcePost
+from app.models import Import, SourcePost, User
 from app.schemas import ImportOut
 from app.services.embedding import embed_pending
 from app.services.posts import save_posts
@@ -77,6 +77,11 @@ def create_import(
     user_id: uuid.UUID = Depends(current_user),
     ai: AIClient = Depends(get_ai),
 ) -> ImportOut:
+    with user_session(user_id) as s:
+        if s.get(User, user_id).privacy_accepted_at is None:  # FR-37
+            raise AppError(
+                "privacy_required", "Read and accept the privacy notice before uploading.", 403
+            )
     if platform != "telegram":
         raise AppError(
             "unsupported_platform",
