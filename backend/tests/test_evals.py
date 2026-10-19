@@ -1,6 +1,7 @@
 import json
 
-from app.evals import TOPICS, invented_numbers, longest_shared_run
+from app.checks import invented_numbers, longest_shared_run
+from app.evals import TOPICS
 
 
 def test_ten_topics_with_unique_ids():
