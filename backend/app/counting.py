@@ -20,13 +20,43 @@ def _weighs_two(cp: int) -> bool:
     return not any(lo <= cp <= hi for lo, hi in LIGHT_RANGES)
 
 
+ZWJ = 0x200D  # zero-width joiner: 👨 + ZWJ + 💻 is one emoji
+
+
+def _emoji_part(cp: int) -> bool:
+    """Parts that belong to the emoji before them and add nothing."""
+    return (
+        cp == 0xFE0F  # variation selector: ❤ → ❤️
+        or 0x1F3FB <= cp <= 0x1F3FF  # skin tones
+        or 0xE0020 <= cp <= 0xE007F  # tag sequences (subdivision flags)
+        or cp == 0x20E3  # keycap
+    )
+
+
+def _regional(cp: int) -> bool:
+    return 0x1F1E6 <= cp <= 0x1F1FF  # two of these make one flag
+
+
 def x_weighted_length(text: str) -> int:
-    """X counts each link as 23 and characters outside the Latin-and-friends ranges as 2."""
+    """X counts each link as 23, each whole emoji as 2, and characters outside the
+    Latin-and-friends ranges as 2 (twitter-text v3). Cases: samples/x_counter_cases.json."""
     total = X_URL_WEIGHT * len(URL.findall(text))
+    joined = flag_open = False
     for ch in URL.sub("", text):
         cp = ord(ch)
-        if cp in (0xFE0F, 0x200D):  # emoji variation selector / joiner add nothing
+        if cp == ZWJ:
+            joined = True
             continue
+        if _emoji_part(cp):
+            continue
+        if joined:  # the emoji after a joiner is part of the one before
+            joined = False
+            continue
+        if _regional(cp):
+            flag_open = not flag_open
+            total += 2 if flag_open else 0
+            continue
+        flag_open = False
         total += 2 if _weighs_two(cp) else 1
     return total
 
