@@ -1,0 +1,270 @@
+/* Draft editor (DESIGN.md §4.2): one column, the draft, a feedback box. */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  background: var(--surface);
+  white-space: nowrap;
+}
+.topbar h1 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+.topbar .spacer {
+  flex: 1;
+}
+.switch {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--sunken);
+}
+.switch.mobile-only {
+  display: none;
+  align-self: flex-start;
+  margin-bottom: var(--space-6);
+}
+.switch button {
+  min-height: 32px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.switch button[aria-pressed='true'] {
+  background: var(--surface);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.more {
+  position: relative;
+}
+.more summary {
+  list-style: none;
+}
+.more summary::-webkit-details-marker {
+  display: none;
+}
+.more .menu {
+  right: 0;
+  top: calc(100% + var(--space-1));
+}
+.column {
+  flex: 1;
+  width: 100%;
+  max-width: var(--column);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) 0;
+  display: flex;
+  flex-direction: column;
+}
+.draft {
+  /* The draft is plain text on the page; a teal edge shows where you are typing. */
+  border-left: 2px solid transparent;
+  padding-left: var(--space-4);
+  margin-left: calc(var(--space-4) * -1 - 2px);
+  transition: border-color var(--duration) var(--ease);
+}
+.draft:hover {
+  border-left-color: var(--line);
+}
+.draft:focus-within {
+  border-left-color: var(--thread);
+}
+.draft textarea {
+  cursor: text;
+  display: block;
+  width: 100%;
+  min-height: 300px;
+  border: 0;
+  padding: 0;
+  resize: none;
+  field-sizing: content;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-writing);
+  font-size: var(--text-lg);
+  line-height: var(--leading-writing);
+}
+.draft textarea:focus-visible {
+  outline: none;
+}
+.draft__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+/* Preview: the platform's own system font and size, not our scale. */
+.preview {
+  display: none;
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Ethiopic', sans-serif;
+  font-size: 15px;
+  line-height: 1.35;
+}
+.preview__head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+.preview__head b {
+  display: block;
+}
+.preview__head small {
+  color: var(--ink-2);
+}
+.preview p {
+  margin: 0;
+  white-space: pre-line;
+}
+body[data-view='preview'] .draft textarea {
+  display: none;
+}
+body[data-view='preview'] .preview {
+  display: block;
+}
+.feedback {
+  position: sticky;
+  bottom: 0;
+  margin-top: var(--space-8);
+  padding: var(--space-3) 0 var(--space-6);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.feedback .suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.feedback textarea {
+  font-size: var(--text-md);
+}
+
+/* Approve dialog (shown in states.html). */
+.dialog {
+  width: min(420px, 100%);
+  padding: var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.dialog h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-tight);
+}
+.dialog p {
+  margin: 0;
+  color: var(--ink-2);
+}
+.dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.dialog select {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--edge);
+  background: var(--surface);
+  font-weight: 400;
+}
+.dialog .actions {
+  white-space: nowrap;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* States (DESIGN.md §7). */
+.alert {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-panel);
+  border: 1px solid var(--edge);
+  background: var(--surface);
+  font-size: var(--text-sm);
+}
+.alert--danger {
+  border-color: var(--danger);
+}
+.alert--danger > .icon {
+  color: var(--danger);
+}
+.alert p {
+  margin: 0 0 var(--space-2);
+}
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  vertical-align: text-bottom;
+  background: var(--thread);
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .caret {
+    animation: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .switch.mobile-only {
+    display: inline-flex;
+  }
+  html:has(.column) {
+    scroll-padding-bottom: calc(var(--tabbar-height) + 180px);
+  }
+  .topbar {
+    padding: var(--space-2) var(--space-3);
+  }
+  .topbar .hide-sm {
+    display: none;
+  }
+  .column {
+    padding: var(--space-4) var(--space-4) 0;
+  }
+  .draft textarea {
+    min-height: 200px;
+  }
+  .feedback {
+    bottom: var(--tabbar-height);
+    padding-bottom: var(--space-3);
+  }
+  .draft {
+    margin-left: 0;
+    padding-left: var(--space-3);
+  }
+}
