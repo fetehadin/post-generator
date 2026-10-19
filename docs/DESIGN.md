@@ -207,7 +207,7 @@ What we kept from the study:
 - 150 ms color-only motion
 
 What's ours:
-- warm paper neutrals (theirs are cool zinc)
+- warm paper neutrals (theirs are cool zinc); we share their interface face, Archivo, by choice
 - a serif for the user's writing
 - the teal thread
 - a **mixed** theme
@@ -268,12 +268,12 @@ Mixed uses the dark values for chrome and the light values on `.page`, so every 
 
 | Role | Typeface | Fallback for Amharic (FR-24) | Notes |
 |---|---|---|---|
-| Interface | **Instrument Sans** 400/600 | **Noto Sans Ethiopic** | Labels, buttons, navigation. Sentence case. |
+| Interface | **Archivo** 400/600 (chosen by the product owner, 19 Oct 2026: the ScholarXIV face) | **Noto Sans Ethiopic** | Labels, buttons, navigation. Sentence case. |
 | The user's writing | **Source Serif 4** 400/600 | **Noto Serif Ethiopic** | Editor, check-ins, draft cards, source posts: 18px, line-height 1.7, at most 68 characters a line |
 | Platform previews | The platform's own system stack (+ Noto Sans Ethiopic) | same | So the preview looks like the real post |
 | Numbers in counters | Interface font with `tabular-nums` | — | Digits don't jump while typing |
 
-Neither Latin face has Ethiopic letters, so the browser takes each Amharic character from the Noto Ethiopic fallback named right after it. Both Noto faces match the x-height and weight closely, and the prototypes test this with an Amharic line. All four fonts are on Google Fonts under the OFL licence. **Self-host them in the app** (no third-party font requests from user pages).
+Neither Latin face has Ethiopic letters, so the browser takes each Amharic character from the Noto Ethiopic fallback named right after it. Both Noto faces match the x-height and weight closely, and the prototypes test this with an Amharic line. All four fonts are OFL-licensed and **self-hosted** in the app through `@fontsource` packages, so user pages make no third-party font requests.
 
 | Token | Size | Use |
 |---|---|---|
@@ -304,7 +304,7 @@ Headings 22px and up use `--tracking-tight` (−0.02em). Interface line-height i
 
 | Property | ScholarXIV (measured) | Voxlace |
 |---|---|---|
-| Interface font | Archivo (app), Inter (docs) | Instrument Sans + Noto Sans Ethiopic |
+| Interface font | Archivo (app), Inter (docs) | **Archivo** + Noto Sans Ethiopic (same face by choice; identity comes from palette, serif and layout) |
 | Content font | Same sans | Source Serif 4 + Noto Serif Ethiopic (the user's ink) |
 | Background light / dark | `#FFFFFF` / `#171717` | `#F7F6F3` warm paper / `#161513` warm off-black |
 | Neutral hue | Cool zinc (hue 240) | Warm stone (hue ~40) |

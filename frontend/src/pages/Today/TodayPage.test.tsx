@@ -94,3 +94,18 @@ test('says so when the AI is slow, and keeps the topic', async () => {
   expect(screen.getByLabelText('What you worked on')).toHaveValue('A lesson')
   vi.useRealTimers()
 })
+
+test('developers can open the exact prompt behind a draft', async () => {
+  vi.mocked(api).mockResolvedValueOnce(draft).mockResolvedValueOnce({
+    prompt: 'You write one Telegram post…',
+    model: 'm',
+    model_version: 'v',
+    provider: 'google',
+  })
+  renderPage()
+  await userEvent.type(screen.getByLabelText('What you worked on'), 'A lesson')
+  await userEvent.click(screen.getByRole('button', { name: 'Generate draft' }))
+  await userEvent.click(await screen.findByText('Prompt (developer view)'))
+  expect(await screen.findByText('You write one Telegram post…')).toBeInTheDocument()
+  expect(vi.mocked(api).mock.calls[1][0]).toBe('/drafts/d1/prompt')
+})

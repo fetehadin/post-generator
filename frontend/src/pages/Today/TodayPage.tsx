@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
-import { useGenerateDraft } from '../../api/drafts'
+import { useDraftPrompt, useGenerateDraft } from '../../api/drafts'
 import type { Draft, Platform } from '../../api/types'
 import { LengthCounter } from '../../components/LengthCounter'
 import type { CountingRule } from '../../lib/xCount'
@@ -141,6 +141,32 @@ function DraftView({ draft }: { draft: Draft }) {
         <LengthCounter text={text} rule={RULES[draft.platform]} limit={draft.length.limit} />
         <span className="rounded-full border border-line px-2 text-xs text-muted">AI draft</span>
       </div>
+      {import.meta.env.DEV && <PromptDebug id={draft.id} />}
     </article>
+  )
+}
+
+/**
+ * BUILD_PLAN Phase 1 "show the prompt log (debug view)". Developers only: users see just the
+ * draft (DESIGN.md §1), and production builds drop this code entirely (import.meta.env.DEV).
+ */
+function PromptDebug({ id }: { id: string }) {
+  const [open, setOpen] = useState(false)
+  const log = useDraftPrompt(id, open)
+  return (
+    <details className="mt-6 text-xs text-muted" onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className="cursor-pointer">Prompt (developer view)</summary>
+      {log.data && (
+        <>
+          <p className="mt-2">
+            {log.data.provider} · asked {log.data.model} · answered {log.data.model_version}
+          </p>
+          <pre className="mt-2 max-h-96 overflow-auto rounded-control bg-sunken p-3 whitespace-pre-wrap">
+            {log.data.prompt}
+          </pre>
+        </>
+      )}
+      {log.isError && <p role="alert">{log.error.message}</p>}
+    </details>
   )
 }
