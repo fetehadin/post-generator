@@ -4,6 +4,7 @@
     python -m app.dev embed [--limit 1000]
     python -m app.dev search "a topic" [--platform telegram]
     python -m app.dev draft "today's check-in" [--platform telegram] [--show-prompt]
+    python -m app.dev eval [--platform telegram]   # the ten test topics
 
 Everything is stored under one fixed dev user, the same way real users will be.
 """
@@ -15,6 +16,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.core.auth import DEV_USER_ID
 from app.core.db import user_session
+from app.evals import run_eval
 from app.importers.telegram import parse_telegram
 from app.models import Import, User
 from app.services.drafting import DraftError, generate_draft, prompt_for
@@ -74,6 +76,12 @@ def draft(topic: str, platform: str, show_prompt: bool) -> None:
         print("\n=== exact prompt ===\n" + prompt_for(DEV_USER_ID, r.draft_id).prompt)
 
 
+def evaluate(platform: str) -> None:
+    path = run_eval(DEV_USER_ID, platform)
+    print(path.read_text(encoding="utf-8").splitlines()[2])
+    print(f"report: {path}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.dev")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -88,6 +96,8 @@ def main() -> None:
     drf.add_argument("topic")
     drf.add_argument("--platform", default="telegram", choices=["telegram", "x", "linkedin"])
     drf.add_argument("--show-prompt", action="store_true")
+    ev = sub.add_parser("eval", help="draft the ten test topics and write a report")
+    ev.add_argument("--platform", default="telegram", choices=["telegram", "x", "linkedin"])
     args = parser.parse_args()
     if args.command == "import-telegram":
         import_telegram(args.path)
@@ -97,6 +107,8 @@ def main() -> None:
         search(args.topic, args.platform)
     elif args.command == "draft":
         draft(args.topic, args.platform, args.show_prompt)
+    elif args.command == "eval":
+        evaluate(args.platform)
 
 
 if __name__ == "__main__":

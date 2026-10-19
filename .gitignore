@@ -37,3 +37,6 @@ Thumbs.db
 # Claude Code personal files
 CLAUDE.local.md
 .claude/settings.local.json
+
+# Eval reports contain real posts
+backend/evals/out/
