@@ -3,7 +3,8 @@
 The agreement between the backend and the frontend. **Change this file in the same pull request as the code.** Once the backend runs, FastAPI also serves live docs at `/docs`.
 
 - Base URL (local): `http://localhost:8000/api/v1`
-- Auth: `Authorization: Bearer <login token>` on every route except `/health` (from Phase 2; Phase 1 uses a dev user).
+- Auth: `Authorization: Bearer <login token>` on every route except `/health` (from Phase 2; Phase 1 uses one fixed dev user).
+- Live docs: run the backend and open <http://localhost:8000/docs> to try every endpoint in the browser.
 - Times: ISO 8601 in UTC (`2026-10-14T06:30:00Z`). The frontend converts to local time.
 - Platforms: `"x" | "linkedin" | "telegram"`.
 
@@ -12,20 +13,30 @@ The agreement between the backend and the frontend. **Change this file in the sa
 Every error returns the same body:
 
 ```json
-{ "error": { "code": "rate_limited", "message": "The AI service is busy. Try again in a minute." } }
+{ "error": { "code": "invalid_file", "message": "A sentence the user can act on." } }
 ```
 
-| Status | `code` examples |
+Validation errors (422) also list the fields:
+
+```json
+{ "error": { "code": "validation_error", "message": "Some fields are missing or invalid.", "fields": [ { "field": "topic", "problem": "Field required" } ] } }
+```
+
+| Status | `code` |
 |---|---|
-| 400 | `invalid_file`, `over_limit`, `missing_topic` |
-| 401 | `not_logged_in` |
-| 403 / 404 | `not_found` (never reveal another user's data exists) |
-| 429 | `rate_limited`, `daily_limit_reached` |
-| 503 | `ai_unavailable` |
+| 400 | `invalid_file`, `unsupported_platform`, `missing_topic`, `no_posts`, `invalid_cursor` |
+| 401 | `not_logged_in` (from Phase 2) |
+| 404 | `not_found`: also for another user's data (never reveal it exists) |
+| 422 | `validation_error` (with `fields`) |
+| 429 | `rate_limited`, `daily_limit_reached` (from Phase 6) |
+| 500 | `internal_error` |
+| 503 | `ai_unavailable`: the user's input is in their own request, nothing is lost |
+
+All ids are UUIDs.
 
 ---
 
-## Phase 1 — core voice loop
+## Phase 1 — core voice loop (built)
 
 ### `GET /health`
 
@@ -33,61 +44,74 @@ Every error returns the same body:
 { "api": "ok", "db": "ok" }
 ```
 
-### `POST /imports`
+`db` is `"error"` when the database is unreachable; the endpoint itself still answers.
 
-`multipart/form-data` with `platform` and `file`.
+### `POST /imports` → `201`
+
+`multipart/form-data` with `platform` (`"telegram"` only in Phase 1) and `file` (a Telegram Desktop single-channel `result.json`, at most 64 MB). The file is parsed in memory and never stored.
 
 ```json
 {
-  "id": "imp_01",
+  "id": "0f8c2a6e-5c1b-4b8e-9a51-3c2f1d7e9b10",
   "platform": "telegram",
   "status": "embedding",
   "parsed": 412,
-  "skipped": { "empty": 31, "replies": 0, "duplicates": 0 },
-  "embedded": 0
+  "skipped": { "service": 21, "forwarded": 135, "empty": 50, "too_short": 54, "link_only": 32, "excluded_topic": 4, "already_imported": 0 },
+  "embedded": 0,
+  "waiting": 412
 }
 ```
 
+- `parsed`: the user's own posts found in the file.
+- `skipped`: a count per reason. Keys appear only when non-zero: `service`, `forwarded`, `empty`, `too_short`, `link_only`, `excluded_topic`, `duplicate`, `invalid`, `already_imported`.
+- Embedding starts in the background, best posts first, about 100 a minute on the free tier.
+
 ### `GET /imports/{id}`
 
-Same shape; `status` moves `parsing → embedding → done | failed`, and `embedded` counts up.
+Same shape. `status` moves `embedding → done`; `embedded` counts up and `waiting` counts down. Calling it also resumes embedding if the server restarted in between.
 
 ### `GET /posts?platform=telegram&limit=50&cursor=…`
+
+Newest first. `limit` 1–200 (default 50). Pass `next_cursor` back as `cursor` for the next page; it is `null` on the last page.
 
 ```json
 {
   "items": [
-    { "id": "post_1", "platform": "telegram", "text": "Shipped the parser today…", "posted_at": "2026-09-02T14:10:00Z", "pinned": false, "excluded": false }
+    { "id": "6d1e…", "platform": "telegram", "text": "Shipped the parser today…", "posted_at": "2026-09-02T14:10:00Z", "likes": 12, "pinned": false, "excluded": false, "embedded": true }
   ],
-  "next_cursor": "…"
+  "next_cursor": "MjAyNi0wOS0wMlQxNDoxMDowMCswMDowMHw2ZDFl…"
 }
 ```
 
-### `POST /drafts/generate`
+### `POST /drafts/generate` → `201`
 
 ```jsonc
-// request
+// request; checkin_id arrives with check-ins in Phase 4
 { "platform": "telegram", "topic": "Finished the Telegram importer", "checkin_id": null }
 ```
 
 ```jsonc
 // response
 {
-  "id": "drf_1",
+  "id": "a3b9…",
   "platform": "telegram",
   "status": "draft",
-  "text": "Small win today: …",
-  "length": { "count": 412, "limit": 4096, "over": false },
-  "model": "gemini-flash",
+  "text": "6/10 — #10DaysGrind | STATUS REPORT 🪖 …",
+  "length": { "count": 305, "limit": 4096, "over": false },
+  "model": "gemini-3.8-flash",   // the model version that actually wrote it
   "examples_used": 8,
-  "created_at": "2026-10-14T06:30:00Z"
+  "created_at": "2026-10-19T06:30:00Z"
 }
 ```
 
+`length.count` uses the platform's rule (X: links 23, most emoji 2). Errors: `missing_topic`, `no_posts` (nothing imported and embedded yet), `ai_unavailable`.
+
 ### `GET /drafts/{id}/prompt`
 
+The exact prompt behind the draft's first version.
+
 ```json
-{ "prompt": "…the exact text sent…", "model": "gemini-flash", "provider": "google" }
+{ "prompt": "…the exact text sent…", "model": "gemini-flash-latest", "model_version": "gemini-3.8-flash", "provider": "google" }
 ```
 
 ---

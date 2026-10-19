@@ -1,0 +1,160 @@
+"""The HTTP API end to end: real database, fake AI, a fresh test user per test."""
+
+import uuid
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.ai.client import AIUnavailable, GenerationResult
+from app.api.deps import get_ai
+from app.core.auth import current_user
+from app.main import create_app
+
+SAMPLES = Path(__file__).resolve().parents[3] / "samples"
+DIMS = 768
+
+
+class FakeAI:
+    def __init__(self, fail_generate: bool = False):
+        self.fail_generate = fail_generate
+
+    def embed_documents(self, texts):
+        # Distinct directions per text, so search doesn't treat them as near-copies.
+        out = []
+        for t in texts:
+            v = [0.0] * DIMS
+            v[0], v[1 + sum(map(ord, t)) % (DIMS - 1)] = 1.0, 1.0
+            out.append(v)
+        return out
+
+    def embed_query(self, text):
+        return [1.0] + [0.0] * (DIMS - 1)
+
+    def generate(self, prompt, purpose="draft", temperature=0.9):
+        if self.fail_generate:
+            raise AIUnavailable("all models failed")
+        return GenerationResult(
+            "Shipped it 🚀\n@sam", "gemini-flash-latest", "google", "gemini-3.8-flash"
+        )
+
+
+@pytest.fixture
+def api(make_user):
+    """A client acting as one fresh user; `api.as_user(other)` switches user."""
+    app = create_app()
+    state = {"user": make_user(), "ai": FakeAI()}
+    app.dependency_overrides[current_user] = lambda: state["user"]
+    app.dependency_overrides[get_ai] = lambda: state["ai"]
+    client = TestClient(app, raise_server_exceptions=False)
+    client.state = state
+    return client
+
+
+def upload(api, name="telegram/result.json", platform="telegram"):
+    data = (SAMPLES / name).read_bytes()
+    return api.post(
+        "/api/v1/imports", data={"platform": platform}, files={"file": ("result.json", data)}
+    )
+
+
+def test_health(api):
+    assert api.get("/api/v1/health").json() == {"api": "ok", "db": "ok"}
+
+
+def test_import_then_progress_reaches_done(api):
+    r = upload(api)
+    assert r.status_code == 201
+    body = r.json()
+    assert (body["platform"], body["parsed"], body["status"]) == ("telegram", 5, "embedding")
+    assert body["skipped"] == {"service": 1, "empty": 1, "forwarded": 1}
+    # TestClient runs background tasks before returning, so embedding has finished.
+    done = api.get(f"/api/v1/imports/{body['id']}").json()
+    assert (done["status"], done["embedded"], done["waiting"]) == ("done", 5, 0)
+
+
+def test_reimport_reports_already_imported(api):
+    upload(api)
+    body = upload(api).json()
+    assert body["skipped"]["already_imported"] == 5
+
+
+def test_broken_file_is_rejected_and_nothing_saved(api):
+    r = upload(api, "broken/telegram_truncated.json")
+    assert r.status_code == 400
+    assert r.json()["error"]["code"] == "invalid_file"
+    assert "Telegram" in r.json()["error"]["message"]
+    assert api.get("/api/v1/posts").json()["items"] == []
+
+
+def test_other_platforms_are_not_supported_yet(api):
+    r = upload(api, platform="x")
+    assert (r.status_code, r.json()["error"]["code"]) == (400, "unsupported_platform")
+
+
+def test_posts_paging(api):
+    upload(api)
+    seen, cursor = [], None
+    for _ in range(5):
+        page = api.get(
+            "/api/v1/posts", params={"limit": 2, **({"cursor": cursor} if cursor else {})}
+        ).json()
+        seen += [p["posted_at"] for p in page["items"]]
+        cursor = page["next_cursor"]
+        if not cursor:
+            break
+    assert len(seen) == 5 and seen == sorted(seen, reverse=True)
+    assert (
+        api.get("/api/v1/posts", params={"cursor": "nonsense"}).json()["error"]["code"]
+        == "invalid_cursor"
+    )
+
+
+def test_generate_and_read_the_prompt(api):
+    upload(api)
+    r = api.post(
+        "/api/v1/drafts/generate", json={"platform": "telegram", "topic": "Shipped the parser"}
+    )
+    assert r.status_code == 201
+    d = r.json()
+    assert d["text"] == "Shipped it 🚀\n@sam" and d["status"] == "draft"
+    assert d["length"] == {"count": len(d["text"]), "limit": 4096, "over": False}
+    assert d["model"] == "gemini-3.8-flash" and d["examples_used"] == 5
+    p = api.get(f"/api/v1/drafts/{d['id']}/prompt").json()
+    assert "Shipped the parser" in p["prompt"] and p["provider"] == "google"
+
+
+def test_generate_errors_use_the_shared_shape(api):
+    r = api.post("/api/v1/drafts/generate", json={"platform": "telegram", "topic": "x"})
+    assert (r.status_code, r.json()["error"]["code"]) == (400, "no_posts")
+    r = api.post("/api/v1/drafts/generate", json={"platform": "telegram", "topic": "   "})
+    assert r.json()["error"]["code"] == "missing_topic"
+    r = api.post("/api/v1/drafts/generate", json={"platform": "myspace"})
+    assert r.status_code == 422 and r.json()["error"]["code"] == "validation_error"
+    fields = {f["field"] for f in r.json()["error"]["fields"]}
+    assert {"platform", "topic"} <= fields
+
+
+def test_ai_down_gives_503_and_a_clear_message(api):
+    upload(api)
+    api.state["ai"] = FakeAI(fail_generate=True)
+    r = api.post("/api/v1/drafts/generate", json={"platform": "telegram", "topic": "topic"})
+    assert (r.status_code, r.json()["error"]["code"]) == (503, "ai_unavailable")
+
+
+def test_another_users_data_is_not_found(api, make_user):
+    upload(api)
+    d = api.post("/api/v1/drafts/generate", json={"platform": "telegram", "topic": "t"}).json()
+    imports = api.get("/api/v1/posts").json()["items"]
+    assert imports
+    api.state["user"] = make_user()  # now someone else
+    assert api.get(f"/api/v1/drafts/{d['id']}/prompt").status_code == 404
+    assert api.get("/api/v1/posts").json()["items"] == []
+    assert api.get(f"/api/v1/imports/{uuid.uuid4()}").json()["error"]["code"] == "not_found"
+
+
+def test_unknown_route_uses_the_shared_shape(api):
+    r = api.get("/api/v1/nope")
+    assert r.status_code == 404 and r.json() == {
+        "error": {"code": "not_found", "message": "Not found."}
+    }

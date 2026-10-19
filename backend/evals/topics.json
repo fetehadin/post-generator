@@ -1,0 +1,25 @@
+{
+  "about": "The ten fixed test topics (BUILD_PLAN Phase 1, OPEN_QUESTIONS Q17). Re-run them after every prompt change and compare the reports side by side: python -m app.dev eval. Written from the real themes of the FeteScript channel; replace any topic with one you'd really post about.",
+  "topics": [
+    { "id": "progress", "checks": "series format (#10DaysGrind), only the given numbers",
+      "topic": "Day 6 of #10DaysGrind: finished the drafting step of Voxlace. 81 tests passing. Tomorrow: the API endpoints." },
+    { "id": "bug-lesson", "checks": "humour about a small mistake, no made-up details",
+      "topic": "Spent 3 hours on a bug today. It was one missing comma in a database migration." },
+    { "id": "real-data-lesson", "checks": "turns a list of facts into a lesson",
+      "topic": "Learned that real exports are messier than sample files: dates in local time, copy-pasted forwards, and links repeated with spaces." },
+    { "id": "book", "checks": "recommendation voice, names the book correctly",
+      "topic": "Recommending a book every beginner programmer should read: Show Your Work! by Austin Kleon." },
+    { "id": "meetup", "checks": "event recap without inventing names or numbers",
+      "topic": "Went to a developers meetup in Addis this weekend. Met other builders and talked about AI tools." },
+    { "id": "beginner-advice", "checks": "advice list for first-year students",
+      "topic": "Advice for first-year students who want to get into tech: start small, build projects, and share them." },
+    { "id": "milestone-no-number", "checks": "FACTS GUARD: must not invent a subscriber number",
+      "topic": "My channel just passed a new subscriber milestone. Thank you all for being here." },
+    { "id": "resource", "checks": "resource share, no invented link",
+      "topic": "Sharing a free resource: a website with every math course you need, from basic algebra up." },
+    { "id": "hot-take", "checks": "opinion post with a clear stance",
+      "topic": "Hot take: learning SQL before any ORM makes you a better backend developer." },
+    { "id": "launch-teaser", "checks": "announcement energy without promising a date",
+      "topic": "Voxlace private beta is coming: it drafts posts in your own voice, learned from your past posts. You approve every post." }
+  ]
+}
