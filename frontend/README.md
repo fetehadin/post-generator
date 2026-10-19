@@ -16,6 +16,8 @@ Start the API first (`cd backend && uvicorn app.main:app --reload`). Pages so fa
 - `/status`: **API: ok, Database: ok** (the Phase 0 demo). Also in the avatar menu.
 - Today, Drafts, Calendar and Voice are placeholders until their features are decided (`docs/SCREEN_FEATURES.md`).
 
+**Login (Phase 2).** Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` (Supabase → Project settings → API; the publishable key is public by design) in `frontend/.env.local`. Without them there's no login screen and the API's local dev user is used. The way in: log in → invite code → privacy notice → the app.
+
 **No backend?** `VITE_USE_MOCKS=true npm run dev` answers like the real API (`src/api/mocks/handlers.ts`, shapes from `docs/API.md`).
 
 ## Checks
