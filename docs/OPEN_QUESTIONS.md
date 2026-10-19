@@ -228,6 +228,25 @@ DESIGN.md §5 proposes colors, Instrument Sans for the interface and Source Seri
 
 **Decided (19 Oct 2026):** visual direction v2, from a study of ScholarXIV (`design/REFERENCE_SCHOLARXIV.md`). Warm paper neutrals; Instrument Sans + Noto Sans Ethiopic for the interface, Source Serif 4 + Noto Serif Ethiopic for the user's writing; one teal accent (`--thread`) that is also the primary button color; light, dark and a new **mixed** theme. Every pair passes WCAG AA. Tokens and contrast table: DESIGN.md §5; prototypes: `design/prototypes/`. Q29 (shadcn/ui) is still open.
 
+
+### Q31 🟡 (Phase 3) X Premium: 280 or 25,000 characters?
+
+X counts length the same way for everyone, but the **limit** differs: 280 for free accounts and 25,000 for Premium. Long posts show "Show more" after about 280 characters.
+
+**What we can know.** No password and no scraping (CLAUDE.md rule 5) means three possible signals:
+
+1. **The user's own X archive (automatic, strong).** There's no "Premium" flag in it: `verified.js` covers the old blue check. But long posts are stored in `data/note-tweet.js`, and only Premium accounts can post over 280. Checked on a real archive (19 Oct 2026): `verified: false`, yet **18 posts over 280 characters (up to 1,383)** between Aug and Oct 2026. So: had Premium, and recently.
+2. **The user says so (source of truth).** Premium can lapse at any time, and the export is a snapshot.
+3. **The official X API** can report the subscription, but it needs OAuth and paid developer access. Not for V1 (CLAUDE.md: ask before a paid API).
+
+**Recommendation:**
+- Store `x_premium` per user in `platform_settings` (Phase 3 table) with `source` (`user` or `export`) and `updated_at`.
+- The **X importer pre-fills it** when `note-tweet.js` has a post over 280 from the last 90 days, and asks once: "Your export has long posts. Does your X account have Premium?" The user's answer wins.
+- The **effective limit** is 25,000 with Premium, else 280 (from `platform_profiles`). The counting rule is unchanged, and the counter and the FR-9 block use the effective limit.
+- **Drafts stay short by default** even with Premium; a "Long post" option asks for more. The **preview shows the "Show more" fold at 280** so the user sees what most readers see.
+- Hand-off is safe either way: X's own composer rejects an over-limit post, and we warn before opening it.
+
+**Also found:** for long posts, `tweets.js` keeps only the first part of the text. The full text is in `note-tweet.js`. The X importer must read both (FR-39 still holds: both are post files).
 ---
 
 ## Decided
