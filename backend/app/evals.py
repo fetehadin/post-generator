@@ -23,6 +23,7 @@ BACKEND = Path(__file__).resolve().parents[1]
 TOPICS = BACKEND / "evals" / "topics.json"
 OUT = BACKEND / "evals" / "out"
 NUMBER = re.compile(r"\d+")
+LIST_MARKER = re.compile(r"^\s*\d+[.)]\s", re.MULTILINE)  # "1. Start small" is not a fact
 WORD = re.compile(r"[^\W_]+", re.UNICODE)
 COPY_WARN = 8  # words in a row shared with one example
 
@@ -40,7 +41,8 @@ class Check:
 
 def invented_numbers(draft: str, topic: str) -> list[str]:
     given = set(NUMBER.findall(topic))
-    return sorted({n for n in NUMBER.findall(draft) if n not in given}, key=int)
+    found = NUMBER.findall(LIST_MARKER.sub("", draft))
+    return sorted({n for n in found if n not in given}, key=int)
 
 
 def longest_shared_run(draft: str, example: str) -> int:

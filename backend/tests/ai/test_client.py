@@ -12,6 +12,7 @@ from app.ai.client import (
     AIClient,
     AIUnavailable,
     EmbeddingUnavailable,
+    retry_after,
 )
 from app.core.config import Settings
 
@@ -171,6 +172,56 @@ def test_generate_skips_unsupported_provider_and_fails_clearly_when_all_fail():
 def test_chain_parsing_defaults_provider_to_google():
     s = Settings(_env_file=None, generation_models=" google:a , b,groq:c ")
     assert s.generation_chain == [("google", "a"), ("google", "b"), ("groq", "c")]
+
+
+def quota_error(hint: str) -> errors.APIError:
+    return errors.APIError(
+        429,
+        {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "message": f"Quota. {hint}"}},
+    )
+
+
+@pytest.mark.parametrize(
+    ("hint", "seconds"),
+    [
+        ("Please retry in 15.4s.", 15.4),
+        ("Please retry in 22h50m23.5s.", 22 * 3600 + 50 * 60 + 23.5),
+        ("Please retry in 3m2s.", 182.0),
+        ("'retryDelay': '41s'", 41.0),
+        ("no hint here", None),
+    ],
+)
+def test_retry_after_reads_every_hint_format(hint, seconds):
+    assert retry_after(quota_error(hint)) == seconds
+
+
+def test_daily_quota_moves_to_the_next_model_without_waiting():
+    class DailyQuota(FakeModels):
+        def generate_content(self, model, contents, config):
+            if model == "first":
+                self.gen_calls.append(model)
+                raise quota_error("Please retry in 22h50m23.6s.")
+            return super().generate_content(model, contents, config)
+
+    models = DailyQuota()
+    client, waits = make(models)
+    assert client.generate("prompt").model == "second"
+    assert models.gen_calls == ["first", "second"]
+    assert waits == []
+
+
+def test_daily_quota_on_embeddings_fails_fast_for_the_queue_to_retry_later():
+    class DailyQuota(FakeModels):
+        def embed_content(self, model, contents, config):
+            self.embed_calls.append(model)
+            raise quota_error("Please retry in 20h1m0s.")
+
+    models = DailyQuota()
+    client, waits = make(models)
+    with pytest.raises(EmbeddingUnavailable):
+        client.embed_documents(["post"])
+    assert waits == []
+    assert len(models.embed_calls) == 1
 
 
 def test_backoff_waits_as_long_as_the_server_asks():

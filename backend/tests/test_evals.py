@@ -23,3 +23,8 @@ def test_longest_shared_run_counts_consecutive_words():
         longest_shared_run("Shipped. The parser!", "shipped the parser") == 3
     )  # case/punct ignored
     assert longest_shared_run("nothing alike", "completely different") == 0
+
+
+def test_list_numbers_are_not_invented_facts():
+    draft = "Advice:\n1. Start small\n2) Build projects\n3. Share 10 of them"
+    assert invented_numbers(draft, "start small, build, share") == ["10"]
