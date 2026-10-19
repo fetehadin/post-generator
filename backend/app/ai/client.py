@@ -24,8 +24,12 @@ QUERY_PREFIX = "task: search result | query: "
 EMBED_BATCH = 100
 RETRYABLE = {429, 500, 502, 503, 504}
 MAX_WAIT = 90.0
-# Gemini says how long to wait: "Please retry in 15.4s" or a RetryInfo retryDelay "15s".
-RETRY_HINT = re.compile(r"retry in ([\d.]+)\s*s|retryDelay\W+([\d.]+)s", re.IGNORECASE)
+# Gemini says how long to wait: "Please retry in 15.4s", "retry in 22h50m23.6s" (a daily
+# quota) or a RetryInfo retryDelay "15s".
+RETRY_HINT = re.compile(
+    r"retry in ((?:\d+h)?(?:\d+m)?[\d.]+s)|retryDelay\W+([\d.]+s)", re.IGNORECASE
+)
+DURATION = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?([\d.]+)s")
 
 
 class AIUnavailable(Exception):
@@ -150,7 +154,11 @@ def retryable(err: Exception) -> bool:
     """Rate limits, server errors and network drops (DNS, refused, timeout) are worth a retry."""
     if isinstance(err, httpx.TransportError):
         return True
-    return isinstance(err, errors.APIError) and err.code in RETRYABLE
+    if not isinstance(err, errors.APIError) or err.code not in RETRYABLE:
+        return False
+    # A wait longer than we'd ever sleep means a daily quota: move on now, don't spin.
+    hinted = retry_after(err)
+    return hinted is None or hinted <= MAX_WAIT
 
 
 def describe(err: Exception) -> str:
@@ -164,7 +172,8 @@ def retry_after(err: Exception) -> float | None:
     m = RETRY_HINT.search(text)
     if not m:
         return None
-    return float(m.group(1) or m.group(2))
+    h, mins, secs = DURATION.fullmatch(m.group(1) or m.group(2)).groups()
+    return int(h or 0) * 3600 + int(mins or 0) * 60 + float(secs)
 
 
 _default: AIClient | None = None
