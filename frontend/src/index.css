@@ -99,8 +99,8 @@
   --radius-panel: 12px;
   --radius-ask: 24px;
   --shadow-float: var(--shadow-float);
-  /* Fonts are named here and self-hosted in a later PR; until then the fallbacks render. */
-  --font-sans: 'Instrument Sans', 'Noto Sans Ethiopic', system-ui, sans-serif;
+  /* Self-hosted via @fontsource (imported in main.tsx). */
+  --font-sans: 'Archivo', 'Noto Sans Ethiopic', system-ui, sans-serif;
   --font-serif: 'Source Serif 4', 'Noto Serif Ethiopic', Georgia, serif;
   --text-xs: 0.8125rem;
   --text-sm: 0.875rem;
