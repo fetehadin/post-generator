@@ -1,0 +1,3 @@
+# Known false positives, one exact finding each (commit:file:rule:line). Never a real secret.
+# A made-up test signing value in an early commit of PR #24; later commits generate it at runtime.
+1984231b1701299e4e187219382952fd96bb0544:backend/tests/api/test_auth.py:generic-api-key:22
