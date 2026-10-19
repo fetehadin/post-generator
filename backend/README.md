@@ -1,24 +1,67 @@
 # Backend
 
-FastAPI app. Scaffolded in **Phase 0** — see [`docs/BUILD_PLAN.md`](../docs/BUILD_PLAN.md#phase-0--foundations).
+FastAPI app: imports, embeddings, search, drafting and the HTTP API. Phase 1 (Telegram, one dev user) is built.
 
-Planned layout:
+## Setup (once)
+
+```bash
+docker compose up -d                 # from the repo root: Postgres + pgvector
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate            # every new terminal: run this line again
+pip install -e ".[dev]"
+alembic upgrade head                 # create or update the tables
+```
+
+Your prompt shows `(.venv)` when the environment is active. Settings come from the repo's `.env` (see `.env.example`).
+
+## Run the Phase 1 demo
+
+**In the browser (no frontend needed):**
+
+1. `uvicorn app.main:app --reload`, then open <http://localhost:8000/docs>.
+2. `POST /api/v1/imports`: platform `telegram`, file = your channel's `result.json`. You'll see e.g. `"parsed": 412`.
+3. `GET /api/v1/imports/{id}` until `"status": "done"`. The free Gemini tier embeds about 100 posts a minute.
+4. `POST /api/v1/drafts/generate` with `{"platform": "telegram", "topic": "what you did today"}`. A draft in your voice comes back.
+5. `GET /api/v1/drafts/{id}/prompt` shows the exact prompt that produced it.
+
+**From the terminal (same steps, no server):**
+
+```bash
+python -m app.dev import-telegram path/to/result.json
+python -m app.dev embed
+python -m app.dev search "a topic"          # the 8 posts the prompt would use
+python -m app.dev draft "today's check-in" [--show-prompt]
+python -m app.dev eval                      # the ten test topics → evals/out/ report
+```
+
+## Checks
+
+```bash
+ruff check . && ruff format --check . && pytest
+```
+
+Database tests need the Docker database running; without it they're skipped with a clear reason.
+
+## Layout
 
 ```text
 backend/
 ├── app/
-│   ├── main.py         FastAPI app and router registration
-│   ├── worker.py       Sends due Telegram posts and reminders
-│   ├── api/            Route handlers (imports, posts, drafts, …)
-│   ├── schemas/        Pydantic request/response models
-│   ├── services/       Retrieval, drafting, voice cards, publishing
-│   ├── ai/             client.py (embed, generate, fallback chain), prompts/
-│   ├── importers/      telegram.py, x.py, linkedin.py
+│   ├── main.py         FastAPI app: routes under /api/v1, CORS, error handlers
+│   ├── api/            Thin routes: imports, posts, drafts, health
+│   ├── schemas.py      Request/response models (mirror docs/API.md)
+│   ├── services/       posts (save), embedding (queue), retrieval (search), drafting
+│   ├── ai/             client.py (embed, generate, fallback chain), prompts/draft.md
+│   ├── importers/      telegram.py (x.py, linkedin.py in Phase 3)
 │   ├── models/         SQLAlchemy models
-│   └── core/           config.py, db.py, auth.py
-├── migrations/         Alembic
-├── tests/
-└── pyproject.toml      Dependencies, Ruff and pytest config
+│   ├── core/           config, db (per-user sessions), auth (dev user until Phase 2), errors
+│   ├── counting.py     Length per platform rule (X weighted)
+│   ├── evals.py        The ten test topics
+│   └── dev.py          Developer commands (python -m app.dev …)
+├── evals/topics.json   The ten test topics (reports in evals/out/, git-ignored)
+├── migrations/         Alembic (every user table has row-level security)
+└── tests/
 ```
 
 Rule: every call to an AI provider goes through `app/ai/client.py`. Nothing else imports a provider SDK.

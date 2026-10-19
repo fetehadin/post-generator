@@ -1,0 +1,52 @@
+[project]
+name = "voxlace-backend"
+version = "0.1.0"
+description = "Voxlace API, importers and AI client"
+requires-python = ">=3.12"
+dependencies = [
+    "google-genai>=1.0,<2",
+    "pydantic-settings>=2.4,<3",
+    "sqlalchemy>=2.0,<3",
+    "psycopg[binary]>=3.2,<4",
+    "alembic>=1.13,<2",
+    "pgvector>=0.3,<1",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "ruff>=0.6",
+    "httpx>=0.27,<1",
+]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+# Prompt templates ship with the code.
+app = ["ai/prompts/*.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's Depends/Query/File/Form are meant to be used as argument defaults.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.File", "fastapi.Form", "fastapi.Body", "fastapi.Path"]
+
+[tool.ruff.lint.per-file-ignores]
+# Migrations hold seed text and generated column lists; wrapping them hurts readability.
+"migrations/versions/*" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
