@@ -36,12 +36,15 @@ def owner_engine() -> Engine:
 def make_user(owner_engine):
     created: list[uuid.UUID] = []
 
-    def _make() -> uuid.UUID:
+    def _make(privacy_accepted: bool = True) -> uuid.UUID:
         uid = uuid.uuid4()
         with owner_engine.begin() as conn:
             conn.execute(
-                text("INSERT INTO users (id, email) VALUES (:id, :email)"),
-                {"id": uid, "email": f"{uid}@test.local"},
+                text(
+                    "INSERT INTO users (id, email, privacy_accepted_at) "
+                    "VALUES (:id, :email, CASE WHEN :ok THEN now() END)"
+                ),
+                {"id": uid, "email": f"{uid}@test.local", "ok": privacy_accepted},
             )
         created.append(uid)
         return uid

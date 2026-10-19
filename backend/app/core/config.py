@@ -16,12 +16,34 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://voxlace_app:voxlace_app@localhost:5432/voxlace"
     migrations_database_url: str = "postgresql+psycopg://voxlace:voxlace@localhost:5432/voxlace"
 
+    # Login (FR-27): Supabase issues the token, we only verify it. New Supabase projects sign
+    # with asymmetric keys published at {supabase_url}/auth/v1/.well-known/jwks.json; older
+    # projects use one shared secret (supabase_jwt_secret). Set one of the two.
+    supabase_url: str = ""
+    supabase_jwt_secret: str = ""
+    # FR-28: comma-separated emails that may join without an invite code (the team).
+    allowed_emails: str = ""
+
     gemini_api_key: str = ""
     embedding_model: str = "gemini-embedding-2"
     embedding_dimensions: int = 768
     # Ordered fallback chain, comma-separated "provider:model" (FR-31).
     generation_models: str = "google:gemini-flash-latest"
     fallback_api_key: str = ""
+
+    @property
+    def login_configured(self) -> bool:
+        return bool(self.supabase_url or self.supabase_jwt_secret)
+
+    @property
+    def dev_user_without_login(self) -> bool:
+        """Local development with no login set up: every request is the dev user.
+        Never in production, and never once login is configured."""
+        return self.app_env == "development" and not self.login_configured
+
+    @property
+    def allowed_email_set(self) -> set[str]:
+        return {e.strip().lower() for e in self.allowed_emails.split(",") if e.strip()}
 
     @property
     def generation_chain(self) -> list[tuple[str, str]]:

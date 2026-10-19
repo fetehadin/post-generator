@@ -10,6 +10,7 @@ Everything is stored under one fixed dev user, the same way real users will be.
 """
 
 import argparse
+import secrets
 from pathlib import Path
 
 from sqlalchemy.dialects.postgresql import insert
@@ -18,7 +19,7 @@ from app.core.auth import DEV_USER_ID
 from app.core.db import user_session
 from app.evals import run_eval
 from app.importers.telegram import parse_telegram
-from app.models import Import, User
+from app.models import Import, Invite, User
 from app.services.drafting import DraftError, generate_draft, prompt_for
 from app.services.embedding import DEFAULT_LIMIT, embed_pending
 from app.services.posts import save_posts
@@ -82,6 +83,14 @@ def evaluate(platform: str) -> None:
     print(f"report: {path}")
 
 
+def make_invite(email: str | None) -> None:
+    """FR-28: an invite code for one tester (bound to their email if given)."""
+    code = f"VX-{secrets.token_hex(3).upper()}-{secrets.token_hex(3).upper()}"
+    with user_session(DEV_USER_ID) as s:  # invites have no RLS; any session can add one
+        s.add(Invite(code=code, email=email.lower() if email else None))
+    print(f"invite code: {code}" + (f" (only for {email})" if email else ""))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.dev")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -98,6 +107,8 @@ def main() -> None:
     drf.add_argument("--show-prompt", action="store_true")
     ev = sub.add_parser("eval", help="draft the ten test topics and write a report")
     ev.add_argument("--platform", default="telegram", choices=["telegram", "x", "linkedin"])
+    inv = sub.add_parser("invite", help="create an invite code for a tester")
+    inv.add_argument("--email", help="only this email can use the code")
     args = parser.parse_args()
     if args.command == "import-telegram":
         import_telegram(args.path)
@@ -109,6 +120,8 @@ def main() -> None:
         draft(args.topic, args.platform, args.show_prompt)
     elif args.command == "eval":
         evaluate(args.platform)
+    elif args.command == "invite":
+        make_invite(args.email)
 
 
 if __name__ == "__main__":

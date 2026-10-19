@@ -3,7 +3,7 @@
 The agreement between the backend and the frontend. **Change this file in the same pull request as the code.** Once the backend runs, FastAPI also serves live docs at `/docs`.
 
 - Base URL (local): `http://localhost:8000/api/v1`
-- Auth: `Authorization: Bearer <login token>` on every route except `/health` (from Phase 2; Phase 1 uses one fixed dev user).
+- Auth: `Authorization: Bearer <Supabase access token>` on every route except `/health`. Locally, with no login configured (`APP_ENV=development` and no `SUPABASE_URL` / `SUPABASE_JWT_SECRET`), a request without a token is the dev user; never in production.
 - Live docs: run the backend and open <http://localhost:8000/docs> to try every endpoint in the browser.
 - Times: ISO 8601 in UTC (`2026-10-14T06:30:00Z`). The frontend converts to local time.
 - Platforms: `"x" | "linkedin" | "telegram"`.
@@ -24,8 +24,9 @@ Validation errors (422) also list the fields:
 
 | Status | `code` |
 |---|---|
-| 400 | `invalid_file`, `unsupported_platform`, `missing_topic`, `no_posts`, `invalid_cursor` |
-| 401 | `not_logged_in` (from Phase 2) |
+| 400 | `invalid_file`, `unsupported_platform`, `missing_topic`, `no_posts`, `invalid_cursor`, `invalid_invite` |
+| 401 | `not_logged_in`: no token, or it's expired, forged or not for a logged-in user |
+| 403 | `invite_required` (logged in, but not admitted yet), `privacy_required` (`POST /imports` before accepting the notice) |
 | 404 | `not_found`: also for another user's data (never reveal it exists) |
 | 422 | `validation_error` (with `fields`) |
 | 429 | `rate_limited`, `daily_limit_reached` (from Phase 6) |
@@ -116,11 +117,36 @@ The exact prompt behind the draft's first version.
 
 ---
 
+## Phase 2 — accounts (built)
+
+Login itself happens in the browser with Supabase; the API only verifies the token (signature, expiry, audience `authenticated`, issuer). The user id is the token's `sub`. A person must be **admitted** before any other route works: by redeeming an invite code, or because their email is in `ALLOWED_EMAILS`.
+
+### `GET /me`
+
+Works for any valid token, admitted or not.
+
+```json
+{ "id": "6f1c…", "email": "sam@example.com", "admitted": true, "privacy_accepted": false }
+```
+
+### `POST /me/invite`
+
+```json
+{ "code": "VX-2F7DBD-7FD349" }
+```
+
+Returns the same shape as `GET /me`. Codes are case-insensitive and work once; a code made for one email works only for that email. Error: `400 invalid_invite`. Admins create codes with `python -m app.dev invite [--email sam@example.com]`.
+
+### `POST /me/privacy-accept`
+
+Records that the user accepted the privacy notice (FR-37) and returns `GET /me`'s shape. Until then `POST /imports` answers `403 privacy_required`.
+
+---
+
 ## Later phases (shape to be agreed at the start of each phase)
 
 | Phase | Method and path | Purpose |
 |---|---|---|
-| 2 | `GET /me` · `POST /me/privacy-accept` | Current user; accept privacy notice |
 | 3 | `GET / PUT /profile` | About-you form and summary card |
 | 3 | `GET / PUT /voice-cards/{platform}` · `POST /voice-cards/{platform}/regenerate` | Voice card |
 | 3 | `GET /platform-profiles` · `PUT /platform-profiles/{platform}` | Platform rules |
