@@ -12,5 +12,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    // The first test in a file pays for loading jsdom and user-event; 5 s is too tight on CI.
+    testTimeout: 15_000,
   },
 })
