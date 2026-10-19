@@ -31,7 +31,7 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 | # | Principle | What it means on screen | Grounded in |
 |---|---|---|---|
 | 1 | **You're the author** | Nothing leaves the app without an explicit Approve or Publish click. The button says exactly what happens: "Publish to Telegram now", not "Submit". | G16 (convey consequences), FR-12, NFR-6 |
-| 2 | **Show your sources** | Every draft shows which of your past posts shaped it ("Based on 8 of your posts") and opens them on click. | G11 (explain why) |
+| 2 | **Just the draft** | The editor shows the draft and nothing about how it was made: no sources, no model names, no scores. The user judges the words and gives feedback. Pinning and excluding past posts (FR-25) lives in Voice. *(Changed 19 Oct 2026 at the product owner's request; replaces "Show your sources".)* | Calm by default; FR-11 still labels it "AI draft" |
 | 3 | **Be honest about quality** | Show voice strength per platform from post count ("12 posts: voice is still learning"). Never promise a perfect match. | G1–G2 (what it can do, how well), FR-5 |
 | 4 | **Fix in one click** | Quick revisions (Shorter, Punchier, More casual) sit next to a free-text "Tell it what to change" box. People use both. | G9 (efficient correction); toolbar + free-prompt study |
 | 5 | **Preview the real thing** | Drafts render the way each platform shows them: X's limit and line breaks, LinkedIn's "see more" fold at about 210 characters. | Platform rules, FR-9 |
@@ -43,15 +43,26 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 
 ## 2. Information architecture
 
-Five places in a left sidebar on desktop, a bottom bar on mobile. Each maps to SRS requirements.
+**Left sidebar = navigation only** (a floating card, inset from the window edge). From top to bottom:
+- the wordmark;
+- **New post** (the primary action);
+- four places: Today, Drafts, Calendar, Voice;
+- the avatar at the bottom, which opens Settings, the theme switch and today's usage.
+
+**There is no right sidebar.** Context that used to sit there moved to where it's used:
+- the platform preview → an Edit / Preview switch in the editor;
+- "Up next" → Calendar;
+- voice strength and sources → Voice.
+
+On mobile the four places become a bottom tab bar, and Settings stays behind the avatar.
 
 | Nav item | Purpose | Requirements |
 |---|---|---|
-| **Today** | Chat board: write a check-in, ask for drafts, see today's drafts | FR-6, FR-7, FR-8 |
+| **Today** | Ask "What did you work on today?", write drafts, see today's drafts | FR-6, FR-7, FR-8 |
 | **Drafts** | Library of every draft by status and platform; opens the editor | FR-10, FR-11 |
-| **Calendar** | Week and month plan; due posts; Telegram sends | FR-13, FR-35 |
+| **Calendar** | Week and month plan; due posts; Telegram sends; what's up next | FR-13, FR-35 |
 | **Voice** | Per-platform voice card, stats, pinned and excluded posts, imports | FR-1, FR-5, FR-22, FR-25, FR-26 |
-| **Settings** | Profile, audience, language, Telegram connection, usage, export/delete | FR-17, FR-24, FR-30, FR-33, FR-36, FR-38 |
+| Avatar menu → **Settings** | Profile, audience, language, Telegram connection, usage, theme, export/delete | FR-17, FR-24, FR-30, FR-33, FR-36, FR-38 |
 
 The **draft editor** isn't a nav item. It opens from Today, Drafts or Calendar as a full page (`/drafts/:id`), so every draft has a shareable URL and the back button works.
 
@@ -99,59 +110,59 @@ flowchart LR
 
 Wireframes show layout and hierarchy, not final styling.
 
-### 4.1 Today (chat board)
+### 4.1 Today
 
-The home screen. A single stream: check-ins, draft requests and draft cards in time order.
+The home screen opens like a journal page: the date, one question, one box, today's drafts. Prototype: `design/prototypes/today.html`.
 
 ```
-┌ Sidebar ┐┌──────────────────────────────────────────────────────┐
-│ Today   ││  Wed 21 Oct                                          │
-│ Drafts  ││  ┌ Check-in ──────────────────────────────────────┐  │
-│ Calendar││  │ Finished the Telegram importer, 412 posts in.  │  │
-│ Voice   ││  └────────────────────────────────────────────────┘  │
-│ Settings││  ┌ Draft · X ─────────── 214/280 ─ Draft ┐            │
-│         ││  │ Small win today: …                    │ Open       │
-│ Usage   ││  └───────────────────────────────────────┘            │
-│ 12/30   ││  ┌───────────────────────────────────────────────┐   │
-│         ││  │ What did you work on today?                   │   │
-│         ││  │ [X] [LinkedIn] [Telegram]   Save · Generate   │   │
-└─────────┘└──└───────────────────────────────────────────────┘───┘
+┌──────────┐
+│ Voxlace  │   Wednesday, 21 October
+│[New post]│   What did you work on today?
+│ Today    │   ┌──────────────────────────────────────────────────┐
+│ Drafts   │   │ Finished the Telegram importer, 412 posts in…    │
+│ Calendar │   │ [✓ X] [✓ LinkedIn] [Telegram]  [Generate 2 drafts]│
+│ Voice    │   └──────────────────────────────────────────────────┘
+│          │   Try: (What did you ship today?) (A lesson from this week) (…)
+│          │
+│          │   Today's drafts
+│          │   X         Small win today: the Telegram importer…   Draft
+│ (F) Fete │   LinkedIn  I spent this week on the least…  Approved · Thu 09:00 your time
+└──────────┘
 ```
 
-- **Composer pinned to the bottom**, with platform toggles and two actions: **Save check-in** and **Generate drafts**.
-- Prompt starters above an empty composer: "What did you ship today?", "A lesson from this week", "Turn a commit into a post".
-- Draft cards show platform, first lines, live count, status and **Open**. No inline editing here; the editor is the one place to edit.
-- Generation streams into a placeholder card that appears immediately (see §7).
+- **Left-aligned, dated heading.** The day is the context; there's no subtitle.
+- **One box.** Platform toggles sit inside it, and the button says what happens: **Generate 2 drafts**. No icon-only send button.
+- **Try:** one row of starter prompts under the box. They solve the blank page.
+- **Today's drafts** are quiet rows: platform, first line, status (kept on mobile, under the line). A new one shows "Writing…" at once (§7). Click a row to open the editor.
+- Nothing else: no counters, no sources, no meta lines. On mobile the avatar sits in the header and opens Settings.
 
 ### 4.2 Draft editor (the most important screen)
 
+One column: the draft, then a feedback box. Prototype: `design/prototypes/editor.html`.
+
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│ ← Drafts      X draft · Draft · v3            Versions ▾  Discard │
-├───────────────────────────────┬──────────────────────────────────┤
-│ EDIT                          │ PREVIEW (as it will look on X)   │
-│ ┌───────────────────────────┐ │ ┌──────────────────────────────┐ │
-│ │ Small win today: the      │ │ │ (avatar) Fetehadin @…        │ │
-│ │ Telegram importer works…  │ │ │ Small win today: the         │ │
-│ │                           │ │ │ Telegram importer works…     │ │
-│ └───────────────────────────┘ │ └──────────────────────────────┘ │
-│ 214 / 280  ✓                  │ Based on 8 of your posts  View   │
-│ [Shorter] [Punchier] [Casual] │                                  │
-│ [Add a hook] [Remove emoji]   │ AI-generated draft. Review       │
-│ ┌ Tell it what to change… ──┐ │ before posting.                  │
-│ └───────────────────────────┘ │                                  │
-├───────────────────────────────┴──────────────────────────────────┤
-│ Schedule: Thu 22 Oct, 18:00 (your time) ▾    [ Approve ]          │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────┐ ←  X draft (Draft)     [Edit|Preview]  ⟲  ⋯  [Approve and schedule…]
+│ sidebar  │
+│          │      Small win today: the Telegram importer works end to end.
+│          │
+│          │      412 posts in, 31 skipped (service messages, forwards…).
+│          │      ─────────────────────────────────────────────────────
+│          │      238 / 280                                     AI draft
+│          │
+│          │      (Shorter) (Punchier) (More casual) (Add a hook)
+│          │      ┌ Tell it what to change… ──────────────── [Revise] ┐
+└──────────┘      └────────────────────────────────────────────────────┘
 ```
 
-- **Two columns on desktop:** editable text on the left, platform-true preview on the right. One column on mobile with an Edit / Preview switch.
-- **Quick actions + free text.** Pre-set revisions for the common cases; a free box for everything else, with placeholder examples ("Mention that it took 3 tries").
-- **Select text, then revise only that part.** Highlighting a sentence scopes the next revision to it.
-- **Versions:** every revision is a version (FR-10). The menu shows each with its instruction ("v2 · Shorter") and a diff against the current one. Restoring is one click.
-- **Length counter** sits right under the text, turns amber within 10% of the limit and red over it, and says how many characters to cut. Over the limit, Approve is disabled with the reason shown, not just greyed out.
-- **"Based on 8 of your posts"** opens a side panel of the retrieved examples (from the prompt log), with Pin and Exclude buttons (FR-25).
-- **Footer action bar is sticky** and shows the consequence: after approval, the button becomes "Publish to Telegram now" or "Open in X". For LinkedIn: "Copy text and open LinkedIn", then a "Copied" confirmation.
+- **The draft is the page:** serif text with no box around it, editable in place. A thin teal edge on the left shows focus (a faint one on hover), so the text reads as editable. **Edit / Preview** switches to the platform-true look (X's limit and line breaks, LinkedIn's "see more" fold).
+- **Feedback like a chat:** quick changes as chips, plus a free box ("Tell it what to change…"). Each change creates a version (FR-10). Selecting a sentence scopes the next change to it.
+- **Versions** (⟲) lists each version with its instruction ("v2 · Shorter") and restores in one click. **⋯** holds Versions (for mobile) and Discard draft.
+- **One primary action:** "Approve and schedule…" opens a dialog that picks the time and says exactly what will happen:
+  - X: "Voxlace never posts to X for you. At 18:00 you get a reminder…" → **Approve and remind me**.
+  - Telegram: "At 18:00 Voxlace's bot posts it to your channel." → **Approve · send Fri 18:00**.
+  - LinkedIn: "At 09:00 you get a reminder. One tap copies the text and opens LinkedIn." → **Approve and remind me**.
+- **Length counter** under the text: amber within 10% of the limit, red over it with "cut N characters". Over the limit, Approve is disabled and the reason is written out.
+- **"AI draft"** tag (FR-11), and nothing about sources or models.
 
 ### 4.3 Calendar
 
@@ -179,41 +190,133 @@ Profile and summary card (FR-17, FR-18), audience per platform (FR-33), language
 
 ## 5. Visual direction
 
-A starting proposal. Settle it in the first design pass (§11) and then treat it as tokens, not suggestions.
+**Decided 19 Oct 2026 (v2).** Derived from a study of ScholarXIV ([`design/REFERENCE_SCHOLARXIV.md`](../design/REFERENCE_SCHOLARXIV.md)): we take its principles, not its identity. Prototypes: [`design/prototypes/`](../design/prototypes/), which open in any browser. The tokens live in [`design/prototypes/tokens.css`](../design/prototypes/tokens.css). `frontend/src/index.css` still has the v1 values and switches to these in the next frontend PR.
 
-**Concept: "your words in ink, the tool in pencil."** The user's writing is the hero, set in a readable serif like a manuscript. Everything the app says is set in a quiet sans. One color carries meaning: the thread that runs from your old posts to the new draft.
+**Concept: "ink on paper, with one thread."**
+- The user's words are ink on a page, set in a serif.
+- The app is the desk around that page: warm, quiet and flat.
+- One teal **thread** marks everything the AI drew on: sources, focus, links and the AI label.
+
+What we kept from the study:
+- a monochrome base where color carries meaning
+- borders and tinted boxes instead of shadows
+- a floating navigation card beside one centered column (we dropped their right panel: too much for a writing tool)
+- an empty screen that asks first, with starter prompts
+- a quiet metadata line on each card
+- real dark themes
+- 150 ms color-only motion
+
+What's ours:
+- warm paper neutrals (theirs are cool zinc)
+- a serif for the user's writing
+- the teal thread
+- a **mixed** theme
+- Ethiopic-ready fonts
+
+### Themes
+
+| Theme | What it is | When |
+|---|---|---|
+| Light | Paper background, white page | Default when the system is light |
+| Dark | Warm off-black, never pure black | Default when the system is dark |
+| **Mixed** | Dark chrome (sidebar, panels, background) around a **light page** (editor, draft cards, previews): a desk lamp on paper | Writing at night without losing the page's look; only Voxlace has it |
+
+How it works:
+- The toggle sits in the sidebar header and cycles light → dark → mixed.
+- The choice is saved per user, and the system preference is the first default.
+- In code it's `<html data-theme="…">`. Anything marked `.page` switches back to the light tokens in the mixed theme.
 
 ### Color tokens
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--ink` | `#1C2433` | `#E6E9EF` | Main text |
-| `--paper` | `#F6F7F9` | `#12161E` | App background |
-| `--surface` | `#FFFFFF` | `#1A202B` | Editor, panels |
-| `--line` | `#D9DEE6` | `#2B3341` | Borders, dividers |
-| `--thread` | `#2F7363` | `#5FB8A3` | Primary actions, focus, links (the one accent) |
-| `--signal` | `#B7791F` | `#E3A94B` | Near the limit, scheduled, warnings |
-| `--danger` | `#B3362F` | `#E06A62` | Over the limit, errors, delete |
+| `--paper` | `#F7F6F3` | `#161513` | App background (the desk) |
+| `--surface` | `#FFFFFF` | `#1E1C19` | The page: editor, cards, previews |
+| `--sunken` | `#EFEDE8` | `#282622` | Notes, source posts, inactive chips |
+| `--line` | `#E2DFD8` | `#34312C` | Dividers and card borders (decorative) |
+| `--edge` | `#8A8478` | `#7A7469` | Outlines of inputs and buttons (≥ 3:1) |
+| `--ink` | `#1F1D1A` | `#EDEAE4` | Main text |
+| `--ink-2` | `#5C574E` | `#A9A399` | Secondary text, meta lines, placeholders |
+| `--on-ink` | `#FAF9F6` | `#1F1D1A` | Text on ink (avatar, brand mark) |
+| `--thread` | `#2B6B5B` | `#72C4AE` | The one accent: **primary buttons**, links, focus ring, AI label, sources, selected chips |
+| `--on-thread` | `#FFFFFF` | `#161513` | Text on primary buttons |
+| `--thread-soft` | `#E2EEE9` | `#1F3530` | Current nav item, selected chip fill |
+| `--signal` | `#8F5508` | `#E3A64C` | Near the limit, "still learning", scheduled |
+| `--danger` | `#B42318` | `#F2806F` | Over the limit, errors, delete |
 
-- **Platform colors only in small badges**, never as backgrounds, so the app doesn't look like three brands fighting.
-- **Check contrast** of every pair before use: body text at least 4.5:1, large text and UI parts at least 3:1.
+**Contrast, all measured (WCAG 2.2 AA: 4.5:1 for text, 3:1 for UI parts):**
+
+| Pair | Light | Dark |
+|---|---|---|
+| `--ink` on `--paper` / `--surface` / `--sunken` | 15.6 / 16.8 / 14.4 | 15.2 / 14.2 / 12.6 |
+| `--ink-2` on `--paper` / `--surface` / `--sunken` | 6.6 / 7.2 / 6.1 | 7.3 / 6.8 / 6.0 |
+| `--thread` on `--paper` / `--surface` / `--thread-soft` | 5.8 / 6.3 / 5.3 | 8.9 / 8.3 / 6.4 |
+| `--signal` on `--paper` / `--surface` | 5.6 / 6.1 | 8.5 / 8.0 |
+| `--danger` on `--paper` / `--surface` | 6.1 / 6.6 | 7.0 / 6.6 |
+| `--on-thread` on `--thread` (primary button) | 6.3 | 8.9 |
+| `--on-ink` on `--ink` (avatar) | 16.0 | 14.0 |
+| `--edge` on `--surface` / `--paper` (input outlines) | 3.7 / 3.4 | 3.7 / 3.9 |
+| Focus ring `--thread` on `--paper` | 5.8 | 8.9 |
+
+Mixed uses the dark values for chrome and the light values on `.page`, so every pair above still applies.
+
+- **Platform colors only in small badges**, never as backgrounds.
+- **Status never by color alone:** the counter has an icon and words ("fits on X", "24 left", "12 over"); selected chips show ✓.
 - Avoid the common generated looks: purple-to-blue gradients, cream with terracotta, black with acid green, identical cards with the same soft shadow.
 
 ### Type
 
-| Role | Typeface (proposal) | Notes |
-|---|---|---|
-| Interface | **Instrument Sans** | Labels, buttons, navigation. Sentence case, no all-caps labels. |
-| The user's writing | **Source Serif 4** | Editor text and check-ins, at 17–18px with 1.6 line-height, max ~70 characters a line. |
-| Platform previews | The platform's own system font stack | So the preview looks like the real post. |
+| Role | Typeface | Fallback for Amharic (FR-24) | Notes |
+|---|---|---|---|
+| Interface | **Instrument Sans** 400/600 | **Noto Sans Ethiopic** | Labels, buttons, navigation. Sentence case. |
+| The user's writing | **Source Serif 4** 400/600 | **Noto Serif Ethiopic** | Editor, check-ins, draft cards, source posts: 18px, line-height 1.7, at most 68 characters a line |
+| Platform previews | The platform's own system stack (+ Noto Sans Ethiopic) | same | So the preview looks like the real post |
+| Numbers in counters | Interface font with `tabular-nums` | — | Digits don't jump while typing |
 
-Type scale (rem): 0.8125 · 0.875 · 1 · 1.125 · 1.375 · 1.75. Weights: 400 and 600 only.
+Neither Latin face has Ethiopic letters, so the browser takes each Amharic character from the Noto Ethiopic fallback named right after it. Both Noto faces match the x-height and weight closely, and the prototypes test this with an Amharic line. All four fonts are on Google Fonts under the OFL licence. **Self-host them in the app** (no third-party font requests from user pages).
+
+| Token | Size | Use |
+|---|---|---|
+| `--text-xs` | 13px | Meta lines, badges, hints |
+| `--text-sm` | 14px | Buttons, navigation, labels |
+| `--text-md` | 16px | Interface body |
+| `--text-lg` | 18px | The user's writing |
+| `--text-xl` | 22px | Brand, panel titles |
+| `--text-2xl` | 30px | Page questions ("What did you work on today?") |
+
+Headings 22px and up use `--tracking-tight` (−0.02em). Interface line-height is 1.5; writing line-height is 1.7. **Weights: 400 and 600 only.**
 
 ### Space and shape
 
-- 4px grid; spacing steps 4, 8, 12, 16, 24, 32, 48.
-- Radius by meaning: 6px for controls, 10px for panels, none for the editor's text area edges against its panel.
-- Shadows only for things that float (menus, dialogs, toasts). Panels separate with `--line` borders.
+- 4px grid: `--space-1` to `--space-12` = 4, 8, 12, 16, 24, 32, 48.
+- Radius: `--radius-control` 8px (buttons, inputs, nav items), `--radius-panel` 12px (cards, panels, composer), `--radius-pill` (chips, send button, status badges).
+- **Borders separate, shadows float.** Cards and panels get a 1px `--line` border. Only menus, dialogs and toasts use `--shadow-float`. Focused inputs get a 1px `--thread` ring around the border.
+- **Bars never hide focus** (WCAG 2.4.11): pages with a sticky composer or action bar set `scroll-padding-bottom` to the bars' height.
+- Layout: a floating sidebar card `--sidebar-width` 264px, inset 12px → icon rail `72px` below 1024px → bottom tab bar below 768px. **No right sidebar.** One centered column, `--column` 720px. The work area is `--surface` (plain white in light); the sidebar card is `--paper`.
+
+### Motion
+
+- `--duration` 150ms with `--ease` `cubic-bezier(0.2, 0, 0, 1)`, for color and background only.
+- The one signature moment is the draft text streaming in (§10).
+- `prefers-reduced-motion` sets the duration to 0.
+
+### Side by side: their measured values → ours
+
+| Property | ScholarXIV (measured) | Voxlace |
+|---|---|---|
+| Interface font | Archivo (app), Inter (docs) | Instrument Sans + Noto Sans Ethiopic |
+| Content font | Same sans | Source Serif 4 + Noto Serif Ethiopic (the user's ink) |
+| Background light / dark | `#FFFFFF` / `#171717` | `#F7F6F3` warm paper / `#161513` warm off-black |
+| Neutral hue | Cool zinc (hue 240) | Warm stone (hue ~40) |
+| Primary button | Near-black `hsl(240 5.9% 10%)`, flips to white in dark | Teal `--thread`: the AI's color is also the "go" color |
+| Accent | Almost none; green status dot, green docs nav | One teal `--thread` with a single meaning: "the AI drew on this" |
+| Border | `#E4E4E7`, 1px | `--line #E2DFD8` decorative, `--edge #8A8478` for controls (≥ 3:1) |
+| Radius controls / cards | 6px / 12px | 8px / 12px, pills for chips |
+| Shadows | None, except floating tabs | None, except menus, dialogs and toasts |
+| Reading text | 16px / 1.7, max 808px | 18px serif / 1.7, max 68ch |
+| Headings | 36px/500, −0.9px tracking | 30px/600, −0.02em |
+| Motion | 150ms `cubic-bezier(0.4,0,0.2,1)`, color + shadow | 150ms `cubic-bezier(0.2,0,0,1)`, color only |
+| Themes | Light, dark (`html.dark`) | Light, dark, **mixed** (`html[data-theme]`) |
 
 ---
 
@@ -231,9 +334,8 @@ Product components to build on top:
 | `QuickActions` | One-click revisions | Labelled buttons, keyboard reachable, disabled while generating |
 | `ReviseBox` | Free-text instruction | Placeholder examples, Enter to send, Shift+Enter for a new line |
 | `VersionMenu` | History and restore | Instruction per version, diff view |
-| `SourcesPanel` | "Based on N posts" | Retrieved posts with Pin and Exclude |
 | `StatusBadge` | Draft status | Text label + icon, never color alone |
-| `AiLabel` | "AI-generated draft. Review before posting." | Always visible in the editor |
+| `AiLabel` | A small "AI draft" tag (FR-11) | Always visible under the draft; never a banner |
 | `ActionBar` | Approve / Publish / Open in X | Button text states the consequence |
 | `CalendarItem` | A planned post | Drag + "Move to…" menu, status, platform |
 | `EmptyState` | First-use guidance | One sentence + one action |
@@ -249,7 +351,6 @@ Product components to build on top:
 | Slow response | After 3 seconds the placeholder adds "Still working…"; after 20 seconds (NFR-3) offer **Cancel** and **Try again**. Never a blank screen. |
 | Rate-limited (429) | "The AI is busy right now. Your text is saved. Try again in a minute." with **Try again**. |
 | AI unavailable (503) | "Drafts are unavailable right now. Your check-in is saved." |
-| Fallback model used | Small note under the draft: "Written by the backup model." (FR-31) |
 | Daily limit reached | "You've used today's 30 drafts. You can generate more tomorrow." (Which "day" is still OPEN_QUESTIONS Q10.) |
 | Under 20 posts | Voice strength badge: "Still learning: import more posts for a closer match." (FR-5) |
 | Empty Today | Prompt starters + "Write today's check-in". |
@@ -344,8 +445,8 @@ flowchart LR
 Run before every UI pull request (the `design-reviewer` agent uses this list):
 
 - [ ] The primary action is obvious, and its label says what happens
-- [ ] AI-generated label visible; nothing publishes without approval
-- [ ] "Based on N posts" shown on drafts
+- [ ] Nothing publishes without approval; buttons say what happens (no icon-only primary actions)
+- [ ] Nothing about sources, models or scores on drafts; the "AI draft" tag is under the draft in the editor (FR-11)
 - [ ] Loading, empty, error and over-limit states designed, not just the happy path
 - [ ] Only tokens from §5; no hard-coded colors or one-off font sizes
 - [ ] User's writing in the serif; interface in the sans; sentence case
