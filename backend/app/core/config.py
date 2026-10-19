@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=("../.env", ".env"), extra="ignore")
 
     app_env: str = "development"
+    frontend_url: str = "http://localhost:5173"  # the React app, allowed by CORS
 
     # The API connects as the limited role (RLS applies); Alembic as the table owner.
     database_url: str = "postgresql+psycopg://voxlace_app:voxlace_app@localhost:5432/voxlace"

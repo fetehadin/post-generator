@@ -9,11 +9,11 @@ Everything is stored under one fixed dev user, the same way real users will be.
 """
 
 import argparse
-import uuid
 from pathlib import Path
 
 from sqlalchemy.dialects.postgresql import insert
 
+from app.core.auth import DEV_USER_ID
 from app.core.db import user_session
 from app.importers.telegram import parse_telegram
 from app.models import Import, User
@@ -21,8 +21,6 @@ from app.services.drafting import DraftError, generate_draft, prompt_for
 from app.services.embedding import DEFAULT_LIMIT, embed_pending
 from app.services.posts import save_posts
 from app.services.retrieval import find_examples
-
-DEV_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
 
 
 def import_telegram(path: Path) -> None:

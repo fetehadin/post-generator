@@ -8,6 +8,7 @@ its first version and the exact prompt. AI calls happen outside database transac
 import re
 import uuid
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from string import Template
 
@@ -29,7 +30,11 @@ EXAMPLE_MAX_CHARS = 1200
 
 
 class DraftError(Exception):
-    """Something the user can fix, with a message they can read."""
+    """Something the user can fix. `code` is the API error code (docs/API.md)."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code, self.message = code, message
 
 
 @dataclass(frozen=True)
@@ -42,6 +47,7 @@ class DraftResult:
     model: str
     model_version: str | None
     examples: list[Example]
+    created_at: datetime
 
 
 def build_prompt(profile: PlatformProfile, examples: list[Example], topic: str) -> str:
@@ -78,19 +84,21 @@ def generate_draft(
     user_id: uuid.UUID, platform: str, topic: str, ai: AIClient | None = None
 ) -> DraftResult:
     if not topic or not topic.strip():
-        raise DraftError("Write a topic or a check-in first.")  # API.md: missing_topic
+        raise DraftError("missing_topic", "Write a topic or a check-in first.")
     ai = ai or default_client()
 
     with user_session(user_id) as s:
         profile = s.get(PlatformProfile, platform)
         if profile is None:
-            raise DraftError(f"Unknown platform: {platform}")
+            raise DraftError("unknown_platform", f"Unknown platform: {platform}")
         s.expunge(profile)
 
     examples = find_examples(user_id, platform, topic, ai=ai)
     if not examples:
         raise DraftError(
-            f"No embedded {PLATFORM_NAMES[platform]} posts yet. Import your export first."
+            "no_posts",
+            f"No {PLATFORM_NAMES[platform]} posts are ready yet. Import your export first, "
+            "then wait until they're learned.",
         )
 
     prompt = build_prompt(profile, examples, topic)
@@ -118,7 +126,9 @@ def generate_draft(
                 provider=result.provider,
             )
         )
-        draft_id = draft.id
+        s.flush()
+        s.refresh(draft)  # load the database's created_at
+        draft_id, created_at = draft.id, draft.created_at
 
     return DraftResult(
         draft_id=draft_id,
@@ -129,6 +139,7 @@ def generate_draft(
         model=result.model,
         model_version=result.model_version,
         examples=examples,
+        created_at=created_at,
     )
 
 
