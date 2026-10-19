@@ -1,0 +1,115 @@
+/*
+ * Voxlace design tokens (proposal v2, DESIGN.md §5).
+ * "Ink on paper, with one thread": warm paper neutrals, the user's words in a serif,
+ * one teal accent for everything the AI drew on (sources, focus, links).
+ *
+ * Themes: <html data-theme="light|dark|mixed">. Mixed = dark chrome (sidebar, panels,
+ * background) around a light page (editor and draft cards): a desk lamp on paper.
+ * Every text pair is ≥ 4.5:1, every border/focus pair ≥ 3:1 (see DESIGN.md §5 table).
+ */
+
+:root,
+[data-theme='light'],
+.page-light {
+  --paper: #f7f6f3; /* app background */
+  --surface: #ffffff; /* page, editor, cards */
+  --sunken: #efede8; /* notes, inactive chips, code */
+  --line: #e2dfd8; /* dividers, card borders (decorative) */
+  --edge: #8a8478; /* input and control outlines (≥ 3:1) */
+  --ink: #1f1d1a; /* main text */
+  --ink-2: #5c574e; /* secondary text */
+  --on-ink: #faf9f6; /* text on ink (avatar, brand mark) */
+  --thread: #2b6b5b; /* the one accent: links, focus, sources, AI marks */
+  --thread-soft: #e2eee9; /* selected nav item, source highlight */
+  --on-thread: #ffffff; /* text on primary buttons (6.3:1) */
+  --signal: #8f5508; /* near the limit, scheduled */
+  --danger: #b42318; /* over the limit, errors, delete */
+  --shadow-float: 0 8px 24px rgb(31 29 26 / 0.12), 0 1px 2px rgb(31 29 26 / 0.08);
+  color-scheme: light;
+}
+
+[data-theme='dark'],
+[data-theme='mixed'] {
+  --paper: #161513;
+  --surface: #1e1c19;
+  --sunken: #282622;
+  --line: #34312c;
+  --edge: #7a7469;
+  --ink: #edeae4;
+  --ink-2: #a9a399;
+  --on-ink: #1f1d1a;
+  --thread: #72c4ae;
+  --thread-soft: #1f3530;
+  --on-thread: #161513;
+  --signal: #e3a64c;
+  --danger: #f2806f;
+  --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
+  color-scheme: dark;
+}
+
+/* Mixed: the page itself goes back to light tokens. */
+[data-theme='mixed'] .page {
+  --paper: #f7f6f3;
+  --surface: #ffffff;
+  --sunken: #efede8;
+  --line: #e2dfd8;
+  --edge: #8a8478;
+  --ink: #1f1d1a;
+  --ink-2: #5c574e;
+  --on-ink: #faf9f6;
+  --thread: #2b6b5b;
+  --thread-soft: #e2eee9;
+  --on-thread: #ffffff;
+  --signal: #8f5508;
+  --danger: #b42318;
+  color-scheme: light;
+}
+
+:root {
+  /* Type. Latin first, then Ethiopic for Amharic (FR-24). */
+  --font-ui: 'Instrument Sans', 'Noto Sans Ethiopic', system-ui, sans-serif;
+  --font-writing: 'Source Serif 4', 'Noto Serif Ethiopic', Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-xs: 0.8125rem; /* 13: meta lines, badges */
+  --text-sm: 0.875rem; /* 14: buttons, nav, labels */
+  --text-md: 1rem; /* 16: interface body */
+  --text-lg: 1.125rem; /* 18: the user's writing */
+  --text-xl: 1.375rem; /* 22: panel titles */
+  --text-2xl: 1.875rem; /* 30: page questions ("What did you work on today?") */
+  --leading-ui: 1.5;
+  --leading-writing: 1.7;
+  --tracking-tight: -0.02em; /* headings 22px and up */
+  --measure: 68ch; /* writing line length */
+
+  /* Space: 4px grid. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Shape. */
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-pill: 999px;
+
+  /* Layout. */
+  --nav-width: 232px;
+  --rail-width: 64px;
+  --context-width: 360px;
+  --column: 760px; /* Today's stream and composer */
+  --tabbar-height: 56px;
+
+  /* Motion: color only, quick; the draft streaming in is the one signature moment. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --duration: 150ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 0ms;
+  }
+}
