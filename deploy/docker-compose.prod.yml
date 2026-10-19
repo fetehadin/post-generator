@@ -1,0 +1,69 @@
+# Production on the Contabo VPS. Run from the repo root (deploy/deploy.sh does this):
+#   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
+# The settings file lives on the server only; its template is deploy/server-env.template.
+name: voxlace
+
+services:
+  caddy:
+    build:
+      context: ..
+      dockerfile: deploy/Caddy.Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      FRONTEND_URL: https://${DOMAIN}
+      DATABASE_URL: postgresql+psycopg://${APP_DB_USER:-voxlace_app}:${APP_DB_PASSWORD:?set APP_DB_PASSWORD}@db:5432/${POSTGRES_DB:-voxlace}
+      MIGRATIONS_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-voxlace}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-voxlace}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?set GEMINI_API_KEY}
+      GENERATION_MODELS: ${GENERATION_MODELS:-google:gemini-flash-latest,google:gemini-flash-lite-latest}
+      SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+      ALLOWED_EMAILS: ${ALLOWED_EMAILS:-}
+    expose:
+      - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: pgvector/pgvector:pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-voxlace}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-voxlace}
+      APP_DB_USER: ${APP_DB_USER:-voxlace_app}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD}
+    # No ports: the database is never reachable from the internet (NFR-18).
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ../db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

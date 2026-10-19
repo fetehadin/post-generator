@@ -1,0 +1,24 @@
+# Copy this file to the server as deploy/.env and fill it in. Never commit the filled-in copy.
+# Make passwords with: openssl rand -base64 32
+
+DOMAIN=voxlace.example.com
+
+POSTGRES_USER=voxlace
+POSTGRES_PASSWORD=
+POSTGRES_DB=voxlace
+APP_DB_USER=voxlace_app
+APP_DB_PASSWORD=
+
+GEMINI_API_KEY=
+GENERATION_MODELS=google:gemini-flash-latest,google:gemini-flash-lite-latest
+
+# Supabase -> Project settings -> API. The publishable key is public (it is built into the app).
+SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+SUPABASE_PUBLISHABLE_KEY=
+# Only for older Supabase projects that sign with one shared secret; leave empty otherwise.
+SUPABASE_JWT_SECRET=
+# The team: these emails join without an invite code.
+ALLOWED_EMAILS=
+
+# Off-server copy for deploy/backup.sh: an rsync destination such as user@host:/backups/voxlace
+BACKUP_REMOTE=
