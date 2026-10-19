@@ -250,6 +250,7 @@ Full detail in [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md).
 | [Software Requirements Specification](docs/SRS.md) | Every requirement with a yes/no test, the data model, platform rules |
 | [Build Plan](docs/BUILD_PLAN.md) | Build order, who does what, the cycle, tools by phase |
 | [API Contract](docs/API.md) | Endpoints and JSON shapes |
+| [Design guide](docs/DESIGN.md) | UX principles, screen specs, visual tokens, accessibility, designing with Claude Code |
 | [CI/CD](docs/CI_CD.md) | Checks on every pull request, deploys to the server, GitHub setup |
 | [Open Questions](docs/OPEN_QUESTIONS.md) | Design gaps to settle before and during each phase |
 | [Contributing](CONTRIBUTING.md) | Branches, commits, reviews, definition of done |
@@ -266,7 +267,8 @@ The repo is set up for agentic development:
 | [`backend/CLAUDE.md`](backend/CLAUDE.md) · [`frontend/CLAUDE.md`](frontend/CLAUDE.md) | Layer-specific conventions, loaded when Claude works in that folder |
 | [`.claude/settings.json`](.claude/settings.json) | Permissions: safe commands allowed, pushes and deploys ask first, secrets denied |
 | `.claude/hooks/` | Auto-format edited files; block shell commands that read `.env` |
-| `.claude/skills/` | `/slice` build a feature end to end · `/check` run all checks · `/pr-check` review a branch · `/migration` create a migration |
+| `.claude/skills/` | `/slice` build a feature end to end · `/design-screen` design a screen with screenshot checks · `/check` run all checks · `/pr-check` review a branch · `/migration` create a migration |
+| `.claude/agents/` | `design-reviewer`: reviews screenshots against the design guide and WCAG 2.2 in a fresh context |
 
 Personal notes go in `CLAUDE.local.md` (git-ignored).
 
