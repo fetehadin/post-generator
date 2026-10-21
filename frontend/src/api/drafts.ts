@@ -14,6 +14,34 @@ export function useGenerateDraft() {
   })
 }
 
+export type DraftOutcome =
+  { platform: Platform; ok: true; draft: Draft } | { platform: Platform; ok: false; error: Error }
+
+/**
+ * One draft per chosen platform, written in parallel (FR-8). One platform failing (no posts
+ * yet, AI busy) never hides the others' drafts.
+ */
+export function useGenerateDrafts() {
+  return useMutation({
+    mutationFn: async ({ platforms, topic }: { platforms: Platform[]; topic: string }) => {
+      const settled = await Promise.allSettled(
+        platforms.map((platform) =>
+          api<Draft>('/drafts/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ platform, topic }),
+          }),
+        ),
+      )
+      return settled.map((r, i): DraftOutcome =>
+        r.status === 'fulfilled'
+          ? { platform: platforms[i], ok: true, draft: r.value }
+          : { platform: platforms[i], ok: false, error: r.reason as Error },
+      )
+    },
+  })
+}
+
 export type PromptLog = {
   prompt: string
   model: string
