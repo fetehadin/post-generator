@@ -91,3 +91,44 @@ class MeOut(BaseModel):
 
 class InviteIn(BaseModel):
     code: str = Field(min_length=1, max_length=64)
+
+
+class ProfileOut(BaseModel):
+    """GET /profile: everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44)."""
+
+    role: str
+    stack: str
+    current_projects: str
+    focus: str
+    goal: str
+    topics: str
+    audience: str
+    avoid_list: str
+    voice_words: str
+    links: str
+    discipline: str
+    usual_hours: str
+    language: str = Field(description='"auto" = the same language mix as their posts')
+    excluded_hashtags: list[str]
+    summary_card: str
+    summary_updated_at: datetime | None
+
+
+class ProfileIn(BaseModel):
+    """PUT /profile: send only the fields that change."""
+
+    role: str | None = Field(None, max_length=500)
+    stack: str | None = Field(None, max_length=1000)
+    current_projects: str | None = Field(None, max_length=2000)
+    focus: str | None = Field(None, max_length=1000)
+    goal: str | None = Field(None, max_length=1000)
+    topics: str | None = Field(None, max_length=2000)
+    audience: str | None = Field(None, max_length=2000)
+    avoid_list: str | None = Field(None, max_length=2000)
+    voice_words: str | None = Field(None, max_length=500)
+    links: str | None = Field(None, max_length=2000)
+    discipline: str | None = Field(None, max_length=500)
+    usual_hours: str | None = Field(None, max_length=500)
+    language: str | None = Field(None, min_length=2, max_length=32)
+    excluded_hashtags: list[str] | None = Field(None, max_length=200)
+    summary_card: str | None = Field(None, max_length=3000)
