@@ -91,6 +91,7 @@ export function TodayPage() {
         <textarea
           id="topic"
           rows={2}
+          maxLength={4000}
           value={topic}
           onChange={(e) => {
             setTopic(e.target.value)

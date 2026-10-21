@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { useDrafts, usePatchAnyDraft } from '../../api/drafts'
+import { useDrafts, useDuePosts, usePatchAnyDraft } from '../../api/drafts'
 import type { DraftRow } from '../../api/types'
 import { addDays, monthWeeks, moveTo, sameDay, startOfWeek, weekDays } from '../../lib/calendar'
 import { formatWhen } from '../../lib/time'
@@ -35,6 +35,7 @@ export function CalendarPage() {
     scheduled_to: to.toISOString(),
   })
   const upNext = useDrafts({ status: 'approved', scheduled_from: now.toISOString() })
+  const due = useDuePosts().data?.items ?? []
   const items = drafts.data?.items ?? []
 
   const step = (n: number) =>
@@ -104,6 +105,22 @@ export function CalendarPage() {
           ))}
         </div>
       </div>
+
+      {due.length > 0 && (
+        <section aria-labelledby="due-now" className="mt-6 rounded-panel border border-signal p-4">
+          <h2 id="due-now" className="text-sm font-semibold text-signal">
+            Due now
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Post these, then press Posted. Voxlace never posts to X or LinkedIn for you.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {due.map((d) => (
+              <CalendarItem key={d.id} draft={d} patch={patch} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <UpNext items={upNext.data?.items.slice(0, 3) ?? []} />
 

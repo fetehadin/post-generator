@@ -10,6 +10,7 @@ const PATHS = {
   panel: 'M4 4h16v16H4zM10 4v16',
   collapse: 'M4 4h16v16H4zM9 4v16M15 9l-3 3 3 3',
   expand: 'M4 4h16v16H4zM9 4v16M13 9l3 3-3 3',
+  bell: 'M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 21h4',
 } as const
 
 export type IconName = keyof typeof PATHS

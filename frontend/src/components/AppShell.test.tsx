@@ -3,7 +3,9 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, vi } from 'vitest'
-import { api } from '../api/client'
+import type { DraftRow } from '../api/types'
+import { row } from '../test/drafts'
+import { routeApi } from '../test/fakeApi'
 import { AppShell } from './AppShell'
 
 vi.mock('../api/client', async (importOriginal) => ({
@@ -14,13 +16,19 @@ vi.mock('../api/client', async (importOriginal) => ({
 beforeEach(() => {
   localStorage.clear()
   delete document.documentElement.dataset.theme
-  vi.mocked(api).mockResolvedValue({
-    id: 'u1',
-    email: 'fetehadin@example.com',
-    admitted: true,
-    privacy_accepted: true,
+  due = []
+  routeApi({
+    'GET /me': () => ({
+      id: 'u1',
+      email: 'fetehadin@example.com',
+      admitted: true,
+      privacy_accepted: true,
+    }),
+    'GET /drafts': () => ({ items: due }),
   })
 })
+
+let due: DraftRow[] = []
 
 const renderShell = () =>
   render(
@@ -65,4 +73,17 @@ test('the collapse button sits outside the sidebar, keeps labels and is remember
     'aria-expanded',
     'false',
   )
+})
+
+test('a bell appears only when a scheduled post is due, and opens the calendar', async () => {
+  due = [row({ status: 'approved', scheduled_for: '2026-10-22T08:00:00Z' })]
+  renderShell()
+  const bell = await within(sidebar()).findByRole('link', { name: '1 post is due' })
+  expect(bell).toHaveAttribute('href', '/calendar')
+})
+
+test('no bell when nothing is due', async () => {
+  renderShell()
+  await within(sidebar()).findByText('fetehadin')
+  expect(within(sidebar()).queryByRole('link', { name: /due/ })).not.toBeInTheDocument()
 })
