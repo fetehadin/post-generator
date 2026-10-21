@@ -28,9 +28,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
   if (!loggedIn) return <Navigate to="/login" replace />
   if (me.isError) {
+    // The API wants a login but this app has no login settings: say exactly what to fix.
+    const loginMissing = !supabase && 'code' in me.error && me.error.code === 'not_logged_in'
     return (
       <p role="alert" className="p-8 text-danger">
-        {me.error.message}
+        {loginMissing
+          ? "Login isn't set up in the app yet. Add SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY to the repo's settings file, then restart npm run dev."
+          : me.error.message}
       </p>
     )
   }
