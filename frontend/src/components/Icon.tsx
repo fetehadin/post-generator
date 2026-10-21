@@ -7,6 +7,7 @@ const PATHS = {
   moon: 'M20 14.5A8 8 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5z',
   mixed: 'M12 4a8 8 0 1 0 0 16 8 8 0 1 0 0-16zM12 4v16',
   user: 'M12 4a4 4 0 1 0 0 8 4 4 0 1 0 0-8zM4 21c1.5-4 4.5-6 8-6s6.5 2 8 6',
+  panel: 'M4 4h16v16H4zM10 4v16',
   collapse: 'M4 4h16v16H4zM9 4v16M15 9l-3 3 3 3',
   expand: 'M4 4h16v16H4zM9 4v16M13 9l3 3-3 3',
 } as const
