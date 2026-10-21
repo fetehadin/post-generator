@@ -87,9 +87,44 @@ def test_broken_file_is_rejected_and_nothing_saved(api):
     assert api.get("/api/v1/posts").json()["items"] == []
 
 
-def test_other_platforms_are_not_supported_yet(api):
-    r = upload(api, platform="x")
+def test_linkedin_is_not_supported_yet(api):
+    r = upload(api, platform="linkedin")
     assert (r.status_code, r.json()["error"]["code"]) == (400, "unsupported_platform")
+
+
+def x_archive() -> bytes:
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for name in ("tweets.js", "note-tweet.js", "account.js"):
+            z.writestr(f"data/{name}", (SAMPLES / "x" / name).read_bytes())
+    return buf.getvalue()
+
+
+def test_an_x_archive_imports_with_threads_long_posts_and_a_premium_hint(api):
+    r = api.post(
+        "/api/v1/imports",
+        data={"platform": "x"},
+        files={"file": ("twitter-archive.zip", x_archive())},
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert (body["platform"], body["parsed"]) == ("x", 7)
+    assert body["skipped"] == {"reply": 1, "repost": 1}
+    assert isinstance(body["premium_hint"], bool)  # the sample's long post is from Aug 2026
+
+    posts = api.get("/api/v1/posts?platform=x").json()["items"]
+    assert len(posts) == 7 and all("t.co/" not in p["text"] for p in posts)
+    assert api.get("/api/v1/posts?platform=telegram").json()["items"] == []
+
+
+def test_an_x_upload_that_isnt_an_archive_is_refused(api):
+    r = api.post(
+        "/api/v1/imports", data={"platform": "x"}, files={"file": ("result.json", b'{"name": "x"}')}
+    )
+    assert (r.status_code, r.json()["error"]["code"]) == (400, "invalid_file")
 
 
 def test_posts_paging(api):

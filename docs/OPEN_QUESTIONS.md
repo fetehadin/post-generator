@@ -88,13 +88,15 @@ FR-2 says skip replies. A builder's threads are replies to their **own** tweets,
 
 **Recommendation:** skip only replies to *other* accounts. Read the user's own account ID from `account.js` in the archive, or infer it as the most common `in_reply_to_user_id_str` among the user's own self-replies.
 
-### Q12 🟡 (Phase 3) X archive edge cases
+### Q12 ✅ (Phase 3) X archive edge cases
 
 - Long posts (Premium) are in `note-tweet.js`. In `tweets.js`, their `full_text` is cut off.
 - Large archives split into `tweets.js`, `tweets-part1.js`, ….
 - FR-39 says read only the posts file. So should the upload be the whole ZIP or just `tweets.js`? The `.gitignore` already blocks `*.zip`.
 
 **Recommendation:** accept the ZIP. Read only `data/tweets*.js` (+ `note-tweet.js`) from it, in memory, and never store the ZIP (NFR-11).
+
+**Built (21 Oct 2026):** `app/importers/x.py` reads the ZIP (or a bare `tweets.js`), only `data/tweets*.js`, `note-tweet.js` and the account id from `account.js`. Long posts are rebuilt by matching the second (±2 s) and text prefix. On a real archive: 72 own posts, 225 replies to others skipped, all 18 long posts complete, no `t.co` left.
 
 ### Q13 ✅ Telegram export variants
 
