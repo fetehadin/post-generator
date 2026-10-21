@@ -15,10 +15,10 @@ import '@fontsource/source-serif-4/400.css'
 import '@fontsource/source-serif-4/600.css'
 import './index.css'
 import { applyTheme, savedTheme } from './lib/theme'
+import { CalendarPage } from './pages/Calendar/CalendarPage'
 import { DraftsPage } from './pages/Drafts/DraftsPage'
 import { EditorPage } from './pages/Editor/EditorPage'
 import { LoginPage } from './pages/Login/LoginPage'
-import { Placeholder } from './pages/Placeholder/Placeholder'
 import { ProfilePage } from './pages/Profile/ProfilePage'
 import { StatusPage } from './pages/Status/StatusPage'
 import { TodayPage } from './pages/Today/TodayPage'
@@ -41,7 +41,7 @@ const router = createBrowserRouter([
       { path: '/import', element: <UploadPage /> },
       { path: '/drafts', element: <DraftsPage /> },
       { path: '/drafts/:id', element: <EditorPage /> },
-      { path: '/calendar', element: <Placeholder title="Calendar" when="Phase 5" /> },
+      { path: '/calendar', element: <CalendarPage /> },
       { path: '/profile', element: <ProfilePage /> },
       { path: '/voice', element: <Navigate to="/profile" replace /> },
       { path: '/status', element: <StatusPage /> },
