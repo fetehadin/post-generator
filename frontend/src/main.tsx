@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from 'react-router'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
 import { AppShell } from './components/AppShell'
 import { AuthGate } from './components/AuthGate'
 // Self-hosted fonts (no third-party requests from user pages). Archivo for the interface;
@@ -17,6 +17,7 @@ import './index.css'
 import { applyTheme, savedTheme } from './lib/theme'
 import { LoginPage } from './pages/Login/LoginPage'
 import { Placeholder } from './pages/Placeholder/Placeholder'
+import { ProfilePage } from './pages/Profile/ProfilePage'
 import { StatusPage } from './pages/Status/StatusPage'
 import { TodayPage } from './pages/Today/TodayPage'
 import { UploadPage } from './pages/Upload/UploadPage'
@@ -38,7 +39,8 @@ const router = createBrowserRouter([
       { path: '/import', element: <UploadPage /> },
       { path: '/drafts', element: <Placeholder title="Drafts" when="Phase 4" /> },
       { path: '/calendar', element: <Placeholder title="Calendar" when="Phase 5" /> },
-      { path: '/voice', element: <Placeholder title="Voice" when="Phase 3" /> },
+      { path: '/profile', element: <ProfilePage /> },
+      { path: '/voice', element: <Navigate to="/profile" replace /> },
       { path: '/status', element: <StatusPage /> },
     ],
   },

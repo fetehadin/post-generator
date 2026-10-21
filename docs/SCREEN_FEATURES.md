@@ -16,21 +16,24 @@ The suggestions follow the calm layout agreed on 19 Oct 2026:
 - there is no right sidebar;
 - drafts show nothing about where they came from.
 
+> **Layout decided by the product owner, 21 Oct 2026** (DESIGN.md §2): the sidebar has Home · Calendar · Drafts, the theme toggle and a collapse button; **Voice and Settings now live inside Profile** (the avatar). Where a row below says Voice or Settings, read **Profile**. The editor's feedback is a **chat thread** (ChatGPT-style), and Calendar is a **Google Calendar-style grid** with a **Posted** button.
+
 ---
 
 ## Everywhere (sidebar, mobile tab bar, avatar menu)
 
 | Feature | Req | Priority | Suggestion | Your call |
 |---|---|---|---|---|
+| Collapse the sidebar to an icon rail | — | — | Show (sidebar button, remembered per browser) | **Show** (owner) |
 | New post button | FR-7 | Must | Show (top of sidebar) | **Show** |
 | Today · Drafts · Calendar · Voice | — | — | Show (sidebar; tab bar on mobile) | **Show** |
 | Settings | FR-22 | Must | Menu (avatar) | **Menu** |
-| Theme: light / dark / mixed | DESIGN §5 | — | Menu (avatar) | **Menu** |
+| Theme: light / dark / mixed | DESIGN §5 | — | Show (sidebar toggle) | **Show** (owner) |
 | Today's usage, e.g. "12 of 30 drafts" | FR-30 | Must | Menu (avatar), plus a message when the limit is reached | **Menu** |
 | Notifications (a post is due, a Telegram send failed) | FR-35 | Must | Show a small bell when something needs action; otherwise hidden | **Show** a small bell when something needs action; otherwise hidden |
 | Log out | FR-27 | Must | Menu (avatar) | **Menu** |
 
-## Today
+## Home (was Today)
 
 | Feature | Req | Priority | Suggestion | Your call |
 |---|---|---|---|---|
@@ -50,6 +53,7 @@ The suggestions follow the calm layout agreed on 19 Oct 2026:
 
 | Feature | Req | Priority | Suggestion | Your call |
 |---|---|---|---|---|
+| Feedback as a chat thread (ChatGPT-style): your requests and each new version, in order | FR-10, FR-40 | Must | Show | **Show** (owner) |
 | The draft text, editable by hand | FR-10 | Must | Show | **Show** |
 | Length counter with the platform rule | FR-9 | Must | Show (under the text) | **Show** |
 | "AI draft" tag | FR-11 | Must | Show (small tag) | **Show** |
@@ -83,6 +87,8 @@ The suggestions follow the calm layout agreed on 19 Oct 2026:
 
 | Feature | Req | Priority | Suggestion | Your call |
 |---|---|---|---|---|
+| Google Calendar-style grid (days × hours), drag to change date and time | FR-13 | Must | Show | **Show** (owner) |
+| **Posted**: marks an X or LinkedIn post as published and clears it from the calendar (it stays in Drafts as Published) | FR-12, FR-15 | Must | Show | **Show** (owner) |
 | Week view (month as a toggle) | FR-13 | Must | Show | **Show** |
 | Move a post: drag, plus "Move to…" | FR-13 | Must | Show | **Show** |
 | Up next (the next 3 posts) | FR-35 | Must | Show (top of the page) | **Show** |
@@ -91,7 +97,7 @@ The suggestions follow the calm layout agreed on 19 Oct 2026:
 | Audience time on hover | FR-16 | Should | Later | **Later** |
 | Best posting windows | FR-16, FR-34 | Should | Later, then Menu ("Suggest times") | **Later** |
 
-## Voice
+## Profile → your posts and voice (was Voice)
 
 | Feature | Req | Priority | Suggestion | Your call |
 |---|---|---|---|---|
@@ -105,7 +111,7 @@ The suggestions follow the calm layout agreed on 19 Oct 2026:
 | Inspiration creators per platform | FR-41 | Should | Later (Phase 3), then Show as its own section | **Later** |
 | X Premium (longer posts) | Q31 | — | Show on the X tab (see OPEN_QUESTIONS Q31) | **Show** on the X tab |
 
-## Settings (from the avatar menu)
+## Profile → settings (was Settings)
 
 | Feature | Req | Priority | Suggestion | Your call |
 |---|---|---|---|---|
