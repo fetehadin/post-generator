@@ -94,6 +94,7 @@ export function ChatPanel({ draft, selection, clearSelection, beforeRevise }: Pr
           <textarea
             id="feedback"
             rows={1}
+            maxLength={2000}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={(e) => {

@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     fallback_api_key: str = ""
     # Longest one AI call may take before it counts as a network drop and is retried.
     ai_timeout_seconds: int = 60
+    # FR-30: per user per UTC day. Drafts count every AI writing call (new drafts and chat
+    # revisions); posts count what an import adds, since each new post is embedded once.
+    daily_draft_limit: int = 40
+    daily_post_limit: int = 3000
 
     @property
     def login_configured(self) -> bool:

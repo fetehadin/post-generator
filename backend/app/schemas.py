@@ -91,6 +91,20 @@ class MeOut(BaseModel):
     privacy_accepted: bool  # uploads are blocked until true (FR-37)
 
 
+class UsageOut(BaseModel):
+    """GET /me/usage (FR-30): per UTC day."""
+
+    drafts: int
+    draft_limit: int
+    posts: int
+    post_limit: int
+    resets_at: datetime
+
+
+class DeleteMeIn(BaseModel):
+    confirm: str = Field(max_length=20, description='Must be "delete"')
+
+
 class InviteIn(BaseModel):
     code: str = Field(min_length=1, max_length=64)
 
@@ -256,3 +270,14 @@ class DraftPatchIn(BaseModel):
 class ReviseIn(BaseModel):
     instruction: str = Field(min_length=1, max_length=2000)
     selection: str | None = Field(None, max_length=5000, description="Change only this part")
+
+
+class DraftStatsOut(BaseModel):
+    """GET /drafts/stats (FR-15): the last 7 days."""
+
+    created: int
+    published: int
+    publish_rate: float | None = Field(description="published / created, 0–1; null with none")
+    edited: float | None = Field(
+        description="Average edit of posted drafts from v1, 0 (as written) – 1 (rewritten)"
+    )

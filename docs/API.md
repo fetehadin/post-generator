@@ -292,6 +292,40 @@ Copies an earlier version as the newest one ("Restored v2"). Only while `draft`.
 
 ---
 
+## Account, limits and stats (built)
+
+### `GET /me/usage`
+
+Today's use against the daily limits (FR-30), per UTC day:
+
+```json
+{ "drafts": 12, "draft_limit": 40, "posts": 412, "post_limit": 3000, "resets_at": "2026-10-23T00:00:00Z" }
+```
+
+- `drafts` counts every AI writing call: new drafts and chat revisions. At the limit, `POST /drafts/generate` and `POST /drafts/{id}/revise` return `429 daily_limit` (the user's text is in their own request, so nothing is lost).
+- `posts` counts posts added by imports today (each is embedded once). An import that would add more new posts than are left returns `429 daily_limit` and saves nothing. Re-importing known posts costs nothing.
+- Limits come from settings (`DAILY_DRAFT_LIMIT`, `DAILY_POST_LIMIT`).
+
+### `GET /me/export`
+
+Everything the user gave Voxlace or made with it, as one JSON download (FR-38): account email, profile and summary card, voice cards, platform settings, posts (no embeddings), check-ins, and drafts with their versions and chat. `Content-Disposition: attachment`.
+
+### `DELETE /me`
+
+Body `{"confirm": "delete"}` (any case) → `204`. Deletes the user's row and, by cascade, every row they own: posts and embeddings, imports, profile, voice cards, check-ins, drafts, versions, chat and prompt logs (FR-38, NFR-10). Anything else in `confirm` → `400 confirm_required`. The Supabase login stays; without data or an invite it can't use the app.
+
+### `GET /drafts/stats`
+
+The last 7 days (FR-15): `{"created": 4, "published": 2, "publish_rate": 0.5, "edited": 0.12}`. `edited` is how much posted drafts changed from their first version on average, 0 (as written) to 1 (rewritten). Both rates are `null` when there's nothing to measure.
+
+### Edge rules added
+
+- `POST /checkins` and `PATCH /checkins/{id}` with only spaces → `400 missing_text`.
+- `PATCH /drafts/{id}` with blank `text` → `400 missing_text`.
+- An empty answer from the AI saves nothing and returns `503 ai_unavailable`.
+
+---
+
 ## Later phases (shape to be agreed at the start of each phase)
 
 | Phase | Method and path | Purpose |
@@ -299,5 +333,3 @@ Copies an earlier version as the newest one ("Restored v2"). Only while `draft`.
 | 3 | `GET /platform-profiles` · `PUT /platform-profiles/{platform}` | Platform rules |
 | 5 | `POST /telegram/connect` · `POST /drafts/{id}/publish` | Connect channel; publish now |
 | 5 | *(no endpoint)* | Due posts and reminders are sent by the worker process, not over HTTP |
-| 6 | `GET /usage` | Today's usage vs limits |
-| 6 | `GET /me/export` · `DELETE /me` | Export and delete all data |
