@@ -6,11 +6,9 @@ import { SKIP_LABELS } from './skipReasons'
 
 const MAX_BYTES = 64 * 1024 * 1024 // the API's limit (docs/API.md)
 
-/** How to get each export, and what file to upload. LinkedIn joins in its own PR. */
-const SOURCES: Record<
-  'telegram' | 'x',
-  { label: string; file: string; accept: string; steps: string[] }
-> = {
+/** How to get each export, and what file to upload. */
+type Source = 'telegram' | 'x' | 'linkedin'
+const SOURCES: Record<Source, { label: string; file: string; accept: string; steps: string[] }> = {
   telegram: {
     label: 'Telegram',
     file: 'result.json',
@@ -32,11 +30,21 @@ const SOURCES: Record<
       'Upload the ZIP as it is. Voxlace reads only your posts from it, nothing else.',
     ],
   },
+  linkedin: {
+    label: 'LinkedIn',
+    file: 'your LinkedIn export (.zip)',
+    accept: '.zip,application/zip,.csv,text/csv',
+    steps: [
+      'On LinkedIn, open Settings → Data privacy → Get a copy of your data.',
+      'Choose the larger archive, or tick Posts. The small one has no posts.',
+      'LinkedIn emails you when it’s ready (up to a day). Upload the ZIP, or Shares.csv from it.',
+    ],
+  },
 }
 
-/** Import an export: Telegram or X (FR-1, FR-2, FR-3). */
+/** Import an export: Telegram, X or LinkedIn (FR-1, FR-2, FR-3). */
 export function UploadPage() {
-  const [platform, setPlatform] = useState<'telegram' | 'x'>('telegram')
+  const [platform, setPlatform] = useState<Source>('telegram')
   const source = SOURCES[platform]
   const [file, setFile] = useState<File | null>(null)
   const [tooBig, setTooBig] = useState(false)
@@ -68,7 +76,7 @@ export function UploadPage() {
       </p>
 
       <div role="radiogroup" aria-label="Platform" className="mt-8 flex gap-2">
-        {(Object.keys(SOURCES) as Array<'telegram' | 'x'>).map((p) => (
+        {(Object.keys(SOURCES) as Source[]).map((p) => (
           <button
             key={p}
             type="button"
@@ -99,7 +107,6 @@ export function UploadPage() {
             <li key={s}>{s}</li>
           ))}
         </ol>
-        <p className="mt-2 text-xs text-muted">LinkedIn imports come next.</p>
       </section>
 
       <form

@@ -129,3 +129,13 @@ test('X: choose X, upload the archive ZIP, and see the Premium note', async () =
   expect(screen.getByText('225 replies to other people')).toBeInTheDocument()
   expect(screen.getByText(/probably has\s+Premium/)).toBeInTheDocument()
 })
+
+test('LinkedIn: the how-to says to request the larger archive', async () => {
+  renderPage()
+  await userEvent.click(screen.getByRole('radio', { name: 'LinkedIn' }))
+  expect(screen.getByText(/The small one has no posts/)).toBeInTheDocument()
+  expect(screen.getByLabelText(/Choose your LinkedIn export/)).toHaveAttribute(
+    'accept',
+    expect.stringContaining('.csv'),
+  )
+})

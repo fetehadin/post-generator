@@ -55,7 +55,7 @@ All ids are UUIDs.
 |---|---|
 | `telegram` | A Telegram Desktop single-channel `result.json` |
 | `x` | The X archive ZIP as downloaded (only `data/tweets*.js`, `data/note-tweet.js` and the account id in `data/account.js` are read), or a bare `tweets.js` |
-| `linkedin` | Not yet: `400 unsupported_platform` |
+| `linkedin` | The LinkedIn export ZIP (only `Shares.csv` is read) or `Shares.csv` on its own. An export without `Shares.csv` is refused with how to request the right one |
 
 ```json
 {
