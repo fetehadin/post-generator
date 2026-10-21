@@ -18,6 +18,7 @@ from app.core.auth import current_user
 from app.core.db import user_session
 from app.core.errors import AppError
 from app.importers.common import ImportFormatError
+from app.importers.linkedin import parse_linkedin
 from app.importers.telegram import parse_telegram
 from app.importers.x import parse_x
 from app.models import Import, SourcePost, User
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/imports", tags=["imports"])
 
 # One parser per platform. Each reads only the posts from its export (FR-39).
-PARSERS = {"telegram": parse_telegram, "x": parse_x}
+PARSERS = {"telegram": parse_telegram, "x": parse_x, "linkedin": parse_linkedin}
 MAX_UPLOAD_BYTES = 64 * 1024 * 1024  # the largest real channel export so far is 41 MB
 _running: set[uuid.UUID] = set()
 _running_lock = threading.Lock()
@@ -89,7 +90,7 @@ def create_import(
     if parse is None:
         raise AppError(
             "unsupported_platform",
-            "Telegram and X imports work now. LinkedIn comes next.",
+            "Choose Telegram, X or LinkedIn.",
         )
     data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:

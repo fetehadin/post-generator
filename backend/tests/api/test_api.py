@@ -87,9 +87,16 @@ def test_broken_file_is_rejected_and_nothing_saved(api):
     assert api.get("/api/v1/posts").json()["items"] == []
 
 
-def test_linkedin_is_not_supported_yet(api):
-    r = upload(api, platform="linkedin")
+def test_an_unknown_platform_is_refused(api):
+    r = upload(api, platform="mastodon")
     assert (r.status_code, r.json()["error"]["code"]) == (400, "unsupported_platform")
+
+
+def test_linkedin_shares_csv_imports(api):
+    r = upload(api, name="linkedin/Shares.csv", platform="linkedin")
+    assert r.status_code == 201, r.text
+    assert (r.json()["parsed"], r.json()["skipped"]) == (3, {"repost": 1})
+    assert len(api.get("/api/v1/posts?platform=linkedin").json()["items"]) == 3
 
 
 def x_archive() -> bytes:
