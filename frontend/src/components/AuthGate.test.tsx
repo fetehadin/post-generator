@@ -92,3 +92,9 @@ test('a new person enters an invite, then accepts the privacy notice, then gets 
     '/me/privacy-accept',
   ])
 })
+
+test('says what to set up when the API wants a login but the app has none', async () => {
+  vi.mocked(api).mockRejectedValue(new ApiError(401, 'not_logged_in', 'Log in to continue.'))
+  renderGate()
+  expect(await screen.findByRole('alert')).toHaveTextContent('SUPABASE_PUBLISHABLE_KEY')
+})
