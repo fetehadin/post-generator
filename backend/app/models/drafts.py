@@ -1,7 +1,18 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, CreatedAt
@@ -41,6 +52,9 @@ class Draft(CreatedAt, Base):
     status: Mapped[str] = mapped_column(String(16), server_default="draft")
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    checkin_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("checkins.id", ondelete="SET NULL")
+    )
 
 
 class DraftVersion(CreatedAt, Base):
@@ -79,3 +93,40 @@ class PromptLog(CreatedAt, Base):
     model: Mapped[str] = mapped_column(String(64))  # configured name, e.g. gemini-flash-latest
     model_version: Mapped[str | None] = mapped_column(String(64))  # what actually answered
     provider: Mapped[str] = mapped_column(String(32))
+
+
+class DraftMessage(CreatedAt, Base):
+    """One line of the editor's chat: the user's request or the assistant's answer (FR-40)."""
+
+    __tablename__ = "draft_messages"
+    __table_args__ = (CheckConstraint("role IN ('user', 'assistant')", name="role"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    draft_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("drafts.id", ondelete="CASCADE"), index=True
+    )
+    role: Mapped[str] = mapped_column(String(16))
+    text: Mapped[str] = mapped_column(Text)
+    draft_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("draft_versions.id", ondelete="SET NULL")
+    )
+
+
+class Checkin(CreatedAt, Base):
+    """What the user did on one of their days (FR-6)."""
+
+    __tablename__ = "checkins"
+    __table_args__ = (Index("ix_checkins_user_day", "user_id", "day"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    day: Mapped[date] = mapped_column(Date)
+    text: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

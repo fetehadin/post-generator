@@ -19,7 +19,7 @@ from app.ai.client import AIClient, AIUnavailable, GenerationResult, default_cli
 from app.checks import invented_numbers, longest_copy
 from app.core.db import user_session
 from app.counting import post_length
-from app.models import Draft, DraftVersion, PlatformProfile, PromptLog
+from app.models import Checkin, Draft, DraftVersion, PlatformProfile, PromptLog
 from app.services.profile import get_profile
 from app.services.retrieval import Example, find_examples
 from app.services.voice import effective_limit, voice_card
@@ -36,9 +36,9 @@ EXAMPLE_MAX_CHARS = 1200
 class DraftError(Exception):
     """Something the user can fix. `code` is the API error code (docs/API.md)."""
 
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(self, code: str, message: str, status: int = 400) -> None:
         super().__init__(message)
-        self.code, self.message = code, message
+        self.code, self.message, self.status = code, message, status
 
 
 @dataclass(frozen=True)
@@ -91,7 +91,14 @@ def _facts(topic: str, about: str, language: str) -> str:
         parts.append(
             f"About the writer (their own summary card, approved by them):\n{about.strip()}"
         )
-    parts.append(f"Today's check-in or topic:\n{topic.strip()}")
+    if topic.strip():
+        parts.append(f"Today's check-in or topic:\n{topic.strip()}")
+    else:
+        # "Generate post" with an empty box: write from what Voxlace knows about them.
+        parts.append(
+            "Today's check-in or topic:\n(none today: pick one thing from the summary card above "
+            "and write about it)"
+        )
     if language and language != "auto":
         parts.append(f"Write the post in {language}.")  # FR-24
     return "\n\n".join(parts)
@@ -159,19 +166,31 @@ def _rewrite_if_needed(ai, prompt, result, text, topic, examples):
 
 
 def generate_draft(
-    user_id: uuid.UUID, platform: str, topic: str, ai: AIClient | None = None
+    user_id: uuid.UUID,
+    platform: str,
+    topic: str,
+    ai: AIClient | None = None,
+    checkin_id: uuid.UUID | None = None,
 ) -> DraftResult:
-    if not topic or not topic.strip():
-        raise DraftError("missing_topic", "Write a topic or a check-in first.")
+    about = get_profile(user_id)
+    topic = (topic or "").strip()
+    if not topic and not about.summary_card.strip():
+        raise DraftError(
+            "missing_topic",
+            "Write what you did today, or fill in your summary card in Profile first.",
+        )
     ai = ai or default_client()
 
     with user_session(user_id) as s:
+        if checkin_id is not None and s.get(Checkin, checkin_id) is None:  # RLS: own rows only
+            raise DraftError("not_found", "That check-in doesn't exist.", 404)
         profile = s.get(PlatformProfile, platform)
         if profile is None:
             raise DraftError("unknown_platform", f"Unknown platform: {platform}")
         s.expunge(profile)
 
-    examples = find_examples(user_id, platform, topic, ai=ai)
+    # With an empty box, the summary card is what the examples should be close to.
+    examples = find_examples(user_id, platform, topic or about.summary_card[:1000], ai=ai)
     if not examples:
         raise DraftError(
             "no_posts",
@@ -179,19 +198,20 @@ def generate_draft(
             "then wait until they're learned.",
         )
 
-    about = get_profile(user_id)
     prompt = build_prompt(
         profile, examples, topic, about.summary_card, about.language, voice_card(user_id, platform)
     )
     result: GenerationResult = ai.generate(prompt, purpose="draft")
     text = clean_output(result.text)
-    prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, topic, examples)
+    # Numbers from the summary card are given facts too, not inventions.
+    facts = f"{topic}\n{about.summary_card}"
+    prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, facts, examples)
     length = post_length(text, profile.counting_rule)
     # Q31: the prompt keeps asking for the short limit; Premium only raises the block (FR-9).
     limit = effective_limit(user_id, profile)
 
     with user_session(user_id) as s:
-        draft = Draft(user_id=user_id, platform=platform, topic=topic.strip())
+        draft = Draft(user_id=user_id, platform=platform, topic=topic, checkin_id=checkin_id)
         s.add(draft)
         s.flush()
         version = DraftVersion(

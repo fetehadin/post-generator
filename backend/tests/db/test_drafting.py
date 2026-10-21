@@ -127,8 +127,9 @@ def test_another_user_cannot_read_the_draft_or_prompt(make_user):
         assert s.get(Draft, result.draft_id) is None
 
 
-def test_empty_topic_is_refused(make_user):
-    with pytest.raises(DraftError, match="topic"):
+def test_empty_topic_without_a_summary_card_is_refused(make_user):
+    # With a summary card, an empty box is allowed (tests/api/test_drafting_workflow.py).
+    with pytest.raises(DraftError, match="summary card"):
         generate_draft(make_user(), "telegram", "   ", ai=FakeAI())
 
 
