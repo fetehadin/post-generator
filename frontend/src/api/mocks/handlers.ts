@@ -2,9 +2,23 @@
  * A fake backend for building screens before (or without) the API: VITE_USE_MOCKS=true.
  * Shapes match docs/API.md. Imports "learn" 120 posts per poll, so progress is visible.
  */
-import type { Draft, ImportJob } from '../types'
+import type { Draft, ImportJob, Post } from '../types'
 
 const imports = new Map<string, ImportJob>()
+const posts: Post[] = [
+  'Ship log: fixed the timezone bug. Everything is UTC in the database now and only converted at the edges.',
+  '#buildinpublic week 3: 41 users, 2 bug reports, 1 very kind email. Small numbers, real people.',
+  "Shipped v0.2 of the CSV cleaner: streaming reads, so 2 GB files don't kill my laptop.",
+].map((text, i) => ({
+  id: `mock-post-${i}`,
+  platform: 'telegram',
+  text,
+  posted_at: new Date(Date.UTC(2026, 8, 20 - i * 5)).toISOString(),
+  likes: [14, 22, 9][i],
+  pinned: false,
+  excluded: false,
+  embedded: true,
+}))
 // Mock users start fully set up; set admitted/privacy_accepted to false to try those steps.
 let me = { id: 'mock-user', email: 'you@example.com', admitted: true, privacy_accepted: true }
 
@@ -96,6 +110,30 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
     }
     imports.set(job.id, next)
     return json(200, next)
+  }
+
+  if (path === '/posts') {
+    const platform = url.searchParams.get('platform') ?? 'telegram'
+    const q = (url.searchParams.get('q') ?? '').toLowerCase()
+    const show = url.searchParams.get('show') ?? 'all'
+    const items = posts.filter(
+      (p) =>
+        p.platform === platform &&
+        p.text.toLowerCase().includes(q) &&
+        (show === 'all' || (show === 'pinned' ? p.pinned : p.excluded)),
+    )
+    return json(200, { items, next_cursor: null })
+  }
+  const postMatch = path.match(/^\/posts\/(.+)$/)
+  if (postMatch && init?.method === 'PATCH') {
+    const change = JSON.parse(String(init.body)) as { pinned?: boolean; excluded?: boolean }
+    const p = posts.find((x) => x.id === postMatch[1])
+    if (!p) return json(404, { error: { code: 'not_found', message: 'Not found.' } })
+    if (change.pinned !== undefined)
+      Object.assign(p, { pinned: change.pinned }, change.pinned && { excluded: false })
+    if (change.excluded !== undefined)
+      Object.assign(p, { excluded: change.excluded }, change.excluded && { pinned: false })
+    return json(200, p)
   }
 
   if (path === '/drafts/generate') {

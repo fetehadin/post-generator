@@ -78,9 +78,9 @@ All ids are UUIDs.
 
 Same shape. `status` moves `embedding → done`; `embedded` counts up and `waiting` counts down. Calling it also resumes embedding if the server restarted in between.
 
-### `GET /posts?platform=telegram&limit=50&cursor=…`
+### `GET /posts?platform=telegram&q=…&show=all&limit=50&cursor=…`
 
-Newest first. `limit` 1–200 (default 50). Pass `next_cursor` back as `cursor` for the next page; it is `null` on the last page.
+Newest first. `q` finds posts containing those words (case-insensitive; `%` and `_` are literal). `show` is `all` (default), `pinned` or `excluded`. `limit` 1–200 (default 50). Pass `next_cursor` back as `cursor` for the next page; it is `null` on the last page.
 
 ```json
 {
@@ -90,6 +90,16 @@ Newest first. `limit` 1–200 (default 50). Pass `next_cursor` back as `cursor` 
   "next_cursor": "MjAyNi0wOS0wMlQxNDoxMDowMCswMDowMHw2ZDFl…"
 }
 ```
+
+### `PATCH /posts/{id}`
+
+FR-25: pin a post (always used as an example) or exclude it (never used). Send either field; setting one to `true` clears the other.
+
+```json
+{ "pinned": true }
+```
+
+Returns the post in `GET /posts`'s item shape. Another user's post is `404`.
 
 ### `POST /drafts/generate` → `201`
 
@@ -157,7 +167,6 @@ Records that the user accepted the privacy notice (FR-37) and returns `GET /me`'
 | 3 | `GET / PUT /profile` | About-you form and summary card |
 | 3 | `GET / PUT /voice-cards/{platform}` · `POST /voice-cards/{platform}/regenerate` | Voice card |
 | 3 | `GET /platform-profiles` · `PUT /platform-profiles/{platform}` | Platform rules |
-| 3 | `PATCH /posts/{id}` | Pin / exclude |
 | 4 | `POST / GET /checkins` · `PATCH / DELETE /checkins/{id}` | Daily check-ins |
 | 4 | `POST /drafts/{id}/revise` · `GET /drafts/{id}/versions` | Chat revisions |
 | 4 | `GET /drafts?status=&platform=` · `PATCH /drafts/{id}` | Library, status, text, `scheduled_for` |
