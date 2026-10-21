@@ -1,10 +1,10 @@
 """Request and response bodies. They mirror docs/API.md; change both together."""
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 Platform = Literal["telegram", "x", "linkedin"]
 
@@ -54,8 +54,10 @@ class PostsPage(BaseModel):
 
 class GenerateIn(BaseModel):
     platform: Platform
-    topic: str = Field(max_length=4000)
-    checkin_id: uuid.UUID | None = None  # check-ins arrive in Phase 4
+    topic: str = Field(
+        "", max_length=4000, description="Empty = write from the summary card (needs one)"
+    )
+    checkin_id: uuid.UUID | None = None
 
 
 class LengthOut(BaseModel):
@@ -173,3 +175,84 @@ class VoiceCardIn(BaseModel):
 
 class PlatformSettingsIn(BaseModel):
     x_premium: bool
+
+
+DraftStatus = Literal["draft", "approved", "published", "discarded"]
+
+
+class CheckinIn(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+    day: date | None = Field(None, description="The user's own calendar day; default today (UTC)")
+
+
+class CheckinPatchIn(BaseModel):
+    text: str | None = Field(None, min_length=1, max_length=4000)
+    day: date | None = None
+
+
+class CheckinOut(BaseModel):
+    id: uuid.UUID
+    day: date
+    text: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class CheckinsOut(BaseModel):
+    items: list[CheckinOut]
+
+
+class DraftRowOut(BaseModel):
+    """One row of the library, Home's list or the calendar (FR-11, FR-13)."""
+
+    id: uuid.UUID
+    platform: Platform
+    status: DraftStatus
+    text: str
+    length: LengthOut
+    scheduled_for: datetime | None
+    published_at: datetime | None
+    created_at: datetime
+    updated_at: datetime = Field(description="When the current version was made")
+
+
+class DraftsOut(BaseModel):
+    items: list[DraftRowOut]
+
+
+class VersionOut(BaseModel):
+    id: uuid.UUID
+    number: int
+    text: str
+    instruction: str | None
+    created_at: datetime
+
+
+class MessageOut(BaseModel):
+    id: uuid.UUID
+    role: Literal["user", "assistant"]
+    text: str
+    version_id: uuid.UUID | None
+    created_at: datetime
+
+
+class DraftDetailOut(DraftRowOut):
+    """GET /drafts/{id}: the editor's data (FR-10, FR-40)."""
+
+    topic: str
+    checkin_id: uuid.UUID | None
+    versions: list[VersionOut]
+    messages: list[MessageOut]
+
+
+class DraftPatchIn(BaseModel):
+    text: str | None = Field(None, min_length=1, max_length=30_000)
+    status: DraftStatus | None = None
+    scheduled_for: AwareDatetime | None = Field(
+        None, description="UTC; null takes it off the calendar. Needs approval."
+    )
+
+
+class ReviseIn(BaseModel):
+    instruction: str = Field(min_length=1, max_length=2000)
+    selection: str | None = Field(None, max_length=5000, description="Change only this part")

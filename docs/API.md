@@ -235,14 +235,68 @@ When a card exists, drafts for that platform add it before the example posts. An
 
 ---
 
+## Phase 4 — drafting workflow (built)
+
+### Check-ins (FR-6)
+
+| Method and path | Body | Returns |
+|---|---|---|
+| `POST /checkins` | `{"text": "…", "day": "2026-10-22"}` (`day` optional: the user's own date; default today in UTC) | `201` a check-in |
+| `GET /checkins` | | `{"items": [check-in]}`, newest day first (60 at most) |
+| `PATCH /checkins/{id}` | `{"text"?, "day"?}` | the check-in |
+| `DELETE /checkins/{id}` | | `204` |
+
+A check-in: `{"id", "day", "text", "created_at", "updated_at"}`. Another user's id → `404`.
+
+### `POST /drafts/generate` (changed)
+
+`topic` may now be empty: the draft is written from the user's summary card ("Generate post" with an empty box, FR-19). With no topic **and** no card → `400 missing_topic`. `checkin_id` (optional) links the draft to the user's own check-in (`404` if it isn't theirs). Numbers in the summary card count as given facts.
+
+### `GET /drafts`
+
+Query (all optional): `status` (`draft|approved|published|discarded`), `platform`, `scheduled_from` / `scheduled_to` (UTC, for the calendar; sorted by time), `created_from` (UTC, e.g. the start of the user's today for Home). Returns `{"items": [row]}`, at most 100.
+
+A row:
+
+```json
+{
+  "id": "…", "platform": "x", "status": "approved",
+  "text": "the current version",
+  "length": { "count": 238, "limit": 280, "over": false },
+  "scheduled_for": "2026-10-23T15:00:00Z", "published_at": null,
+  "created_at": "…", "updated_at": "when the current version was made"
+}
+```
+
+### `GET /drafts/{id}`
+
+A row plus the editor's data: `topic`, `checkin_id`, `versions` (`[{"id", "number", "text", "instruction", "created_at"}]`, oldest first; `instruction` is null for v1, "Edited by hand", "Restored v2" or the chat request) and `messages` (`[{"id", "role": "user|assistant", "text", "version_id", "created_at"}]`). Another user's draft → `404`.
+
+### `PATCH /drafts/{id}`
+
+`{"text"?, "status"?, "scheduled_for"?}`, any subset. Returns `GET /drafts/{id}`'s shape. The rules:
+
+- `text`: a hand edit becomes a new version (no change, no version). Only while `status` is `draft` → else `409 not_editable`.
+- `status: "approved"`: refused while the text is over the limit → `409 over_limit` ("Cut N characters…").
+- `status: "draft"` or `"discarded"`: also takes it off the calendar (`scheduled_for` → null).
+- `status: "published"` (the calendar's **Posted** button): only from `approved` → else `409 not_approved`; sets `published_at`. Final: any later status change → `409 already_published`.
+- `scheduled_for`: UTC **with an offset** (a time without one → `422`). Needs `approved` (it may be approved in the same request) → else `409 not_approved`. More than 5 minutes in the past → `400 in_the_past`. `null` removes it from the calendar.
+
+### `POST /drafts/{id}/revise`
+
+`{"instruction": "Shorter", "selection"?: "one sentence from the text"}`. The chat (FR-10, FR-40): the AI revises the current text into a new version, using the user's voice card, summary card, topic and the platform rules, and only given facts. With `selection`, only that part changes (`400 selection_changed` if it isn't in the text any more). If a fact is missing, the assistant asks a question instead and no version is made. Both lines are saved to `messages`; the prompt is logged. Only while `draft` → else `409 not_editable`. `503 ai_unavailable` when the AI is busy.
+
+### `POST /drafts/{id}/versions/{version_id}/restore`
+
+Copies an earlier version as the newest one ("Restored v2"). Only while `draft`.
+
+---
+
 ## Later phases (shape to be agreed at the start of each phase)
 
 | Phase | Method and path | Purpose |
 |---|---|---|
 | 3 | `GET /platform-profiles` · `PUT /platform-profiles/{platform}` | Platform rules |
-| 4 | `POST / GET /checkins` · `PATCH / DELETE /checkins/{id}` | Daily check-ins |
-| 4 | `POST /drafts/{id}/revise` · `GET /drafts/{id}/versions` | Chat revisions |
-| 4 | `GET /drafts?status=&platform=` · `PATCH /drafts/{id}` | Library, status, text, `scheduled_for` |
 | 5 | `POST /telegram/connect` · `POST /drafts/{id}/publish` | Connect channel; publish now |
 | 5 | *(no endpoint)* | Due posts and reminders are sent by the worker process, not over HTTP |
 | 6 | `GET /usage` | Today's usage vs limits |
