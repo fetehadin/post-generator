@@ -43,28 +43,25 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 
 ## 2. Information architecture
 
-**Left sidebar = navigation only** (a floating card, inset from the window edge). From top to bottom:
+**Decided by the product owner, 21 Oct 2026.**
+
+**Left sidebar** (a floating card, inset from the window edge), top to bottom:
 - the wordmark;
-- **New post** (the primary action);
-- four places: Today, Drafts, Calendar, Voice;
-- the avatar at the bottom, which opens Settings, the theme switch and today's usage.
+- **Home**, **Calendar**, **Drafts**;
+- at the bottom: the **theme toggle** (light → dark → mixed), the **collapse button** (folds the sidebar to an icon rail; remembered per browser), and **your avatar → Profile**.
 
-**There is no right sidebar.** Context that used to sit there moved to where it's used:
-- the platform preview → an Edit / Preview switch in the editor;
-- "Up next" → Calendar;
-- voice strength and sources → Voice.
+**There is no right sidebar.** The platform preview is a switch in the editor, "Up next" is in Calendar, and everything about you is in Profile.
 
-On mobile the four places become a bottom tab bar, and Settings stays behind the avatar.
+On mobile, Home · Calendar · Drafts · Profile become a bottom tab bar.
 
-| Nav item | Purpose | Requirements |
+| Place | Purpose | Requirements |
 |---|---|---|
-| **Today** | Ask "What did you work on today?", write drafts, see today's drafts | FR-6, FR-7, FR-8 |
-| **Drafts** | Library of every draft by status and platform; opens the editor | FR-10, FR-11 |
-| **Calendar** | Week and month plan; due posts; Telegram sends; what's up next | FR-13, FR-35 |
-| **Voice** | Per-platform voice card, stats, pinned and excluded posts, imports | FR-1, FR-5, FR-22, FR-25, FR-26 |
-| Avatar menu → **Settings** | Profile, audience, language, Telegram connection, usage, theme, export/delete | FR-17, FR-24, FR-30, FR-33, FR-36, FR-38 |
+| **Home** | "What did you do today?": feed Voxlace your progress (the check-in), pick platforms with small logo buttons, **Generate N drafts**, see today's drafts | FR-6, FR-7, FR-8 |
+| **Calendar** | A Google Calendar-style grid (days × hours). Drag a post to change its date and time. **Posted** marks an X or LinkedIn post as published and clears it from the calendar; Telegram posts send themselves | FR-12, FR-13, FR-35 |
+| **Drafts** | Every draft by status and platform; opens the editor | FR-10, FR-11 |
+| **Profile** (avatar) | Everything about you, all editable: about you and the summary card, interests, work, audience, language; your previous posts per platform (pin and exclude), voice cards and imports; and **Settings** (Telegram connection, reminders, usage, export and delete) | FR-1, FR-5, FR-17, FR-18, FR-22, FR-24, FR-25, FR-26, FR-30, FR-33, FR-36, FR-38 |
 
-The **draft editor** isn't a nav item. It opens from Today, Drafts or Calendar as a full page (`/drafts/:id`), so every draft has a shareable URL and the back button works.
+The **draft editor** isn't a nav item. It opens from Home, Drafts or Calendar as a full page (`/drafts/:id`), so every draft has a shareable URL and the back button works.
 
 ---
 
