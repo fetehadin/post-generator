@@ -132,3 +132,44 @@ class ProfileIn(BaseModel):
     language: str | None = Field(None, min_length=2, max_length=32)
     excluded_hashtags: list[str] | None = Field(None, max_length=200)
     summary_card: str | None = Field(None, max_length=3000)
+
+
+class RulesOut(BaseModel):
+    char_limit: int
+    counting_rule: str
+    tone_notes: str
+    structure_notes: str
+
+
+class VoiceStatsOut(BaseModel):
+    post_count: int
+    thin: bool = Field(description="Fewer than 20 posts: the voice may be off (FR-5)")
+    median_length: int
+    median_lines: int
+    emoji_share: float
+    hashtag_share: float
+    link_share: float
+    question_share: float
+    ethiopic_share: float
+    top_hashtags: list[str]
+
+
+class PlatformOut(BaseModel):
+    """GET /platforms/{platform}: the Profile tab for one platform (FR-22)."""
+
+    platform: Platform
+    rules: RulesOut
+    effective_limit: int = Field(description="The limit drafts are checked against (Q31)")
+    stats: VoiceStatsOut
+    voice_card: str
+    voice_card_updated_at: datetime | None
+    x_premium: bool | None = Field(description="X only; null = not known yet")
+    premium_source: Literal["user", "export"] | None
+
+
+class VoiceCardIn(BaseModel):
+    voice_card: str = Field(max_length=3000)
+
+
+class PlatformSettingsIn(BaseModel):
+    x_premium: bool

@@ -231,7 +231,7 @@ DESIGN.md §5 proposes colors, Instrument Sans for the interface and Source Seri
 **Decided (19 Oct 2026):** visual direction v2, from a study of ScholarXIV (`design/REFERENCE_SCHOLARXIV.md`). Warm paper neutrals; Instrument Sans + Noto Sans Ethiopic for the interface, Source Serif 4 + Noto Serif Ethiopic for the user's writing; one teal accent (`--thread`) that is also the primary button color; light, dark and a new **mixed** theme. Every pair passes WCAG AA. Tokens and contrast table: DESIGN.md §5; prototypes: `design/prototypes/`. Q29 (shadcn/ui) is still open.
 
 
-### Q31 🟡 (Phase 3) X Premium: 280 or 25,000 characters?
+### Q31 ✅ (decided 22 Oct 2026, see Decided) X Premium: 280 or 25,000 characters?
 
 X counts length the same way for everyone, but the **limit** differs: 280 for free accounts and 25,000 for Premium. Long posts show "Show more" after about 280 characters.
 
@@ -256,6 +256,7 @@ X counts length the same way for everyone, but the **limit** differs: 280 for fr
 | # | Decision | Date |
 |---|---|---|
 | — | Database host port is configurable (`POSTGRES_PORT`), because a native Postgres often owns 5432 | 15 Oct 2026 |
+| Q31 | Built as recommended: `platform_settings.x_premium` (source `user` or `export`), pre-filled by the X import, the user's answer wins; effective limit 25,000 with Premium; prompts still ask for 280 | 22 Oct 2026 |
 | Q1 | API connects as `voxlace_app` (`DATABASE_URL`); Alembic connects as the owner (`MIGRATIONS_DATABASE_URL`). Per request: `SET LOCAL app.user_id` inside the transaction | 15 Oct 2026 |
 | Q6 (part) | Server is always on (SRS 1.1). There's no external cron; the worker container handles scheduled work | 14 Oct 2026 |
 | Q11 | Keep self-replies (threads) as voice data; skip only replies to other accounts | 15 Oct 2026 |

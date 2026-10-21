@@ -22,6 +22,7 @@ from app.counting import post_length
 from app.models import Draft, DraftVersion, PlatformProfile, PromptLog
 from app.services.profile import get_profile
 from app.services.retrieval import Example, find_examples
+from app.services.voice import effective_limit, voice_card
 
 TEMPLATE = Template((Path(__file__).parents[1] / "ai" / "prompts" / "draft.md").read_text())
 PLATFORM_NAMES = {"telegram": "Telegram", "x": "X", "linkedin": "LinkedIn"}
@@ -59,8 +60,14 @@ def build_prompt(
     topic: str,
     about: str = "",
     language: str = "auto",
+    voice: str = "",
 ) -> str:
     blocks = []
+    if voice.strip():
+        # FR-5: the user's reviewed voice card goes before the examples. Empty = no change.
+        blocks.append(
+            f"Their own notes on how they write here (reviewed by them):\n{voice.strip()}"
+        )
     for i, e in enumerate(examples, 1):
         text = e.text if len(e.text) <= EXAMPLE_MAX_CHARS else e.text[:EXAMPLE_MAX_CHARS] + "…"
         blocks.append(f"[{i}]\n{text}")
@@ -173,11 +180,15 @@ def generate_draft(
         )
 
     about = get_profile(user_id)
-    prompt = build_prompt(profile, examples, topic, about.summary_card, about.language)
+    prompt = build_prompt(
+        profile, examples, topic, about.summary_card, about.language, voice_card(user_id, platform)
+    )
     result: GenerationResult = ai.generate(prompt, purpose="draft")
     text = clean_output(result.text)
     prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, topic, examples)
     length = post_length(text, profile.counting_rule)
+    # Q31: the prompt keeps asking for the short limit; Premium only raises the block (FR-9).
+    limit = effective_limit(user_id, profile)
 
     with user_session(user_id) as s:
         draft = Draft(user_id=user_id, platform=platform, topic=topic.strip())
@@ -207,8 +218,8 @@ def generate_draft(
         draft_id=draft_id,
         text=text,
         length=length,
-        char_limit=profile.char_limit,
-        over_limit=length > profile.char_limit,
+        char_limit=limit,
+        over_limit=length > limit,
         model=result.model,
         model_version=result.model_version,
         examples=examples,
