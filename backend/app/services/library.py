@@ -11,6 +11,7 @@ Status moves: draft ⇄ approved → published, and draft/approved → discarded
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from difflib import SequenceMatcher
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import distinct_on
@@ -142,6 +143,8 @@ def update(user_id: uuid.UUID, draft_id: uuid.UUID, changes: dict) -> DraftDetai
     with user_session(user_id) as s:
         d = s.get(Draft, draft_id)
         text = changes.get("text")
+        if text is not None and not text.strip():
+            raise DraftError("missing_text", "A post can't be empty.")
         if text is not None and text.strip() != current.text:
             if d.status != "draft":
                 raise DraftError(
@@ -197,3 +200,40 @@ def restore(user_id: uuid.UUID, draft_id: uuid.UUID, version_id: uuid.UUID) -> D
         old = s.get(DraftVersion, version_id)
         add_version(s, user_id, d, old.text, f"Restored v{numbers[version_id]}")
     return detail(user_id, draft_id)
+
+
+@dataclass(frozen=True)
+class Stats:
+    created: int
+    published: int
+    edited: float | None  # 0–1: how much published posts changed from the first draft
+
+    @property
+    def publish_rate(self) -> float | None:
+        return round(self.published / self.created, 2) if self.created else None
+
+
+def edit_amount(first: str, final: str) -> float:
+    """0 = published as written, 1 = completely rewritten (by hand or by chat)."""
+    return round(1 - SequenceMatcher(None, first, final, autojunk=False).ratio(), 2)
+
+
+def stats(user_id: uuid.UUID, days: int = 7) -> Stats:
+    """FR-15: of the drafts written in the last `days`, how many were posted, and how much
+    they were edited first. Discarded drafts count as written, not posted."""
+    since = datetime.now(UTC) - timedelta(days=days)
+    with user_session(user_id) as s:
+        drafts = s.scalars(
+            select(Draft).where(Draft.user_id == user_id, Draft.created_at >= since)
+        ).all()
+        published = [d for d in drafts if d.status == "published"]
+        edits = []
+        for d in published:
+            texts = s.scalars(
+                select(DraftVersion.text)
+                .where(DraftVersion.draft_id == d.id)
+                .order_by(DraftVersion.created_at)
+            ).all()
+            edits.append(edit_amount(texts[0], texts[-1]))
+    edited = round(sum(edits) / len(edits), 2) if edits else None
+    return Stats(len(drafts), len(published), edited)

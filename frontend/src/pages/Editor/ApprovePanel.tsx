@@ -45,6 +45,7 @@ export function ApprovePanel({ draft, mode, onSave, onCancel, pending }: Props) 
       <input
         id="when"
         type="datetime-local"
+        min={toLocalInput(new Date().toISOString())}
         value={when}
         onChange={(e) => setWhen(e.target.value)}
         className="mt-1 min-h-10 rounded-control border border-edge bg-surface px-3 text-sm"

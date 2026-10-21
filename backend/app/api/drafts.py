@@ -17,6 +17,7 @@ from app.schemas import (
     DraftPatchIn,
     DraftRowOut,
     DraftsOut,
+    DraftStatsOut,
     DraftStatus,
     GenerateIn,
     LengthOut,
@@ -120,6 +121,17 @@ def list_drafts(
         user_id, status, platform, scheduled_from, scheduled_to, created_from
     )
     return DraftsOut(items=[_row(r) for r in rows])
+
+
+@router.get("/stats", response_model=DraftStatsOut)
+def draft_stats(user_id: uuid.UUID = Depends(current_user)) -> DraftStatsOut:
+    st = library.stats(user_id)
+    return DraftStatsOut(
+        created=st.created,
+        published=st.published,
+        publish_rate=st.publish_rate,
+        edited=st.edited,
+    )
 
 
 @router.get("/{draft_id}", response_model=DraftDetailOut)

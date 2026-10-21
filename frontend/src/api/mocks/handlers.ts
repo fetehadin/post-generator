@@ -232,6 +232,28 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
     })
   }
 
+  if (path === '/me/usage') {
+    const today = new Date().toISOString().slice(0, 10)
+    return json(200, {
+      drafts: drafts.filter((d) => d.created_at.startsWith(today)).length,
+      draft_limit: 40,
+      posts: 0,
+      post_limit: 3000,
+      resets_at: new Date(Date.parse(today) + 86_400_000).toISOString(),
+    })
+  }
+  if (path === '/me/export') return json(200, { profile, posts, drafts, checkins })
+  if (path === '/me' && init?.method === 'DELETE') return new Response(null, { status: 204 })
+  if (path === '/drafts/stats') {
+    const published = drafts.filter((d) => d.status === 'published').length
+    return json(200, {
+      created: drafts.length,
+      published,
+      publish_rate: drafts.length ? published / drafts.length : null,
+      edited: published ? 0.1 : null,
+    })
+  }
+
   if (path === '/checkins') {
     if (init?.method === 'POST') {
       const b = JSON.parse(String(init.body)) as { text: string; day?: string }

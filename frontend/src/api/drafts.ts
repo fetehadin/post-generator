@@ -130,3 +130,18 @@ export function useDraftPrompt(id: string, enabled: boolean) {
     enabled,
   })
 }
+
+/**
+ * Approved posts whose time has come and that aren't marked posted yet (FR-35, in the app).
+ * Checked once a minute; the bell and the calendar's "Due now" both read it.
+ */
+export function useDuePosts() {
+  return useQuery({
+    queryKey: ['drafts', 'list', 'due'],
+    queryFn: () =>
+      api<{ items: DraftRow[] }>(
+        `/drafts?status=approved&scheduled_to=${encodeURIComponent(new Date().toISOString())}`,
+      ),
+    refetchInterval: 60_000,
+  })
+}
