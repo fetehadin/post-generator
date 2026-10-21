@@ -53,3 +53,50 @@ export type Post = {
 }
 
 export type PostsPage = { items: Post[]; next_cursor: string | null }
+
+export type DraftStatus = 'draft' | 'approved' | 'published' | 'discarded'
+
+/** A row of GET /drafts: the library, Home's list and the calendar (docs/API.md, Phase 4). */
+export type DraftRow = {
+  id: string
+  platform: Platform
+  status: DraftStatus
+  text: string
+  length: { count: number; limit: number; over: boolean }
+  scheduled_for: string | null
+  published_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type DraftVersion = {
+  id: string
+  number: number
+  text: string
+  instruction: string | null
+  created_at: string
+}
+
+export type DraftMessage = {
+  id: string
+  role: 'user' | 'assistant'
+  text: string
+  version_id: string | null
+  created_at: string
+}
+
+/** GET /drafts/{id}: the editor's data. */
+export type DraftDetail = DraftRow & {
+  topic: string
+  checkin_id: string | null
+  versions: DraftVersion[]
+  messages: DraftMessage[]
+}
+
+export type Checkin = {
+  id: string
+  day: string
+  text: string
+  created_at: string
+  updated_at: string
+}

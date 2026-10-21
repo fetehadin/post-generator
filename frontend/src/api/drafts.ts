@@ -1,36 +1,38 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
-import type { Draft, Platform } from './types'
+import type { Draft, DraftDetail, DraftRow, DraftStatus, Platform } from './types'
 
-/** POST /drafts/generate. On 429/503 the caller keeps the user's topic in the form. */
-export function useGenerateDraft() {
-  return useMutation({
-    mutationFn: (input: { platform: Platform; topic: string }) =>
-      api<Draft>('/drafts/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
-      }),
-  })
-}
+const json = (method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+})
 
 export type DraftOutcome =
   { platform: Platform; ok: true; draft: Draft } | { platform: Platform; ok: false; error: Error }
 
 /**
  * One draft per chosen platform, written in parallel (FR-8). One platform failing (no posts
- * yet, AI busy) never hides the others' drafts.
+ * yet, AI busy) never hides the others' drafts. An empty topic writes from the summary card.
  */
 export function useGenerateDrafts() {
+  const client = useQueryClient()
   return useMutation({
-    mutationFn: async ({ platforms, topic }: { platforms: Platform[]; topic: string }) => {
+    mutationFn: async ({
+      platforms,
+      topic,
+      checkinId,
+    }: {
+      platforms: Platform[]
+      topic: string
+      checkinId?: string
+    }) => {
       const settled = await Promise.allSettled(
         platforms.map((platform) =>
-          api<Draft>('/drafts/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ platform, topic }),
-          }),
+          api<Draft>(
+            '/drafts/generate',
+            json('POST', { platform, topic, ...(checkinId && { checkin_id: checkinId }) }),
+          ),
         ),
       )
       return settled.map((r, i): DraftOutcome =>
@@ -38,6 +40,77 @@ export function useGenerateDrafts() {
           ? { platform: platforms[i], ok: true, draft: r.value }
           : { platform: platforms[i], ok: false, error: r.reason as Error },
       )
+    },
+    onSettled: () => client.invalidateQueries({ queryKey: ['drafts'] }),
+  })
+}
+
+export type DraftFilter = {
+  status?: DraftStatus
+  platform?: Platform
+  scheduled_from?: string
+  scheduled_to?: string
+  created_from?: string
+}
+
+/** GET /drafts: the library, Home's "today" and the calendar's range. */
+export function useDrafts(filter: DraftFilter) {
+  const params = new URLSearchParams(
+    Object.entries(filter).filter((e): e is [string, string] => Boolean(e[1])),
+  )
+  return useQuery({
+    queryKey: ['drafts', 'list', filter],
+    queryFn: () => api<{ items: DraftRow[] }>(`/drafts?${params}`),
+  })
+}
+
+export function useDraft(id: string) {
+  return useQuery({
+    queryKey: ['drafts', 'one', id],
+    queryFn: () => api<DraftDetail>(`/drafts/${id}`),
+  })
+}
+
+/** Every change returns the whole draft: put it in the cache, refresh the lists. */
+function useDraftMutation<I>(id: string, fn: (input: I) => Promise<DraftDetail>) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (draft) => {
+      client.setQueryData(['drafts', 'one', id], draft)
+      void client.invalidateQueries({ queryKey: ['drafts', 'list'] })
+    },
+  })
+}
+
+export type DraftChange = { text?: string; status?: DraftStatus; scheduled_for?: string | null }
+
+/** PATCH /drafts/{id}: hand edit, approve, schedule, Posted, discard (docs/API.md rules). */
+export const usePatchDraft = (id: string) =>
+  useDraftMutation(id, (change: DraftChange) =>
+    api<DraftDetail>(`/drafts/${id}`, json('PATCH', change)),
+  )
+
+/** POST /drafts/{id}/revise: the chat (FR-10, FR-40). */
+export const useReviseDraft = (id: string) =>
+  useDraftMutation(id, (input: { instruction: string; selection?: string }) =>
+    api<DraftDetail>(`/drafts/${id}/revise`, json('POST', input)),
+  )
+
+export const useRestoreVersion = (id: string) =>
+  useDraftMutation(id, (versionId: string) =>
+    api<DraftDetail>(`/drafts/${id}/versions/${versionId}/restore`, { method: 'POST' }),
+  )
+
+/** PATCH from a list row (the calendar's drag and Posted), by any id. */
+export function usePatchAnyDraft() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...change }: DraftChange & { id: string }) =>
+      api<DraftDetail>(`/drafts/${id}`, json('PATCH', change)),
+    onSuccess: (draft) => {
+      client.setQueryData(['drafts', 'one', draft.id], draft)
+      void client.invalidateQueries({ queryKey: ['drafts', 'list'] })
     },
   })
 }
