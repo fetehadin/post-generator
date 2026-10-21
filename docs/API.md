@@ -160,11 +160,42 @@ Records that the user accepted the privacy notice (FR-37) and returns `GET /me`'
 
 ---
 
+## Phase 3 — profile (built)
+
+### `GET /profile`
+
+Everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44). Created with defaults on first read.
+
+```json
+{
+  "role": "Backend developer", "stack": "Python, FastAPI", "current_projects": "Voxlace",
+  "focus": "", "goal": "", "topics": "Python, AI", "audience": "Ethiopian devs on Telegram",
+  "avoid_list": "", "voice_words": "", "links": "", "discipline": "", "usual_hours": "",
+  "language": "auto",
+  "excluded_hashtags": ["#family", "#me"],
+  "summary_card": "I build Voxlace…",
+  "summary_updated_at": "2026-10-21T16:00:00Z"
+}
+```
+
+- `language`: `"auto"` writes in the same language mix as the user's posts; any other value adds "Write the post in <language>." to the prompt.
+- `excluded_hashtags`: the user's list (lower-case, with `#`), used by every import. The default list until the user edits it.
+- `summary_card`: allowed facts for every draft, next to the day's topic (FR-19). Empty means the prompt is exactly as before.
+
+### `PUT /profile`
+
+Send only the fields that change (same names as above, except `summary_updated_at`). Strings are trimmed and hashtags normalised. Editing `summary_card` sets `summary_updated_at`. Returns `GET /profile`'s shape.
+
+### `POST /profile/summary`
+
+The AI writes a ~150-word first-person card **only from the user's answers** (and up to 5 of their own top posts, for topics and tone), saves it and returns `GET /profile`'s shape. The user can edit it with `PUT`. Error: `503 ai_unavailable` (answers are kept).
+
+---
+
 ## Later phases (shape to be agreed at the start of each phase)
 
 | Phase | Method and path | Purpose |
 |---|---|---|
-| 3 | `GET / PUT /profile` | About-you form and summary card |
 | 3 | `GET / PUT /voice-cards/{platform}` · `POST /voice-cards/{platform}/regenerate` | Voice card |
 | 3 | `GET /platform-profiles` · `PUT /platform-profiles/{platform}` | Platform rules |
 | 4 | `POST / GET /checkins` · `PATCH / DELETE /checkins/{id}` | Daily check-ins |

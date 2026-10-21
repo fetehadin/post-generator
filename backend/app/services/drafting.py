@@ -20,6 +20,7 @@ from app.checks import invented_numbers, longest_copy
 from app.core.db import user_session
 from app.counting import post_length
 from app.models import Draft, DraftVersion, PlatformProfile, PromptLog
+from app.services.profile import get_profile
 from app.services.retrieval import Example, find_examples
 
 TEMPLATE = Template((Path(__file__).parents[1] / "ai" / "prompts" / "draft.md").read_text())
@@ -52,7 +53,13 @@ class DraftResult:
     created_at: datetime
 
 
-def build_prompt(profile: PlatformProfile, examples: list[Example], topic: str) -> str:
+def build_prompt(
+    profile: PlatformProfile,
+    examples: list[Example],
+    topic: str,
+    about: str = "",
+    language: str = "auto",
+) -> str:
     blocks = []
     for i, e in enumerate(examples, 1):
         text = e.text if len(e.text) <= EXAMPLE_MAX_CHARS else e.text[:EXAMPLE_MAX_CHARS] + "…"
@@ -61,13 +68,26 @@ def build_prompt(profile: PlatformProfile, examples: list[Example], topic: str) 
         platform_name=PLATFORM_NAMES[profile.platform],
         example_count=len(examples),
         examples="\n\n".join(blocks),
-        # Phase 1 has no profile yet; the summary card joins the facts in Phase 3 (FR-18, FR-19).
-        facts=f"Today's check-in or topic:\n{topic.strip()}",
+        facts=_facts(topic, about, language),
         char_limit=profile.char_limit,
         counting_note=COUNTING_NOTES.get(profile.counting_rule, profile.counting_rule),
         tone_notes=profile.tone_notes,
         structure_notes=profile.structure_notes,
     )
+
+
+def _facts(topic: str, about: str, language: str) -> str:
+    """FR-19: the only facts a draft may state: the user's own summary card and today's topic.
+    With no card and the default language, this is exactly the Phase 1 facts block."""
+    parts = []
+    if about.strip():
+        parts.append(
+            f"About the writer (their own summary card, approved by them):\n{about.strip()}"
+        )
+    parts.append(f"Today's check-in or topic:\n{topic.strip()}")
+    if language and language != "auto":
+        parts.append(f"Write the post in {language}.")  # FR-24
+    return "\n\n".join(parts)
 
 
 def clean_output(text: str) -> str:
@@ -152,7 +172,8 @@ def generate_draft(
             "then wait until they're learned.",
         )
 
-    prompt = build_prompt(profile, examples, topic)
+    about = get_profile(user_id)
+    prompt = build_prompt(profile, examples, topic, about.summary_card, about.language)
     result: GenerationResult = ai.generate(prompt, purpose="draft")
     text = clean_output(result.text)
     prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, topic, examples)

@@ -2,7 +2,27 @@
  * A fake backend for building screens before (or without) the API: VITE_USE_MOCKS=true.
  * Shapes match docs/API.md. Imports "learn" 120 posts per poll, so progress is visible.
  */
+import type { Profile } from '../profile'
 import type { Draft, ImportJob, Post } from '../types'
+
+const profile: Profile = {
+  role: '',
+  stack: '',
+  current_projects: '',
+  focus: '',
+  goal: '',
+  topics: '',
+  audience: '',
+  avoid_list: '',
+  voice_words: '',
+  links: '',
+  discipline: '',
+  usual_hours: '',
+  language: 'auto',
+  excluded_hashtags: ['#family', '#me'],
+  summary_card: '',
+  summary_updated_at: null,
+}
 
 const imports = new Map<string, ImportJob>()
 const posts: Post[] = [
@@ -134,6 +154,20 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
     if (change.excluded !== undefined)
       Object.assign(p, { excluded: change.excluded }, change.excluded && { pinned: false })
     return json(200, p)
+  }
+
+  if (path === '/profile') {
+    if (init?.method === 'PUT') {
+      const change = JSON.parse(String(init.body)) as Partial<Profile>
+      if (change.summary_card !== undefined) profile.summary_updated_at = new Date().toISOString()
+      Object.assign(profile, change)
+    }
+    return json(200, profile)
+  }
+  if (path === '/profile/summary') {
+    profile.summary_card = `I'm a ${profile.role || 'developer'} working on ${profile.current_projects || 'my projects'}. I write for ${profile.audience || 'people who build things'}.`
+    profile.summary_updated_at = new Date().toISOString()
+    return json(200, profile)
   }
 
   if (path === '/drafts/generate') {
