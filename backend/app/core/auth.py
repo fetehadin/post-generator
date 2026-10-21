@@ -33,6 +33,8 @@ _dev_user_ready = False
 class Identity:
     user_id: uuid.UUID
     email: str
+    # Supabase sets user_metadata.email_verified once the user clicks the confirmation link.
+    email_confirmed: bool = False
 
 
 def ensure_dev_user() -> None:
@@ -77,7 +79,12 @@ def verify_token(token: str) -> Identity:
             token, key, algorithms=algorithms, audience="authenticated", issuer=issuer,
             options=options,
         )  # fmt: skip
-        return Identity(uuid.UUID(claims["sub"]), str(claims.get("email", "")).lower())
+        meta = claims.get("user_metadata") or {}
+        return Identity(
+            uuid.UUID(claims["sub"]),
+            str(claims.get("email", "")).lower(),
+            email_confirmed=meta.get("email_verified") is True,
+        )
     except (jwt.PyJWTError, ValueError) as e:
         raise AppError("not_logged_in", "Your session has ended. Log in again.", 401) from e
 
@@ -86,7 +93,7 @@ def identity(authorization: str | None = Header(default=None)) -> Identity:
     settings = get_settings()
     if not authorization and settings.dev_user_without_login:
         ensure_dev_user()
-        return Identity(DEV_USER_ID, DEV_EMAIL)
+        return Identity(DEV_USER_ID, DEV_EMAIL, email_confirmed=True)
     scheme, _, token = (authorization or "").partition(" ")
     if scheme.lower() != "bearer" or not token:
         raise AppError("not_logged_in", "Log in to continue.", 401)
@@ -105,7 +112,9 @@ def admit_if_allowed(who: Identity) -> bool:
     with user_session(who.user_id) as s:
         if s.get(User, who.user_id):
             return True
-        if who.email and who.email in get_settings().allowed_email_set:
+        # Only a *confirmed* email counts: if sign-up didn't confirm emails, anyone could
+        # claim a team address. Invites work either way.
+        if who.email_confirmed and who.email in get_settings().allowed_email_set:
             create_user(s, who)
             return True
     return False

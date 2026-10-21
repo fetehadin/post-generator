@@ -25,8 +25,11 @@ SECRET = secrets.token_urlsafe(32)
 SAMPLES = Path(__file__).resolve().parents[3] / "samples"
 
 
-def token(sub: uuid.UUID, email: str, *, secret=SECRET, aud="authenticated", exp_in=3600):
-    claims = {"sub": str(sub), "email": email, "aud": aud, "exp": int(time.time()) + exp_in}
+def token(
+    sub: uuid.UUID, email: str, *, secret=SECRET, aud="authenticated", exp_in=3600, confirmed=True
+):
+    claims = {"sub": str(sub), "email": email, "aud": aud, "exp": int(time.time()) + exp_in,
+              "user_metadata": {"email_verified": confirmed}}  # fmt: skip
     return jwt.encode(claims, secret, algorithm="HS256")
 
 
@@ -241,3 +244,11 @@ def test_cloud_rejects_wrong_issuer_unconfigured_hs256_and_unsigned(cloud, case)
     with pytest.raises(AppError) as err:
         verify_token(bad)
     assert err.value.status == 401
+
+
+def test_an_unconfirmed_team_email_is_not_let_in_by_the_allow_list(login):
+    client = login("team@voxlace.test")
+    client.headers["Authorization"] = (
+        f"Bearer {token(client.uid, 'team@voxlace.test', confirmed=False)}"
+    )
+    assert client.get("/api/v1/me").json()["admitted"] is False
