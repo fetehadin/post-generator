@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://voxlace_app:voxlace_app@localhost:5432/voxlace"
     migrations_database_url: str = "postgresql+psycopg://voxlace:voxlace@localhost:5432/voxlace"
 
-    # Login (FR-27): Supabase issues the token, we only verify it. New Supabase projects sign
-    # with asymmetric keys published at {supabase_url}/auth/v1/.well-known/jwks.json; older
-    # projects use one shared secret (supabase_jwt_secret). Set one of the two.
+    # Login (FR-27): Supabase issues the token, we only verify it. Cloud projects sign with
+    # keys published at {supabase_url}/auth/v1/.well-known/jwks.json (ES256/RS256); local
+    # Supabase signs with a shared secret (HS256). Each token's algorithm picks its key.
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
     # FR-28: comma-separated emails that may join without an invite code (the team).

@@ -187,3 +187,57 @@ def test_two_users_never_see_each_others_posts_imports_or_prompts(login, owner_e
     prompt = a.get(f"/api/v1/drafts/{draft.json()['id']}/prompt").json()["prompt"]
     assert "BETA-ONLY" not in prompt  # only A's posts reached A's prompt
     assert b.get(f"/api/v1/drafts/{draft.json()['id']}/prompt").status_code == 404
+
+
+# ---- cloud Supabase signs with ES256 keys published at the project URL
+
+
+@pytest.fixture
+def cloud(monkeypatch):
+    """Login configured like a cloud project: a URL with published keys, no shared secret."""
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    from app.core import auth
+
+    private = ec.generate_private_key(ec.SECP256R1())
+    monkeypatch.setenv("SUPABASE_URL", "https://proj.supabase.co")
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", "")
+    get_settings.cache_clear()
+
+    class FakeJwks:  # stands in for https://proj.supabase.co/auth/v1/.well-known/jwks.json
+        def get_signing_key_from_jwt(self, _token):
+            return type("Key", (), {"key": private.public_key()})()
+
+    monkeypatch.setattr(auth, "_jwks_client", lambda _url: FakeJwks())
+    yield private
+    get_settings.cache_clear()
+
+
+def es256(private, sub, iss="https://proj.supabase.co/auth/v1"):
+    claims = {"sub": str(sub), "email": "c@x.test", "aud": "authenticated", "iss": iss,
+              "exp": int(time.time()) + 600}  # fmt: skip
+    return jwt.encode(claims, private, algorithm="ES256")
+
+
+def test_cloud_es256_tokens_are_accepted(cloud):
+    from app.core.auth import verify_token
+
+    uid = uuid.uuid4()
+    assert verify_token(es256(cloud, uid)).user_id == uid
+
+
+@pytest.mark.parametrize("case", ["wrong_issuer", "hs256_without_secret", "unsigned"])
+def test_cloud_rejects_wrong_issuer_unconfigured_hs256_and_unsigned(cloud, case):
+    from app.core.auth import verify_token
+    from app.core.errors import AppError
+
+    uid = uuid.uuid4()
+    bad = {
+        "wrong_issuer": lambda: es256(cloud, uid, iss="https://evil.example/auth/v1"),
+        "hs256_without_secret": lambda: token(uid, "c@x.test"),
+        "unsigned": lambda: jwt.encode({"sub": str(uid), "aud": "authenticated",
+                                        "exp": int(time.time()) + 600}, None, algorithm="none"),
+    }[case]()  # fmt: skip
+    with pytest.raises(AppError) as err:
+        verify_token(bad)
+    assert err.value.status == 401
