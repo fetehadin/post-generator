@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useDeleteCheckin, useCheckins, usePatchCheckin } from '../../api/checkins'
+import { useDraftStats } from '../../api/account'
 import { useDrafts } from '../../api/drafts'
 import type { Checkin, DraftStatus, Platform } from '../../api/types'
 import { DraftRowLink } from '../../components/DraftRowLink'
@@ -14,6 +15,7 @@ export function DraftsPage() {
   return (
     <div className="mx-auto max-w-[720px] px-4 py-12 md:px-6 md:py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Drafts</h1>
+      <WeekStats />
       <div role="tablist" aria-label="Show" className="mt-6 flex gap-1 border-b border-line">
         {(['drafts', 'checkins'] as const).map((t) => (
           <button
@@ -144,6 +146,7 @@ function CheckinRow({ checkin }: { checkin: Checkin }) {
           </label>
           <textarea
             id={`checkin-${checkin.id}`}
+            maxLength={4000}
             value={text}
             onChange={(e) => setText(e.target.value)}
             className="mt-1 block min-h-20 w-full rounded-control border border-edge bg-surface p-2 font-serif [field-sizing:content]"
@@ -194,5 +197,20 @@ function CheckinRow({ checkin }: { checkin: Checkin }) {
         </p>
       )}
     </li>
+  )
+}
+
+const pct = (x: number) => `${Math.round(x * 100)}%`
+
+/** FR-15: did the drafts get posted, and how much were they edited first? */
+function WeekStats() {
+  const stats = useDraftStats().data
+  if (!stats?.created) return null
+  return (
+    <p className="mt-1 text-sm text-muted">
+      Last 7 days: {stats.created} {stats.created === 1 ? 'draft' : 'drafts'}, {stats.published}{' '}
+      posted ({pct(stats.publish_rate ?? 0)})
+      {stats.edited !== null && `, edited ${pct(stats.edited)} on average before posting`}.
+    </p>
   )
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
+import { useDuePosts } from '../api/drafts'
 import { useMe } from '../api/me'
 import { applyTheme, nextTheme, savedTheme, type Theme } from '../lib/theme'
 import { Icon, type IconName } from './Icon'
@@ -31,6 +32,7 @@ export function AppShell() {
   const [theme, setTheme] = useState<Theme | null>(savedTheme)
   const [collapsed, setCollapsed] = useState(savedCollapsed)
   const me = useMe()
+  const due = useDuePosts().data?.items.length ?? 0
 
   const current: Theme =
     theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
@@ -76,6 +78,7 @@ export function AppShell() {
             <span className="text-xl font-semibold tracking-tight">
               {collapsed ? 'V' : 'Voxlace'}
             </span>
+            {due > 0 && <DueBell count={due} />}
             <button
               type="button"
               onClick={switchTheme}
@@ -163,5 +166,23 @@ export function AppShell() {
         ))}
       </nav>
     </div>
+  )
+}
+
+/** Shown only when something needs action: a scheduled post is due (FR-35, in the app). */
+function DueBell({ count }: { count: number }) {
+  const label = count === 1 ? '1 post is due' : `${count} posts are due`
+  return (
+    <NavLink
+      to="/calendar"
+      aria-label={label}
+      title={label}
+      className="relative ml-auto mr-1 grid size-9 place-items-center rounded-control text-signal hover:bg-sunken"
+    >
+      <Icon name="bell" />
+      <span className="absolute top-1 right-1 grid min-w-4 place-items-center rounded-full bg-signal px-1 text-[10px] leading-4 font-semibold text-on-thread">
+        {count}
+      </span>
+    </NavLink>
   )
 }

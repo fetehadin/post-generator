@@ -14,6 +14,13 @@ from app.services import checkins as service
 router = APIRouter(prefix="/checkins", tags=["checkins"])
 
 
+def _text(raw: str) -> str:
+    text = raw.strip()
+    if not text:
+        raise AppError("missing_text", "Write something first.")
+    return text
+
+
 def _out(c: Checkin) -> CheckinOut:
     return CheckinOut(
         id=c.id, day=c.day, text=c.text, created_at=c.created_at, updated_at=c.updated_at
@@ -23,7 +30,7 @@ def _out(c: Checkin) -> CheckinOut:
 @router.post("", response_model=CheckinOut, status_code=201)
 def create(body: CheckinIn, user_id: uuid.UUID = Depends(current_user)) -> CheckinOut:
     day = body.day or datetime.now(UTC).date()
-    return _out(service.create(user_id, body.text.strip(), day))
+    return _out(service.create(user_id, _text(body.text), day))
 
 
 @router.get("", response_model=CheckinsOut)
@@ -37,7 +44,7 @@ def edit(
 ) -> CheckinOut:
     changes = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}
     if "text" in changes:
-        changes["text"] = changes["text"].strip()
+        changes["text"] = _text(changes["text"])
     row = service.update(user_id, checkin_id, changes)
     if row is None:
         raise AppError("not_found", "Not found.", 404)

@@ -56,6 +56,7 @@ export function CalendarItem({ draft, patch, compact = false }: Props) {
           <input
             id={`move-${draft.id}`}
             type="datetime-local"
+            min={toLocalInput(new Date().toISOString())}
             value={when}
             onChange={(e) => setWhen(e.target.value)}
             className="min-h-8 w-full rounded-control border border-edge bg-surface px-1"

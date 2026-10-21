@@ -22,6 +22,7 @@ from app.counting import post_length
 from app.models import Checkin, Draft, DraftVersion, PlatformProfile, PromptLog
 from app.services.profile import get_profile
 from app.services.retrieval import Example, find_examples
+from app.services.usage import LimitReached, check_drafts
 from app.services.voice import effective_limit, voice_card
 
 TEMPLATE = Template((Path(__file__).parents[1] / "ai" / "prompts" / "draft.md").read_text())
@@ -165,6 +166,14 @@ def _rewrite_if_needed(ai, prompt, result, text, topic, examples):
     return retry, second, second_text
 
 
+def _check_limit(user_id: uuid.UUID) -> None:
+    """FR-30, before any AI call. 429 like the AI's own rate limit; the input is kept."""
+    try:
+        check_drafts(user_id)
+    except LimitReached as e:
+        raise DraftError("daily_limit", e.message, 429) from e
+
+
 def generate_draft(
     user_id: uuid.UUID,
     platform: str,
@@ -179,6 +188,7 @@ def generate_draft(
             "missing_topic",
             "Write what you did today, or fill in your summary card in Profile first.",
         )
+    _check_limit(user_id)
     ai = ai or default_client()
 
     with user_session(user_id) as s:
@@ -203,6 +213,8 @@ def generate_draft(
     )
     result: GenerationResult = ai.generate(prompt, purpose="draft")
     text = clean_output(result.text)
+    if not text:
+        raise AIUnavailable("the model returned nothing")  # 503; nothing is saved
     # Numbers from the summary card are given facts too, not inventions.
     facts = f"{topic}\n{about.summary_card}"
     prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, facts, examples)

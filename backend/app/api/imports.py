@@ -23,7 +23,7 @@ from app.importers.telegram import parse_telegram
 from app.importers.x import parse_x
 from app.models import Import, SourcePost, User
 from app.schemas import ImportOut
-from app.services import voice
+from app.services import usage, voice
 from app.services.embedding import embed_pending
 from app.services.posts import save_posts
 from app.services.profile import excluded_hashtags
@@ -106,6 +106,8 @@ def create_import(
     finally:
         del data  # the raw file is never kept (NFR-11)
 
+    today = usage.usage(user_id)
+    left = max(today.post_limit - today.posts, 0)
     with user_session(user_id) as s:
         imp = Import(
             user_id=user_id, platform=platform, status="embedding", parsed=len(result.posts)
@@ -113,6 +115,13 @@ def create_import(
         s.add(imp)
         s.flush()
         saved = save_posts(s, user_id, platform, result.posts, import_id=imp.id)
+        if saved.new > left:  # FR-30; raising here rolls the whole import back
+            raise AppError(
+                "daily_limit",
+                f"This import adds {saved.new} new posts, but only {left} more can be learned "
+                "today. Try again after midnight UTC.",
+                429,
+            )
         skipped = dict(result.skipped)
         unchanged = len(result.posts) - saved.new - saved.updated
         if unchanged:

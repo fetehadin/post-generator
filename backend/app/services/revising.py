@@ -10,13 +10,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from string import Template
 
-from app.ai.client import AIClient, default_client
+from app.ai.client import AIClient, AIUnavailable, default_client
 from app.core.db import user_session
 from app.models import Draft, DraftMessage, PlatformProfile, PromptLog
 from app.services.drafting import (
     COUNTING_NOTES,
     PLATFORM_NAMES,
     DraftError,
+    _check_limit,
     _facts,
     clean_output,
 )
@@ -71,6 +72,7 @@ def revise(
         raise DraftError("missing_instruction", "Tell it what to change.")
     current = detail(user_id, draft_id)
     d = current.draft
+    _check_limit(user_id)
     if d.status != "draft":
         raise DraftError("not_editable", "Move it back to draft before you change the text.", 409)
     selection = (selection or "").strip() or None
@@ -93,6 +95,8 @@ def revise(
     )
     result = (ai or default_client()).generate(prompt, purpose="revise")  # outside any transaction
     answer = clean_output(result.text)
+    if not answer or answer.upper() == QUESTION:
+        raise AIUnavailable("the model returned nothing")  # 503; nothing is saved
 
     with user_session(user_id) as s:
         draft = s.get(Draft, draft_id)
