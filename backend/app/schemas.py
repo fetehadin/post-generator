@@ -39,6 +39,14 @@ class PostOut(BaseModel):
     embedded: bool
 
 
+class PostPatchIn(BaseModel):
+    """FR-25: pin a post (always an example) or exclude it (never one). Setting one clears
+    the other: a post can't be both."""
+
+    pinned: bool | None = None
+    excluded: bool | None = None
+
+
 class PostsPage(BaseModel):
     items: list[PostOut]
     next_cursor: str | None
