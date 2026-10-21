@@ -1,11 +1,12 @@
 import { Link } from 'react-router'
 import { useMe } from '../../api/me'
 import { supabase } from '../../lib/auth'
+import { AboutYou } from './AboutYou'
 import { YourPosts } from './YourPosts'
 
 /**
  * Profile (DESIGN.md §2, decided 21 Oct 2026): everything about you, editable, plus settings.
- * Phase 3 fills "About you" and "Your posts and voice"; settings grow in Phases 5–6.
+ * About you and Your posts are Phase 3; settings grow in Phases 5–6.
  */
 export function ProfilePage() {
   const me = useMe()
@@ -18,10 +19,10 @@ export function ProfilePage() {
         <h2 id="about" className="text-lg font-semibold">
           About you
         </h2>
-        <p className="mt-2 text-sm text-muted">
-          Your work, interests, audience and language, and the short summary Voxlace writes from
-          them. Coming next in Phase 3.
+        <p className="mt-1 text-sm text-muted">
+          What Voxlace knows about you. Drafts use the summary card, never guesses.
         </p>
+        <AboutYou />
       </section>
 
       <section aria-labelledby="posts" className="mt-10">
