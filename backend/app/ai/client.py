@@ -66,7 +66,12 @@ class AIClient:
         if self._client is None:
             if not self.settings.gemini_api_key:
                 raise AIUnavailable("GEMINI_API_KEY is not set")
-            self._client = genai.Client(api_key=self.settings.gemini_api_key)
+            # A timeout on every call: on a flaky connection a dropped request can otherwise
+            # hang forever. A timeout is a network error, so it is retried like one.
+            self._client = genai.Client(
+                api_key=self.settings.gemini_api_key,
+                http_options=types.HttpOptions(timeout=self.settings.ai_timeout_seconds * 1000),
+            )
         return self._client
 
     # ---- embeddings ----
