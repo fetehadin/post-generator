@@ -22,6 +22,10 @@ class ImportOut(BaseModel):
     skipped: dict[str, int]
     embedded: int
     waiting: int = Field(description="Posts from this import still waiting to be embedded")
+    premium_hint: bool | None = Field(
+        default=None,
+        description="X only, on upload: a recent post over 280 suggests Premium (Q31)",
+    )
 
 
 class PostOut(BaseModel):

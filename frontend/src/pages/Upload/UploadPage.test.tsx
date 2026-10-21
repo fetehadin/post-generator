@@ -112,3 +112,20 @@ test('a re-import says nothing was added twice, without counting it as skipped',
   expect(await screen.findByText(/All of them were already imported/)).toBeInTheDocument()
   expect(screen.getByText('135 messages skipped')).toBeInTheDocument()
 })
+
+test('X: choose X, upload the archive ZIP, and see the Premium note', async () => {
+  vi.mocked(api).mockResolvedValue(
+    job({ platform: 'x', parsed: 72, skipped: { reply: 225, repost: 3 }, premium_hint: true }),
+  )
+  renderPage()
+  await userEvent.click(screen.getByRole('radio', { name: 'X' }))
+  expect(screen.getByText(/Download an archive of your data/)).toBeInTheDocument()
+  const zip = new File(['PK'], 'twitter-archive.zip', { type: 'application/zip' })
+  await userEvent.upload(screen.getByLabelText(/Choose your X archive/), zip)
+  await userEvent.click(screen.getByRole('button', { name: 'Import posts' }))
+
+  expect((vi.mocked(api).mock.calls[0][1]?.body as FormData).get('platform')).toBe('x')
+  expect(await screen.findByRole('heading', { name: '72 posts found' })).toBeInTheDocument()
+  expect(screen.getByText('225 replies to other people')).toBeInTheDocument()
+  expect(screen.getByText(/probably has\s+Premium/)).toBeInTheDocument()
+})

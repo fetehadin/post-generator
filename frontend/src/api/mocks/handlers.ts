@@ -38,7 +38,22 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
   }
 
   if (path === '/imports' && init?.method === 'POST') {
-    const file = (init.body as FormData).get('file') as File
+    const form = init.body as FormData
+    const file = form.get('file') as File
+    if (form.get('platform') === 'x' && file.name.endsWith('.zip')) {
+      const job: ImportJob = {
+        id: crypto.randomUUID(),
+        platform: 'x',
+        status: 'embedding',
+        parsed: 72,
+        skipped: { reply: 225, repost: 3, too_short: 3, link_only: 1 },
+        embedded: 0,
+        waiting: 72,
+        premium_hint: true,
+      }
+      imports.set(job.id, job)
+      return json(201, job)
+    }
     if (!file.name.endsWith('.json')) {
       return json(400, {
         error: {

@@ -49,7 +49,13 @@ All ids are UUIDs.
 
 ### `POST /imports` → `201`
 
-`multipart/form-data` with `platform` (`"telegram"` only in Phase 1) and `file` (a Telegram Desktop single-channel `result.json`, at most 64 MB). The file is parsed in memory and never stored.
+`multipart/form-data` with `platform` and `file` (at most 64 MB). The file is parsed in memory and never stored.
+
+| `platform` | `file` |
+|---|---|
+| `telegram` | A Telegram Desktop single-channel `result.json` |
+| `x` | The X archive ZIP as downloaded (only `data/tweets*.js`, `data/note-tweet.js` and the account id in `data/account.js` are read), or a bare `tweets.js` |
+| `linkedin` | Not yet: `400 unsupported_platform` |
 
 ```json
 {
@@ -64,7 +70,8 @@ All ids are UUIDs.
 ```
 
 - `parsed`: the user's own posts found in the file.
-- `skipped`: a count per reason. Keys appear only when non-zero: `service`, `forwarded`, `empty`, `too_short`, `link_only`, `excluded_topic`, `duplicate`, `invalid`, `already_imported`.
+- `skipped`: a count per reason. Keys appear only when non-zero: `service`, `forwarded`, `empty`, `too_short`, `link_only`, `excluded_topic`, `duplicate`, `invalid`, `already_imported`, and for X `reply` (to other people; your own threads are kept) and `repost`.
+- `premium_hint` (X only, in the upload response): `true` when the archive has a post over 280 from the last 90 days, which only Premium accounts can make (OPEN_QUESTIONS Q31). `null` otherwise and on `GET /imports/{id}`.
 - Embedding starts in the background, best posts first, about 100 a minute on the free tier.
 
 ### `GET /imports/{id}`
