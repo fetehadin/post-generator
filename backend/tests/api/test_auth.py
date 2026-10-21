@@ -18,7 +18,7 @@ from sqlalchemy import text
 from app.api.deps import get_ai
 from app.core.config import get_settings
 from app.main import create_app
-from tests.api.test_api import FakeAI
+from tests.api.conftest import FakeAI
 
 # Made fresh each run: nothing secret-like lives in the code (and the secret scan stays quiet).
 SECRET = secrets.token_urlsafe(32)

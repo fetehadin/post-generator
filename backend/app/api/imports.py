@@ -25,6 +25,7 @@ from app.models import Import, SourcePost, User
 from app.schemas import ImportOut
 from app.services.embedding import embed_pending
 from app.services.posts import save_posts
+from app.services.profile import excluded_hashtags
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -98,7 +99,7 @@ def create_import(
             "invalid_file", "The file is larger than 64 MB. Export without photos and videos."
         )
     try:
-        result = parse(data)
+        result = parse(data, excluded_hashtags=excluded_hashtags(user_id))  # FR-44: theirs
     except ImportFormatError as e:
         raise AppError("invalid_file", str(e)) from e  # nothing was saved (FR-3)
     finally:
