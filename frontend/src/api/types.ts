@@ -15,6 +15,8 @@ export type SkipReason =
   | 'duplicate'
   | 'invalid'
   | 'already_imported'
+  | 'reply'
+  | 'repost'
 
 export type ImportJob = {
   id: string
@@ -24,6 +26,8 @@ export type ImportJob = {
   skipped: Partial<Record<SkipReason, number>>
   embedded: number
   waiting: number
+  /** X only, on upload: a recent post over 280 suggests Premium (OPEN_QUESTIONS Q31). */
+  premium_hint?: boolean | null
 }
 
 export type Draft = {

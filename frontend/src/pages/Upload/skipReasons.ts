@@ -11,4 +11,6 @@ export const SKIP_LABELS: Record<SkipReason, string> = {
   duplicate: 'duplicates',
   invalid: 'unreadable',
   already_imported: 'already imported',
+  reply: 'replies to other people',
+  repost: 'reposts of other people',
 }

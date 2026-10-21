@@ -1,13 +1,43 @@
 import { useState, type DragEvent } from 'react'
 import { Link } from 'react-router'
 import { useCreateImport, useImport } from '../../api/imports'
-import type { ImportJob, SkipReason } from '../../api/types'
+import type { ImportJob, Platform, SkipReason } from '../../api/types'
 import { SKIP_LABELS } from './skipReasons'
 
 const MAX_BYTES = 64 * 1024 * 1024 // the API's limit (docs/API.md)
 
-/** Phase 1: import a Telegram channel export (FR-1, FR-2, FR-3). */
+/** How to get each export, and what file to upload. LinkedIn joins in its own PR. */
+const SOURCES: Record<
+  'telegram' | 'x',
+  { label: string; file: string; accept: string; steps: string[] }
+> = {
+  telegram: {
+    label: 'Telegram',
+    file: 'result.json',
+    accept: '.json,application/json',
+    steps: [
+      'Open your channel in Telegram Desktop.',
+      'Open the ⋮ menu and choose Export chat history.',
+      'Untick photos and videos, and pick the JSON format.',
+      'Upload the result.json file here.',
+    ],
+  },
+  x: {
+    label: 'X',
+    file: 'your X archive (.zip)',
+    accept: '.zip,application/zip,.js',
+    steps: [
+      'On X, open Settings → Your account → Download an archive of your data.',
+      'X emails you when it’s ready, usually within a day.',
+      'Upload the ZIP as it is. Voxlace reads only your posts from it, nothing else.',
+    ],
+  },
+}
+
+/** Import an export: Telegram or X (FR-1, FR-2, FR-3). */
 export function UploadPage() {
+  const [platform, setPlatform] = useState<'telegram' | 'x'>('telegram')
+  const source = SOURCES[platform]
   const [file, setFile] = useState<File | null>(null)
   const [tooBig, setTooBig] = useState(false)
   const create = useCreateImport()
@@ -26,7 +56,8 @@ export function UploadPage() {
     choose(e.dataTransfer.files[0])
   }
 
-  if (current) return <Result job={current} />
+  // The premium hint arrives only with the upload response; keep it while polling.
+  if (current) return <Result job={current} premiumHint={create.data?.premium_hint ?? null} />
 
   return (
     <div className="mx-auto max-w-[720px] px-4 py-12 md:px-6 md:py-16">
@@ -36,24 +67,46 @@ export function UploadPage() {
         never stored.
       </p>
 
-      <section aria-labelledby="howto" className="mt-8">
+      <div role="radiogroup" aria-label="Platform" className="mt-8 flex gap-2">
+        {(Object.keys(SOURCES) as Array<'telegram' | 'x'>).map((p) => (
+          <button
+            key={p}
+            type="button"
+            role="radio"
+            aria-checked={platform === p}
+            onClick={() => {
+              setPlatform(p)
+              setFile(null)
+              setTooBig(false)
+              create.reset()
+            }}
+            className={`inline-flex min-h-9 items-center gap-1 rounded-full border px-4 text-sm ${
+              platform === p ? 'border-thread bg-thread-soft font-semibold' : 'border-edge'
+            }`}
+          >
+            {platform === p && <span aria-hidden="true">✓</span>}
+            {SOURCES[p].label}
+          </button>
+        ))}
+      </div>
+
+      <section aria-labelledby="howto" className="mt-6">
         <h2 id="howto" className="text-sm font-semibold">
-          Export your Telegram channel
+          Export your {source.label} posts
         </h2>
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted">
-          <li>Open your channel in Telegram Desktop.</li>
-          <li>Open the ⋮ menu and choose Export chat history.</li>
-          <li>Untick photos and videos, and pick the JSON format.</li>
-          <li>Upload the result.json file here.</li>
+          {source.steps.map((s) => (
+            <li key={s}>{s}</li>
+          ))}
         </ol>
-        <p className="mt-2 text-xs text-muted">X and LinkedIn imports come next.</p>
+        <p className="mt-2 text-xs text-muted">LinkedIn imports come next.</p>
       </section>
 
       <form
         className="mt-8"
         onSubmit={(e) => {
           e.preventDefault()
-          if (file && !tooBig) create.mutate({ platform: 'telegram', file })
+          if (file && !tooBig) create.mutate({ platform: platform as Platform, file })
         }}
       >
         <label
@@ -62,7 +115,7 @@ export function UploadPage() {
           onDrop={onDrop}
           className="flex cursor-pointer flex-col items-center gap-1 rounded-panel border border-dashed border-edge bg-paper px-6 py-10 text-center"
         >
-          <span className="font-semibold">{file ? file.name : 'Choose result.json'}</span>
+          <span className="font-semibold">{file ? file.name : `Choose ${source.file}`}</span>
           <span className="text-sm text-muted">
             {file ? 'Choose another file' : 'or drop it here'}
           </span>
@@ -70,14 +123,14 @@ export function UploadPage() {
         <input
           id="export-file"
           type="file"
-          accept=".json,application/json"
+          accept={source.accept}
           className="sr-only"
           onChange={(e) => choose(e.target.files?.[0])}
         />
 
         {tooBig && (
           <p role="alert" className="mt-3 text-sm text-danger">
-            This file is larger than 64 MB. Export one channel only, without photos and videos.
+            This file is larger than 64 MB. Export without photos and videos, or one channel only.
           </p>
         )}
         {create.isError && (
@@ -98,7 +151,7 @@ export function UploadPage() {
   )
 }
 
-function Result({ job }: { job: ImportJob }) {
+function Result({ job, premiumHint }: { job: ImportJob; premiumHint: boolean | null }) {
   // "Already imported" isn't a skip: those posts are kept, just not added twice (FR-2).
   const { already_imported: already = 0, ...rest } = job.skipped
   const skipped = (Object.entries(rest) as Array<[SkipReason, number]>).sort((a, b) => b[1] - a[1])
@@ -129,6 +182,13 @@ function Result({ job }: { job: ImportJob }) {
             ))}
           </ul>
         </details>
+      )}
+
+      {premiumHint && (
+        <p className="mt-4 rounded-panel bg-sunken p-3 text-sm">
+          Your archive has posts longer than 280 characters, so your X account probably has Premium.
+          Voxlace will still keep X drafts short unless you ask for a long post.
+        </p>
       )}
 
       <section aria-live="polite" className="mt-8">

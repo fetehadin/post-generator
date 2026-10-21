@@ -19,6 +19,7 @@ from app.core.db import user_session
 from app.core.errors import AppError
 from app.importers.common import ImportFormatError
 from app.importers.telegram import parse_telegram
+from app.importers.x import parse_x
 from app.models import Import, SourcePost, User
 from app.schemas import ImportOut
 from app.services.embedding import embed_pending
@@ -27,6 +28,8 @@ from app.services.posts import save_posts
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/imports", tags=["imports"])
 
+# One parser per platform. Each reads only the posts from its export (FR-39).
+PARSERS = {"telegram": parse_telegram, "x": parse_x}
 MAX_UPLOAD_BYTES = 64 * 1024 * 1024  # the largest real channel export so far is 41 MB
 _running: set[uuid.UUID] = set()
 _running_lock = threading.Lock()
@@ -82,16 +85,19 @@ def create_import(
             raise AppError(
                 "privacy_required", "Read and accept the privacy notice before uploading.", 403
             )
-    if platform != "telegram":
+    parse = PARSERS.get(platform)
+    if parse is None:
         raise AppError(
             "unsupported_platform",
-            "Only Telegram channel exports can be imported right now. X and LinkedIn come next.",
+            "Telegram and X imports work now. LinkedIn comes next.",
         )
     data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
-        raise AppError("invalid_file", "The file is larger than 64 MB. Export one channel only.")
+        raise AppError(
+            "invalid_file", "The file is larger than 64 MB. Export without photos and videos."
+        )
     try:
-        result = parse_telegram(data)
+        result = parse(data)
     except ImportFormatError as e:
         raise AppError("invalid_file", str(e)) from e  # nothing was saved (FR-3)
     finally:
@@ -114,6 +120,8 @@ def create_import(
         out = _out(s, imp)
 
     background.add_task(embed_in_background, user_id, ai)
+    if platform == "x":
+        out.premium_hint = result.premium_hint  # Q31: the UI asks the user to confirm
     return out
 
 
