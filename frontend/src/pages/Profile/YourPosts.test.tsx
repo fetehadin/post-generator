@@ -12,6 +12,9 @@ vi.mock('../../api/client', async (importOriginal) => ({
   api: vi.fn(),
 }))
 
+// The voice panel has its own tests; here only the posts list calls the API.
+vi.mock('./VoicePanel', () => ({ VoicePanel: () => null }))
+
 beforeEach(() => vi.clearAllMocks())
 
 const post = (over: Partial<Post> = {}): Post => ({
