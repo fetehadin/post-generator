@@ -8,7 +8,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import drafts, health, imports, me, posts, profile
+from app.api import drafts, health, imports, me, platforms, posts, profile
 from app.core import errors
 from app.core.config import get_settings
 
@@ -29,7 +29,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     errors.install(app)
-    for module in (health, me, profile, imports, posts, drafts):
+    for module in (health, me, profile, platforms, imports, posts, drafts):
         app.include_router(module.router, prefix=API_PREFIX)
     return app
 

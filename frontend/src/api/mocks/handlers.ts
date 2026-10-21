@@ -3,7 +3,19 @@
  * Shapes match docs/API.md. Imports "learn" 120 posts per poll, so progress is visible.
  */
 import type { Profile } from '../profile'
-import type { Draft, ImportJob, Post } from '../types'
+import type { Draft, ImportJob, Platform, Post } from '../types'
+
+const platformInfo: Partial<
+  Record<
+    Platform,
+    {
+      voice_card: string
+      voice_card_updated_at: string | null
+      x_premium: boolean | null
+      premium_source: 'user' | 'export' | null
+    }
+  >
+> = {}
 
 const profile: Profile = {
   role: '',
@@ -168,6 +180,53 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
     profile.summary_card = `I'm a ${profile.role || 'developer'} working on ${profile.current_projects || 'my projects'}. I write for ${profile.audience || 'people who build things'}.`
     profile.summary_updated_at = new Date().toISOString()
     return json(200, profile)
+  }
+
+  const platformMatch = path.match(/^\/platforms\/(telegram|x|linkedin)(\/.*)?$/)
+  if (platformMatch) {
+    const id = platformMatch[1] as Platform
+    const mine = posts.filter((p) => p.platform === id && !p.excluded)
+    const info = (platformInfo[id] ??= {
+      voice_card: '',
+      voice_card_updated_at: null as string | null,
+      x_premium: null as boolean | null,
+      premium_source: null as 'user' | 'export' | null,
+    })
+    const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {}
+    const now = new Date().toISOString()
+    if (platformMatch[2] === '/voice-card' && init?.method === 'POST')
+      Object.assign(info, {
+        voice_card: '- Short posts, one idea each.\n- Ends with a question.',
+        voice_card_updated_at: now,
+      })
+    if (platformMatch[2] === '/voice-card' && init?.method === 'PUT')
+      Object.assign(info, { voice_card: body.voice_card, voice_card_updated_at: now })
+    if (platformMatch[2] === '/settings')
+      Object.assign(info, { x_premium: body.x_premium, premium_source: 'user' })
+    const limit = id === 'x' ? 280 : id === 'linkedin' ? 3000 : 4096
+    return json(200, {
+      platform: id,
+      rules: {
+        char_limit: limit,
+        counting_rule: id === 'x' ? 'x_weighted' : 'plain',
+        tone_notes: 'Direct and warm.',
+        structure_notes: 'Hook first, short lines.',
+      },
+      effective_limit: id === 'x' && info.x_premium ? 25000 : limit,
+      stats: {
+        post_count: mine.length,
+        thin: mine.length < 20,
+        median_length: 240,
+        median_lines: 3,
+        emoji_share: 0.4,
+        hashtag_share: 0.1,
+        link_share: 0.2,
+        question_share: 0.1,
+        ethiopic_share: 0.3,
+        top_hashtags: ['#python'],
+      },
+      ...info,
+    })
   }
 
   if (path === '/drafts/generate') {

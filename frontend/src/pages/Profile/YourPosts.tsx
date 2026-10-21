@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { usePatchPost, usePosts, type PostFilter } from '../../api/posts'
 import type { Platform, Post } from '../../api/types'
+import { VoicePanel } from './VoicePanel'
 
 const TABS: Array<{ id: Platform; label: string }> = [
   { id: 'telegram', label: 'Telegram' },
@@ -15,7 +16,7 @@ const SHOW: Array<{ id: PostFilter['show']; label: string }> = [
 ]
 const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
-/** Profile → your previous posts, per platform: search, pin and exclude (FR-25). */
+/** Profile → per platform: your voice (FR-5, FR-22) and previous posts: search, pin and exclude (FR-25). */
 export function YourPosts() {
   const [platform, setPlatform] = useState<Platform>('telegram')
   const [typed, setTyped] = useState('')
@@ -49,7 +50,9 @@ export function YourPosts() {
         ))}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <VoicePanel key={platform} platform={platform} label={label} />
+
+      <div className="mt-6 flex flex-wrap items-center gap-2">
         <label htmlFor="post-search" className="sr-only">
           Search your {label} posts
         </label>
