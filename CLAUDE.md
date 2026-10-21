@@ -17,7 +17,7 @@ Read the relevant doc before changing behaviour. Don't contradict it; if the cod
 - `samples/README.md` — expected parser counts for each sample file, and the format traps they contain.
 - `docs/DESIGN.md` — UI/UX principles, screen specs and tokens. Read it before any UI work.
 
-**Current phase:** 2 — Accounts and isolation. Phase 0 and Phase 1 demos passed on 19 Oct 2026 (Phase 1: real Telegram export → 412 posts → a draft in the browser). (Update this line when a phase's demo passes.)
+**Current phase:** 3 — All platforms and voice. Demos passed: Phase 0 and 1 on 19 Oct 2026; Phase 2 on 21 Oct 2026 (two real Supabase accounts, each imported and drafted; neither sees the other's posts, imports or prompts). Still open from Phase 2: the first Contabo deploy (needs the server; see deploy/README.md). (Update this line when a phase's demo passes.)
 
 ## Stack
 
