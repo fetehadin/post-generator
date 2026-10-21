@@ -3,7 +3,10 @@
  * Shapes match docs/API.md. Imports "learn" 120 posts per poll, so progress is visible.
  */
 import type { Profile } from '../profile'
-import type { Draft, ImportJob, Platform, Post } from '../types'
+import type { Checkin, DraftDetail, ImportJob, Platform, Post } from '../types'
+
+const drafts: DraftDetail[] = []
+const checkins: Checkin[] = []
 
 const platformInfo: Partial<
   Record<
@@ -229,20 +232,124 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
     })
   }
 
+  if (path === '/checkins') {
+    if (init?.method === 'POST') {
+      const b = JSON.parse(String(init.body)) as { text: string; day?: string }
+      const now = new Date().toISOString()
+      const c: Checkin = {
+        id: crypto.randomUUID(),
+        day: b.day ?? now.slice(0, 10),
+        text: b.text,
+        created_at: now,
+        updated_at: now,
+      }
+      checkins.unshift(c)
+      return json(201, c)
+    }
+    return json(200, { items: checkins })
+  }
+  const checkinMatch = path.match(/^\/checkins\/(.+)$/)
+  if (checkinMatch) {
+    const i = checkins.findIndex((c) => c.id === checkinMatch[1])
+    if (i < 0) return json(404, { error: { code: 'not_found', message: 'Not found.' } })
+    if (init?.method === 'DELETE') {
+      checkins.splice(i, 1)
+      return new Response(null, { status: 204 })
+    }
+    Object.assign(checkins[i], JSON.parse(String(init?.body)), {
+      updated_at: new Date().toISOString(),
+    })
+    return json(200, checkins[i])
+  }
+
   if (path === '/drafts/generate') {
-    const { platform } = JSON.parse(String(init?.body)) as { platform: Draft['platform'] }
+    const { platform, topic } = JSON.parse(String(init?.body)) as {
+      platform: Platform
+      topic: string
+    }
     const text =
       'Small win today: the Telegram importer works end to end.\n\n412 posts in, 31 skipped.'
-    return json(201, {
+    const now = new Date().toISOString()
+    const d: DraftDetail = {
       id: crypto.randomUUID(),
       platform,
       status: 'draft',
       text,
       length: { count: text.length, limit: platform === 'x' ? 280 : 4096, over: false },
-      model: 'mock',
-      examples_used: 8,
-      created_at: new Date().toISOString(),
-    } satisfies Draft)
+      scheduled_for: null,
+      published_at: null,
+      created_at: now,
+      updated_at: now,
+      topic,
+      checkin_id: null,
+      versions: [{ id: crypto.randomUUID(), number: 1, text, instruction: null, created_at: now }],
+      messages: [],
+    }
+    drafts.unshift(d)
+    return json(201, { ...d, model: 'mock', examples_used: 8 })
+  }
+  if (path === '/drafts') {
+    const p = url.searchParams
+    const items = drafts.filter(
+      (d) =>
+        (!p.get('status') || d.status === p.get('status')) &&
+        (!p.get('platform') || d.platform === p.get('platform')) &&
+        (!p.get('created_from') || d.created_at >= p.get('created_from')!) &&
+        (!p.get('scheduled_from') ||
+          (d.scheduled_for !== null &&
+            d.scheduled_for >= p.get('scheduled_from')! &&
+            d.scheduled_for < (p.get('scheduled_to') ?? '9999'))),
+    )
+    return json(200, { items })
+  }
+  const draftMatch = path.match(/^\/drafts\/([^/]+)(\/.*)?$/)
+  if (draftMatch) {
+    const d = drafts.find((x) => x.id === draftMatch[1])
+    if (!d) return json(404, { error: { code: 'not_found', message: 'Not found.' } })
+    const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, string>) : {}
+    const now = new Date().toISOString()
+    const addVersion = (text: string, instruction: string) => {
+      const v = {
+        id: crypto.randomUUID(),
+        number: d.versions.length + 1,
+        text,
+        instruction,
+        created_at: now,
+      }
+      d.versions.push(v)
+      Object.assign(d, { text, updated_at: now })
+      d.length = { ...d.length, count: text.length, over: text.length > d.length.limit }
+      return v
+    }
+    if (draftMatch[2] === '/revise') {
+      const v = addVersion(`${d.text.split('\n')[0]}`, body.instruction)
+      d.messages.push(
+        {
+          id: crypto.randomUUID(),
+          role: 'user',
+          text: body.instruction,
+          version_id: null,
+          created_at: now,
+        },
+        {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          text: `v${v.number}: ${body.instruction}`,
+          version_id: v.id,
+          created_at: now,
+        },
+      )
+    } else if (draftMatch[2]?.endsWith('/restore')) {
+      const old = d.versions.find((v) => draftMatch[2]!.includes(v.id))
+      if (old) addVersion(old.text, `Restored v${old.number}`)
+    } else if (init?.method === 'PATCH') {
+      if (body.text && body.text !== d.text) addVersion(body.text, 'Edited by hand')
+      if (body.status) d.status = body.status as DraftDetail['status']
+      if (body.status === 'published') d.published_at = now
+      if (body.status === 'draft' || body.status === 'discarded') d.scheduled_for = null
+      if ('scheduled_for' in body) d.scheduled_for = body.scheduled_for
+    }
+    return json(200, d)
   }
 
   return json(404, { error: { code: 'not_found', message: `No mock for ${path}.` } })
