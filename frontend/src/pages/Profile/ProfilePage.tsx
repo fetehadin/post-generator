@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import { useMe } from '../../api/me'
 import { supabase } from '../../lib/auth'
+import { YourPosts } from './YourPosts'
 
 /**
  * Profile (DESIGN.md §2, decided 21 Oct 2026): everything about you, editable, plus settings.
@@ -24,19 +25,20 @@ export function ProfilePage() {
       </section>
 
       <section aria-labelledby="posts" className="mt-10">
-        <h2 id="posts" className="text-lg font-semibold">
-          Your posts and voice
-        </h2>
-        <p className="mt-2 text-sm text-muted">
-          Your previous posts per platform, with pin and exclude, and your voice card. Coming next
-          in Phase 3.
-        </p>
-        <Link
-          to="/import"
-          className="mt-3 inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm"
-        >
-          Import posts
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="posts" className="text-lg font-semibold">
+            Your posts
+          </h2>
+          <Link
+            to="/import"
+            className="inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm"
+          >
+            Import posts
+          </Link>
+        </div>
+        <div className="mt-4">
+          <YourPosts />
+        </div>
       </section>
 
       <section aria-labelledby="settings" className="mt-10 border-t border-line pt-8">

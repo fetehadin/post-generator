@@ -200,3 +200,50 @@ def test_unknown_route_uses_the_shared_shape(api):
     assert r.status_code == 404 and r.json() == {
         "error": {"code": "not_found", "message": "Not found."}
     }
+
+
+# ---- pin and exclude (FR-25)
+
+
+def first_post(api):
+    return api.get("/api/v1/posts").json()["items"][0]
+
+
+def test_pin_and_exclude_clear_each_other(api):
+    upload(api)
+    post = first_post(api)
+    pinned = api.patch(f"/api/v1/posts/{post['id']}", json={"pinned": True}).json()
+    assert (pinned["pinned"], pinned["excluded"]) == (True, False)
+    excluded = api.patch(f"/api/v1/posts/{post['id']}", json={"excluded": True}).json()
+    assert (excluded["pinned"], excluded["excluded"]) == (False, True)
+    assert [p["id"] for p in api.get("/api/v1/posts?show=excluded").json()["items"]] == [post["id"]]
+    assert api.get("/api/v1/posts?show=pinned").json()["items"] == []
+
+
+def test_another_users_post_cannot_be_pinned(api, make_user):
+    upload(api)
+    post = first_post(api)
+    api.state["user"] = make_user()
+    r = api.patch(f"/api/v1/posts/{post['id']}", json={"pinned": True})
+    assert r.status_code == 404
+
+
+def test_search_matches_words_and_treats_wildcards_literally(api):
+    upload(api)
+    all_posts = api.get("/api/v1/posts").json()["items"]
+    word = all_posts[0]["text"].split()[1]
+    found = api.get(f"/api/v1/posts?q={word}").json()["items"]
+    assert found and all(word.lower() in p["text"].lower() for p in found)
+    assert api.get("/api/v1/posts?q=%25").json()["items"] == []  # a literal %, not "anything"
+
+
+def test_a_pinned_post_is_always_an_example_and_an_excluded_one_never(api):
+    upload(api)
+    posts = api.get("/api/v1/posts").json()["items"]
+    keep, drop = posts[0], posts[1]
+    api.patch(f"/api/v1/posts/{keep['id']}", json={"pinned": True})
+    api.patch(f"/api/v1/posts/{drop['id']}", json={"excluded": True})
+    draft = api.post("/api/v1/drafts/generate", json={"platform": "telegram", "topic": "ship"})
+    prompt = api.get(f"/api/v1/drafts/{draft.json()['id']}/prompt").json()["prompt"]
+    assert keep["text"] in prompt
+    assert drop["text"] not in prompt

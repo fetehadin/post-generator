@@ -40,3 +40,16 @@ export type Draft = {
   examples_used: number
   created_at: string
 }
+
+export type Post = {
+  id: string
+  platform: Platform
+  text: string
+  posted_at: string
+  likes: number
+  pinned: boolean
+  excluded: boolean
+  embedded: boolean
+}
+
+export type PostsPage = { items: Post[]; next_cursor: string | null }
