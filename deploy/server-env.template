@@ -15,7 +15,7 @@ GENERATION_MODELS=google:gemini-flash-latest,google:gemini-flash-lite-latest
 # Supabase -> Project settings -> API. The publishable key is public (it is built into the app).
 SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 SUPABASE_PUBLISHABLE_KEY=
-# Only for older Supabase projects that sign with one shared secret; leave empty otherwise.
+# Only if your project signs logins with a shared secret (HS256); cloud projects with signing keys leave it empty.
 SUPABASE_JWT_SECRET=
 # The team: these emails join without an invite code.
 ALLOWED_EMAILS=
