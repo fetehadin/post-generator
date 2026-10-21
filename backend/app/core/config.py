@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     # Ordered fallback chain, comma-separated "provider:model" (FR-31).
     generation_models: str = "google:gemini-flash-latest"
     fallback_api_key: str = ""
+    # Longest one AI call may take before it counts as a network drop and is retried.
+    ai_timeout_seconds: int = 60
 
     @property
     def login_configured(self) -> bool:

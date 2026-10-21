@@ -244,3 +244,31 @@ def test_backoff_waits_as_long_as_the_server_asks():
     client, waits = make(HintedModels())
     client.embed_query("x")
     assert waits == [16.4]  # the server's 15.4s + 1s margin, not the 2s default
+
+
+def test_the_real_client_has_a_timeout(monkeypatch):
+    """Without one, a dropped connection hangs a draft forever (seen on a flaky network)."""
+    from app.ai import client as client_module
+
+    seen = {}
+    monkeypatch.setattr(
+        client_module.genai, "Client", lambda **kw: seen.update(kw) or SimpleNamespace()
+    )
+    settings = Settings(_env_file=None, gemini_api_key="test", ai_timeout_seconds=45)
+    AIClient(settings).client  # noqa: B018 (building the client is the point)
+    assert seen["http_options"].timeout == 45_000
+
+
+def test_a_timeout_is_retried_like_a_network_drop():
+    import httpx
+
+    class SlowOnce(FakeModels):
+        def generate_content(self, model, contents, config):
+            self.gen_calls.append(model)
+            if len(self.gen_calls) == 1:
+                raise httpx.ReadTimeout("no answer in 60 s")
+            return SimpleNamespace(text="ok", model_version="v")
+
+    client, waits = make(SlowOnce())
+    assert client.generate("prompt").text == "ok"
+    assert waits == [2.0]
