@@ -33,6 +33,8 @@ class ParseResult:
     posts: list[ParsedPost]
     skipped: Counter = field(default_factory=Counter)
     source_name: str = ""
+    # X only (Q31): the archive has a recent post over 280, which only Premium accounts can make.
+    premium_hint: bool = False
 
 
 def normalize_hashtags(tags: Iterable[str]) -> set[str]:
