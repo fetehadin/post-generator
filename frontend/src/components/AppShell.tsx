@@ -93,7 +93,7 @@ export function AppShell() {
               <NavLink
                 key={p.to}
                 to={p.to}
-                end
+                end={p.to === '/'}
                 title={collapsed ? p.label : undefined}
                 className={({ isActive }) => item(isActive)}
               >
@@ -150,7 +150,7 @@ export function AppShell() {
           <NavLink
             key={p.to}
             to={p.to}
-            end
+            end={p.to === '/'}
             className={({ isActive }) =>
               `flex min-h-14 flex-col items-center justify-center gap-1 text-xs ${
                 isActive ? 'font-semibold text-thread' : 'text-muted'
