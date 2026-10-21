@@ -2,12 +2,21 @@
 
 from app.models.accounts import Invite, Profile
 from app.models.base import Base
-from app.models.drafts import Draft, DraftVersion, PlatformProfile, PromptLog
+from app.models.drafts import (
+    Checkin,
+    Draft,
+    DraftMessage,
+    DraftVersion,
+    PlatformProfile,
+    PromptLog,
+)
 from app.models.imports import Import, SourcePost
 from app.models.user import User
 from app.models.voice import PlatformSettings, VoiceCard
 
 __all__ = [
+    "Checkin",
+    "DraftMessage",
     "Invite",
     "Profile",
     "Base",

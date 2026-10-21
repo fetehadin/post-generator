@@ -132,7 +132,7 @@ def test_generate_errors_use_the_shared_shape(api):
     r = api.post("/api/v1/drafts/generate", json={"platform": "myspace"})
     assert r.status_code == 422 and r.json()["error"]["code"] == "validation_error"
     fields = {f["field"] for f in r.json()["error"]["fields"]}
-    assert {"platform", "topic"} <= fields
+    assert fields == {"platform"}  # topic is optional: empty = from the summary card
 
 
 def test_ai_down_gives_503_and_a_clear_message(api):
