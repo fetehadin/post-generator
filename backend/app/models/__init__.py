@@ -5,6 +5,7 @@ from app.models.base import Base
 from app.models.drafts import Draft, DraftVersion, PlatformProfile, PromptLog
 from app.models.imports import Import, SourcePost
 from app.models.user import User
+from app.models.voice import PlatformSettings, VoiceCard
 
 __all__ = [
     "Invite",
@@ -14,7 +15,9 @@ __all__ = [
     "DraftVersion",
     "Import",
     "PlatformProfile",
+    "PlatformSettings",
     "PromptLog",
     "SourcePost",
     "User",
+    "VoiceCard",
 ]

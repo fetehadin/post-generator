@@ -23,6 +23,7 @@ from app.importers.telegram import parse_telegram
 from app.importers.x import parse_x
 from app.models import Import, SourcePost, User
 from app.schemas import ImportOut
+from app.services import voice
 from app.services.embedding import embed_pending
 from app.services.posts import save_posts
 from app.services.profile import excluded_hashtags
@@ -124,6 +125,8 @@ def create_import(
     background.add_task(embed_in_background, user_id, ai)
     if platform == "x":
         out.premium_hint = result.premium_hint  # Q31: the UI asks the user to confirm
+        if result.premium_hint:
+            voice.set_premium(user_id, True, source="export")
     return out
 
 

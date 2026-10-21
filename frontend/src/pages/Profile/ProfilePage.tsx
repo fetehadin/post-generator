@@ -28,7 +28,7 @@ export function ProfilePage() {
       <section aria-labelledby="posts" className="mt-10">
         <div className="flex items-center justify-between gap-3">
           <h2 id="posts" className="text-lg font-semibold">
-            Your posts
+            Your posts and voice
           </h2>
           <Link
             to="/import"

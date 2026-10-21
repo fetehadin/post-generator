@@ -192,11 +192,53 @@ The AI writes a ~150-word first-person card **only from the user's answers** (an
 
 ---
 
+## Phase 3 — platforms and voice (built)
+
+### `GET /platforms/{platform}`
+
+One Profile tab per platform (FR-22): its rules, the user's voice card and stats, and settings. `platform` is `telegram`, `x` or `linkedin` (anything else → 422).
+
+```json
+{
+  "platform": "x",
+  "rules": { "char_limit": 280, "counting_rule": "x_weighted", "tone_notes": "…", "structure_notes": "…" },
+  "effective_limit": 25000,
+  "stats": {
+    "post_count": 72, "thin": false, "median_length": 210, "median_lines": 3,
+    "emoji_share": 0.4, "hashtag_share": 0.1, "link_share": 0.3, "question_share": 0.2,
+    "ethiopic_share": 0.05, "top_hashtags": ["#python"]
+  },
+  "voice_card": "- Opens with a one-line hook…",
+  "voice_card_updated_at": "2026-10-22T09:00:00Z",
+  "x_premium": true,
+  "premium_source": "export"
+}
+```
+
+- `stats` are measured from the user's own, not-excluded posts on this platform each time. Shares are 0–1. `thin` is true under 20 posts (FR-5): show a warning.
+- `effective_limit` is what drafts are checked against: 25,000 for X with Premium, otherwise `rules.char_limit` (Q31). Prompts still ask for the short limit.
+- `x_premium` / `premium_source`: X only. `null` = unknown. An X import with a recent post over 280 sets it to `true` with source `export`, unless the user already answered.
+
+### `PUT /platforms/{platform}/voice-card`
+
+`{"voice_card": "…"}` (max 3,000 characters). The user's hand edit. Returns `GET`'s shape.
+
+### `POST /platforms/{platform}/voice-card`
+
+The AI (re)writes the card from the stats and a sample of the user's posts (style only, no facts). Lines the user wrote or changed by hand are kept word for word (FR-26). Returns `GET`'s shape. Errors: `400 no_posts`, `503 ai_unavailable`.
+
+When a card exists, drafts for that platform add it before the example posts. An empty card leaves the prompt unchanged.
+
+### `PUT /platforms/{platform}/settings`
+
+`{"x_premium": true}`. X only (`400 not_supported` otherwise). The user's answer always wins over the export's guess. Returns `GET`'s shape.
+
+---
+
 ## Later phases (shape to be agreed at the start of each phase)
 
 | Phase | Method and path | Purpose |
 |---|---|---|
-| 3 | `GET / PUT /voice-cards/{platform}` · `POST /voice-cards/{platform}/regenerate` | Voice card |
 | 3 | `GET /platform-profiles` · `PUT /platform-profiles/{platform}` | Platform rules |
 | 4 | `POST / GET /checkins` · `PATCH / DELETE /checkins/{id}` | Daily check-ins |
 | 4 | `POST /drafts/{id}/revise` · `GET /drafts/{id}/versions` | Chat revisions |
