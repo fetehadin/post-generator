@@ -58,20 +58,25 @@ def _jwks_client(url: str) -> jwt.PyJWKClient:
 
 
 def verify_token(token: str) -> Identity:
+    """Check a Supabase access token. The algorithm in the token's header only picks *which*
+    configured key to use: HS256 needs our shared secret, ES256/RS256 the project's published
+    public keys. A token can't choose a key we didn't configure."""
     settings = get_settings()
     options = {"require": ["exp", "sub"]}
+    issuer = f"{settings.supabase_url.rstrip('/')}/auth/v1" if settings.supabase_url else None
     try:
-        if settings.supabase_jwt_secret:
-            claims = jwt.decode(
-                token, settings.supabase_jwt_secret, algorithms=["HS256"],
-                audience="authenticated", options=options,
-            )  # fmt: skip
+        alg = jwt.get_unverified_header(token).get("alg")
+        if alg == "HS256" and settings.supabase_jwt_secret:
+            key, algorithms = settings.supabase_jwt_secret, ["HS256"]
+        elif alg in ("ES256", "RS256") and settings.supabase_url:
+            key = _jwks_client(settings.supabase_url).get_signing_key_from_jwt(token).key
+            algorithms = [alg]
         else:
-            key = _jwks_client(settings.supabase_url).get_signing_key_from_jwt(token)
-            claims = jwt.decode(
-                token, key.key, algorithms=["ES256", "RS256"], audience="authenticated",
-                issuer=f"{settings.supabase_url.rstrip('/')}/auth/v1", options=options,
-            )  # fmt: skip
+            raise jwt.InvalidAlgorithmError(f"no key configured for {alg}")
+        claims = jwt.decode(
+            token, key, algorithms=algorithms, audience="authenticated", issuer=issuer,
+            options=options,
+        )  # fmt: skip
         return Identity(uuid.UUID(claims["sub"]), str(claims.get("email", "")).lower())
     except (jwt.PyJWTError, ValueError) as e:
         raise AppError("not_logged_in", "Your session has ended. Log in again.", 401) from e

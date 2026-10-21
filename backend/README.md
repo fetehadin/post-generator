@@ -22,7 +22,7 @@ Supabase handles sign-up and login in the browser; the API only checks the token
 | Variable | What |
 |---|---|
 | `SUPABASE_URL` | Your project URL, e.g. `https://abcd.supabase.co`. The API reads the signing keys from `/auth/v1/.well-known/jwks.json`. |
-| `SUPABASE_JWT_SECRET` | Only for older projects that sign with one shared secret. Leave empty otherwise. |
+| `SUPABASE_JWT_SECRET` | The shared signing secret, for projects that sign with HS256: **local Supabase does** (`supabase status` shows it). Cloud projects with signing keys need only the URL. Setting both is fine: each token's algorithm picks the matching key. |
 | `ALLOWED_EMAILS` | Comma-separated emails that join without an invite (the team). |
 
 With neither Supabase variable set and `APP_ENV=development`, requests without a token act as the dev user, so local work needs no login. Invite a tester with `python -m app.dev invite --email them@example.com`.
