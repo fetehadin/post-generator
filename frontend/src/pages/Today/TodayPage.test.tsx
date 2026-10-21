@@ -3,8 +3,10 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, vi } from 'vitest'
-import { api, ApiError } from '../../api/client'
-import type { Draft, Platform } from '../../api/types'
+import { ApiError } from '../../api/client'
+import type { Platform } from '../../api/types'
+import { generated, row } from '../../test/drafts'
+import { calls, routeApi, sent } from '../../test/fakeApi'
 import { TodayPage } from './TodayPage'
 
 vi.mock('../../api/client', async (importOriginal) => ({
@@ -12,21 +14,29 @@ vi.mock('../../api/client', async (importOriginal) => ({
   api: vi.fn(),
 }))
 
-beforeEach(() => vi.clearAllMocks())
-
-const draft = (platform: Platform, text = 'Small win today: the importer works.'): Draft => ({
-  id: `d-${platform}`,
-  platform,
-  status: 'draft',
-  text,
-  length: { count: text.length, limit: platform === 'x' ? 280 : 4096, over: false },
-  model: 'gemini-3.8-flash',
-  examples_used: 8,
-  created_at: '2026-10-21T09:00:00Z',
+let card = ''
+let drafts: ReturnType<typeof row>[] = []
+beforeEach(() => {
+  vi.clearAllMocks()
+  card = ''
+  drafts = []
+  routeApi({
+    'GET /profile': () => ({ summary_card: card }),
+    'GET /drafts': () => ({ items: drafts }),
+    'POST /checkins': (b) => ({ id: 'c1', ...(b as object) }),
+    'POST /drafts/generate': (b) => {
+      const { platform } = b as { platform: Platform }
+      if (platform === 'linkedin') throw new ApiError(400, 'no_posts', 'No LinkedIn posts yet.')
+      drafts = [...drafts, row({ id: `d-${platform}`, platform })]
+      return generated(platform)
+    },
+  })
 })
 
 function renderPage() {
-  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
@@ -37,85 +47,60 @@ function renderPage() {
 }
 
 const write = (text: string) => userEvent.type(screen.getByLabelText('What you worked on'), text)
-const bodies = () => vi.mocked(api).mock.calls.map((c) => JSON.parse(String(c[1]?.body)))
 
-test('asks "What did you do today?" and needs something to write about', () => {
+test('an empty box without a summary card asks for one', async () => {
   renderPage()
   expect(screen.getByRole('heading', { name: 'What did you do today?' })).toBeInTheDocument()
+  expect(await screen.findByRole('link', { name: 'write your summary card' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Generate 1 draft' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Just save' })).toBeDisabled()
 })
 
-test('one draft for Telegram, with its counter and AI tag and no model name', async () => {
-  vi.mocked(api).mockResolvedValue(draft('telegram'))
+test('generating saves the check-in, links the drafts to it and lists them', async () => {
   renderPage()
   await write('Finished the importer')
   await userEvent.click(screen.getByRole('button', { name: 'Generate 1 draft' }))
-  expect(bodies()).toEqual([{ platform: 'telegram', topic: 'Finished the importer' }])
-  expect(await screen.findByLabelText('Telegram draft text')).toHaveValue(draft('telegram').text)
-  expect(screen.getByText('36 / 4,096')).toBeInTheDocument()
-  expect(screen.getByText('AI draft')).toBeInTheDocument()
-  expect(screen.queryByText(/gemini/)).not.toBeInTheDocument()
+
+  expect(await screen.findByRole('link', { name: /Small win today/ })).toHaveAttribute(
+    'href',
+    '/drafts/d-telegram',
+  )
+  expect(sent('POST /checkins')[0]).toMatchObject({ text: 'Finished the importer' })
+  expect(sent('POST /drafts/generate')).toEqual([
+    { platform: 'telegram', topic: 'Finished the importer', checkin_id: 'c1' },
+  ])
+  expect(screen.getByLabelText('What you worked on')).toHaveValue('') // saved, so cleared
+  expect(calls().find((c) => c.startsWith('GET /drafts?'))).toContain('created_from=')
 })
 
-test('logo buttons pick platforms; one failing platform never hides the others', async () => {
-  vi.mocked(api).mockImplementation(async (_path, init) => {
-    const { platform } = JSON.parse(String(init?.body))
-    if (platform === 'linkedin')
-      throw new ApiError(400, 'no_posts', 'No LinkedIn posts are ready yet.')
-    return draft(platform)
-  })
+test('an empty box writes from the summary card, without a check-in', async () => {
+  card = 'I build Voxlace.'
+  renderPage()
+  expect(await screen.findByText(/writes from what Voxlace knows/)).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Generate 1 draft' }))
+  await screen.findByRole('link', { name: /Small win today/ })
+  expect(sent('POST /drafts/generate')).toEqual([{ platform: 'telegram', topic: '' }])
+  expect(sent('POST /checkins')).toEqual([])
+})
+
+test('"Just save" stores the check-in and generates nothing', async () => {
+  renderPage()
+  await write('Read about pgvector')
+  await userEvent.click(screen.getByRole('button', { name: 'Just save' }))
+  expect(await screen.findByText(/Saved to your check-ins/)).toBeInTheDocument()
+  expect(sent('POST /checkins')).toHaveLength(1)
+  expect(sent('POST /drafts/generate')).toEqual([])
+})
+
+test('logo buttons pick platforms; one failing never hides the others, and the text stays', async () => {
   renderPage()
   await userEvent.click(screen.getByRole('button', { name: 'X' }))
   await userEvent.click(screen.getByRole('button', { name: 'LinkedIn' }))
-  expect(screen.getByRole('button', { name: 'X' })).toHaveAttribute('aria-pressed', 'true')
-  await write('Shipped X import')
+  await write('Shipped')
   await userEvent.click(screen.getByRole('button', { name: 'Generate 3 drafts' }))
 
-  expect(
-    bodies()
-      .map((b) => b.platform)
-      .sort(),
-  ).toEqual(['linkedin', 'telegram', 'x'])
-  expect(await screen.findByLabelText('X draft text')).toBeInTheDocument()
-  expect(screen.getByLabelText('Telegram draft text')).toBeInTheDocument()
-  expect(screen.getByRole('alert')).toHaveTextContent('LinkedIn: No LinkedIn posts are ready yet.')
-  expect(screen.getByRole('link', { name: 'Import your LinkedIn posts' })).toHaveAttribute(
-    'href',
-    '/import',
-  )
-})
-
-test('with no platform chosen there is nothing to generate', async () => {
-  renderPage()
-  await userEvent.click(screen.getByRole('button', { name: 'Telegram' }))
-  await write('Hi')
-  expect(screen.getByRole('button', { name: 'Generate 0 drafts' })).toBeDisabled()
-  expect(screen.getByText('Pick at least one platform.')).toBeInTheDocument()
-})
-
-test('keeps the topic and says so when the AI is slow', async () => {
-  vi.useFakeTimers({ shouldAdvanceTime: true })
-  vi.mocked(api).mockReturnValue(new Promise(() => {}))
-  renderPage()
-  await write('A lesson')
-  await userEvent.click(screen.getByRole('button', { name: 'Generate 1 draft' }))
-  vi.advanceTimersByTime(21_000)
-  expect(await screen.findByText(/taking longer than usual/)).toBeInTheDocument()
-  expect(screen.getByLabelText('What you worked on')).toHaveValue('A lesson')
-  vi.useRealTimers()
-})
-
-test('developers can open the exact prompt behind a draft', async () => {
-  vi.mocked(api).mockResolvedValueOnce(draft('telegram')).mockResolvedValueOnce({
-    prompt: 'You write one Telegram post…',
-    model: 'm',
-    model_version: 'v',
-    provider: 'google',
-  })
-  renderPage()
-  await write('A lesson')
-  await userEvent.click(screen.getByRole('button', { name: 'Generate 1 draft' }))
-  await userEvent.click(await screen.findByText('Prompt (developer view)'))
-  expect(await screen.findByText('You write one Telegram post…')).toBeInTheDocument()
-  expect(vi.mocked(api).mock.calls[1][0]).toBe('/drafts/d-telegram/prompt')
+  expect(await screen.findByRole('alert')).toHaveTextContent('LinkedIn: No LinkedIn posts yet.')
+  expect(screen.getByRole('link', { name: 'Import your LinkedIn posts' })).toBeInTheDocument()
+  expect(await screen.findAllByRole('link', { name: /Small win today/ })).toHaveLength(2)
+  expect(screen.getByLabelText('What you worked on')).toHaveValue('Shipped')
 })

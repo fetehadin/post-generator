@@ -15,6 +15,8 @@ import '@fontsource/source-serif-4/400.css'
 import '@fontsource/source-serif-4/600.css'
 import './index.css'
 import { applyTheme, savedTheme } from './lib/theme'
+import { DraftsPage } from './pages/Drafts/DraftsPage'
+import { EditorPage } from './pages/Editor/EditorPage'
 import { LoginPage } from './pages/Login/LoginPage'
 import { Placeholder } from './pages/Placeholder/Placeholder'
 import { ProfilePage } from './pages/Profile/ProfilePage'
@@ -37,7 +39,8 @@ const router = createBrowserRouter([
     children: [
       { path: '/', element: <TodayPage /> },
       { path: '/import', element: <UploadPage /> },
-      { path: '/drafts', element: <Placeholder title="Drafts" when="Phase 4" /> },
+      { path: '/drafts', element: <DraftsPage /> },
+      { path: '/drafts/:id', element: <EditorPage /> },
       { path: '/calendar', element: <Placeholder title="Calendar" when="Phase 5" /> },
       { path: '/profile', element: <ProfilePage /> },
       { path: '/voice', element: <Navigate to="/profile" replace /> },
