@@ -1,15 +1,20 @@
 """One tab per platform: its rules, the user's voice card and stats, and settings (FR-22)."""
 
+import re
 import uuid
 from dataclasses import asdict
+from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.ai.client import AIClient, AIUnavailable
 from app.api.deps import get_ai
 from app.core.auth import current_user
 from app.core.errors import AppError
 from app.schemas import (
+    AudiencePlace,
+    BestHoursDayOut,
+    BestHoursOut,
     Platform,
     PlatformOut,
     PlatformSettingsIn,
@@ -17,7 +22,10 @@ from app.schemas import (
     VoiceCardIn,
     VoiceStatsOut,
 )
-from app.services import voice
+from app.services import scheduling, voice
+from app.services.clock import valid_zone
+
+CHANNEL = re.compile(r"^@?([A-Za-z][A-Za-z0-9_]{3,31})$")  # Telegram public names
 
 router = APIRouter(prefix="/platforms", tags=["platforms"])
 
@@ -38,6 +46,11 @@ def _out(user_id: uuid.UUID, platform: str) -> PlatformOut:
         voice_card_updated_at=v.card_updated_at,
         x_premium=v.x_premium,
         premium_source=v.premium_source,
+        audience_places=[AudiencePlace(**p) for p in v.audience_places],
+        audience_profession=v.audience_profession,
+        goal=v.goal,
+        posts_per_week=v.posts_per_week,
+        channel=v.channel,
     )
 
 
@@ -74,7 +87,47 @@ def write_voice_card(
 def edit_settings(
     platform: Platform, body: PlatformSettingsIn, user_id: uuid.UUID = Depends(current_user)
 ) -> PlatformOut:
-    if platform != "x":
-        raise AppError("not_supported", "Only X has settings for now.")
-    voice.set_premium(user_id, body.x_premium, source="user")
+    """FR-33: who the audience is and where it lives; X Premium (Q31); the Telegram channel
+    name for the hand-off (FR-12). Send only what changes."""
+    changes = body.model_dump(exclude_unset=True)
+    premium = changes.pop("x_premium", None)
+    if premium is not None:
+        if platform != "x":
+            raise AppError("not_supported", "X Premium is an X setting.")
+        voice.set_premium(user_id, premium, source="user")
+    if "audience_places" in changes:
+        places = changes["audience_places"] or []
+        if any(not valid_zone(p["timezone"]) for p in places):
+            raise AppError("invalid_timezone", "Pick each place from the list.")
+        if len({p["timezone"] for p in places}) != len(places):
+            raise AppError("duplicate_place", "Each place can be listed once.")
+    if "channel" in changes:
+        if platform != "telegram":
+            raise AppError("not_supported", "Only Telegram has a channel name.")
+        raw = (changes["channel"] or "").strip().removeprefix("https://t.me/")
+        match = CHANNEL.match(raw)
+        if raw and not match:
+            raise AppError("invalid_channel", "Use the channel's public name, like @fetescript.")
+        changes["channel"] = match.group(1) if match else None
+    if "goal" in changes:
+        changes["goal"] = (changes["goal"] or "").strip()
+    voice.update_settings(user_id, platform, changes)
     return _out(user_id, platform)
+
+
+@router.get("/{platform}/best-hours", response_model=BestHoursOut)
+def best_hours(
+    platform: Platform,
+    start: date,
+    days: int = Query(7, ge=1, le=42),
+    user_id: uuid.UUID = Depends(current_user),
+) -> BestHoursOut:
+    """FR-16, FR-34: each day's hours scored for this platform's audience, in the user's own
+    time, with the top hours inside their posting window."""
+    out, source, tz = scheduling.best_hours(user_id, platform, start, days)
+    return BestHoursOut(
+        platform=platform,
+        timezone=tz,
+        source=source,
+        days=[BestHoursDayOut(date=d.day, scores=d.scores, best=d.best) for d in out],
+    )
