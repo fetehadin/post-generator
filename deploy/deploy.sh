@@ -5,7 +5,12 @@
 set -euo pipefail
 
 SHA="${1:?usage: deploy.sh <git-sha>}"
-COMPOSE="docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env"
+COMPOSE="docker compose -f deploy/docker-compose.prod.yml"
+# Another app's Caddy owns ports 80/443 on this server (deploy/docker-compose.shared-caddy.yml).
+if grep -qx 'SHARED_CADDY=true' deploy/.env; then
+  COMPOSE="$COMPOSE -f deploy/docker-compose.shared-caddy.yml"
+fi
+COMPOSE="$COMPOSE --env-file deploy/.env"
 PREVIOUS="$(git rev-parse HEAD)"
 
 echo "Deploying $SHA (previous: $PREVIOUS)"

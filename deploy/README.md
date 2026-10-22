@@ -89,6 +89,44 @@ Run it once by hand, and test a restore once (the command is at the bottom of `b
 - variable `DEPLOY_PATH` (`/srv/voxlace`);
 - then the repository variable `DEPLOY_ENABLED` = `true`. See `docs/CI_CD.md`.
 
+## Sharing the server with another Caddy (our Contabo box)
+
+Our server already runs tajstore, whose Caddy owns ports 80 and 443 and also serves redart. Only one
+program can listen on a port, so Voxlace's Caddy steps back:
+
+```mermaid
+flowchart LR
+    Internet -->|443| Shared[tajstore Caddy<br/>HTTPS for every domain]
+    Shared -->|voxlace.duckdns.org| Web[voxlace-web<br/>our Caddy, plain HTTP]
+    Web -->|/api| API[voxlace-api]
+    API --> DB[(Voxlace Postgres)]
+```
+
+- `docker-compose.shared-caddy.yml` removes our Caddy's ports, swaps in `Caddyfile.internal` (plain
+  HTTP on :80), and joins the shared network (`tajstore_default`) as `voxlace-web`.
+- Our API is called `voxlace-api` there, because tajstore's network already has an `api`.
+- The database and the API never join the shared network.
+- Set `SHARED_CADDY=true` in the server settings file; `deploy.sh` then adds the override itself.
+
+Add this block to `/opt/tajstore/Caddyfile`, then reload that Caddy:
+
+```caddy
+voxlace.duckdns.org {
+	encode zstd gzip
+	header -Server
+	reverse_proxy voxlace-web:80
+}
+```
+
+```bash
+cd /opt/tajstore
+docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile
+docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+```
+
+Until Voxlace is running, the domain returns 502; tajstore and redart aren't affected. If tajstore ever
+rebuilds its network, run `./deploy/deploy.sh "$(git rev-parse HEAD)"` again so our Caddy rejoins it.
+
 ## Server checklist (once)
 
 - [ ] Non-root user with sudo; SSH key login only; password login off

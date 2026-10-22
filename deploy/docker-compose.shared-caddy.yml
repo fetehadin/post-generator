@@ -1,0 +1,36 @@
+# Add this file when the server already has a Caddy that owns ports 80/443 (our Contabo box:
+# tajstore's Caddy, shared with redart). Voxlace's own Caddy then serves plain HTTP inside
+# Docker only, and joins that Caddy's network as `voxlace-web`. The API and database stay on
+# Voxlace's private network. The API also gets the name `voxlace-api`, because the shared network
+# already has tajstore's `api`, and our Caddy sits on both networks.
+# The shared Caddy needs this block (deploy/README.md):
+#
+#   voxlace.duckdns.org {
+#   	encode zstd gzip
+#   	header -Server
+#   	reverse_proxy voxlace-web:80
+#   }
+#
+# deploy.sh adds this file when the server settings say SHARED_CADDY=true. By hand:
+#   docker compose -f deploy/docker-compose.prod.yml -f deploy/docker-compose.shared-caddy.yml ... up -d --build
+services:
+  api:
+    networks:
+      default:
+        aliases:
+          - voxlace-api
+
+  caddy:
+    ports: !reset []
+    volumes:
+      - ./Caddyfile.internal:/etc/caddy/Caddyfile:ro
+    networks:
+      default: {}
+      shared:
+        aliases:
+          - voxlace-web
+
+networks:
+  shared:
+    external: true
+    name: ${SHARED_NETWORK:-tajstore_default}
