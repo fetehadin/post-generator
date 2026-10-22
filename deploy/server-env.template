@@ -10,7 +10,9 @@ APP_DB_USER=voxlace_app
 APP_DB_PASSWORD=
 
 GEMINI_API_KEY=
-GENERATION_MODELS=google:gemini-flash-latest,google:gemini-flash-lite-latest
+GENERATION_MODELS=google:gemini-flash-latest,google:gemini-flash-lite-latest,groq:openai/gpt-oss-120b
+# Groq writes drafts when every Gemini model is busy (free key at console.groq.com).
+GROQ_API_KEY=
 
 # Supabase -> Project settings -> API. The publishable key is public (it is built into the app).
 SUPABASE_URL=https://YOUR-PROJECT.supabase.co
