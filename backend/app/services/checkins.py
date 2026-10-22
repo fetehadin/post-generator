@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.core.db import user_session
 from app.models import Checkin
+from app.services.clock import local_today
 
 
 def _detached(s, row: Checkin) -> Checkin:
@@ -16,9 +17,10 @@ def _detached(s, row: Checkin) -> Checkin:
     return row
 
 
-def create(user_id: uuid.UUID, text: str, day: date) -> Checkin:
+def create(user_id: uuid.UUID, text: str, day: date | None = None) -> Checkin:
+    """`day` defaults to today on the user's own clock (NFR-16)."""
     with user_session(user_id) as s:
-        row = Checkin(user_id=user_id, day=day, text=text)
+        row = Checkin(user_id=user_id, day=day or local_today(s, user_id), text=text)
         s.add(row)
         return _detached(s, row)
 

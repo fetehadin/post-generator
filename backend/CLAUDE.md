@@ -8,7 +8,6 @@ Python 3.12 · FastAPI · Pydantic v2 · SQLAlchemy 2.0 (sync, psycopg 3) · Ale
 backend/
 ├── app/
 │   ├── main.py            App factory, routers, CORS, error handlers
-│   ├── worker.py          Loop: send due Telegram posts and reminders (Phase 5)
 │   ├── core/
 │   │   ├── config.py      Settings (pydantic-settings) — the only place env vars are read
 │   │   ├── db.py          Engine, session, per-request RLS user setting
@@ -77,11 +76,11 @@ ruff check . --fix && ruff format .
 - Read only the posts file from each export (FR-39).
 - Each importer has tests against `samples/` covering normal, formatted, empty, duplicate and broken input.
 
-## Worker (`app/worker.py`)
+## Background work (`app/services/background.py`)
 
-- Loop every `settings.worker_interval_seconds`: select approved drafts with `scheduled_for <= now()` and `published_at IS NULL` using `FOR UPDATE SKIP LOCKED`, send, then set `published_at` in the same transaction.
-- Safe to restart at any moment: never double-send (NFR-14). On a send failure, record it and retry next loop; give up after 3 tries and notify in-app.
-- The worker uses a role allowed to read due drafts across users (a narrow RLS policy for it), then sets `app.user_id` for each draft it processes.
+- No separate worker in V1 (SRS 1.3). The API starts one daemon thread at startup (`lifespan` in `main.py`) that every `settings.embedding_retry_seconds` (default 300; 0 = off) embeds posts still waiting.
+- It finds waiting users through the narrow database function `users_waiting_for_embeddings()` (ids only), then works as each user under RLS. A Postgres advisory lock per user (`embed_in_background`) keeps two API processes from embedding the same user at once (NFR-14).
+- Reminders, due and missed posts are worked out when the app asks (`GET /me/notifications`); nothing is sent, so there is nothing to double-send.
 
 ## Tests
 

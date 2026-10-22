@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, time
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, SmallInteger, String, Text, Time, func
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -43,6 +43,23 @@ class Profile(CreatedAt, Base):
     excluded_hashtags: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
     summary_card: Mapped[str] = mapped_column(Text, default="", server_default="")
     summary_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class ReminderSettings(CreatedAt, Base):
+    """Daily check-in reminder, shown in the app (FR-42). days: 0 = Monday … 6 = Sunday,
+    local_time in the user's own time zone."""
+
+    __tablename__ = "reminder_settings"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    days: Mapped[list[int]] = mapped_column(ARRAY(SmallInteger), server_default="{0,1,2,3,4}")
+    local_time: Mapped[time] = mapped_column(Time, server_default="18:00")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
