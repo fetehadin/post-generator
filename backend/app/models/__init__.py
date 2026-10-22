@@ -13,7 +13,7 @@ from app.models.drafts import (
 )
 from app.models.imports import Import, SourcePost
 from app.models.user import User
-from app.models.voice import PlatformSettings, VoiceCard
+from app.models.voice import PlatformSettings, PostingCurve, VoiceCard
 
 __all__ = [
     "Checkin",
@@ -26,6 +26,7 @@ __all__ = [
     "Import",
     "PlatformProfile",
     "PlatformSettings",
+    "PostingCurve",
     "PromptLog",
     "ReminderSettings",
     "SourcePost",
