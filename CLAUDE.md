@@ -25,11 +25,11 @@ Read the relevant doc before changing behaviour. Don't contradict it; if the cod
 |---|---|
 | Backend | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2.0 (sync, psycopg 3), Alembic |
 | Database | PostgreSQL 18 + pgvector, row-level security |
-| AI | Gemini via `google-genai`: `gemini-embedding-2` at 768 dims; Gemini Flash for text; one free fallback provider |
+| AI | Gemini via `google-genai`: `gemini-embedding-2` at 768 dims; Gemini Flash for text; Groq (over `httpx`) as the generation fallback |
 | Frontend | React + Vite + TypeScript, React Router, TanStack Query, Tailwind CSS, FullCalendar |
 | Auth | Supabase Auth for login only (JWT); all data lives in our own Postgres |
-| Publishing | Telegram Bot API (worker sends at due time), X web intent, LinkedIn copy + open composer |
-| Hosting | One Contabo VPS: Docker Compose with Caddy, api, worker, db |
+| Publishing | Hand-off only in V1: X web intent, LinkedIn copy + open composer, Telegram copy + open channel (no bot; SRS 1.3) |
+| Hosting | One Contabo VPS: Docker Compose with Caddy, api, db, behind the server's shared Caddy |
 | Quality | Ruff, pytest, Vitest, Prettier, GitHub Actions |
 
 Don't add or swap a major dependency (framework, ORM, database, auth, state library) without asking first.
@@ -51,7 +51,7 @@ db/init/             Runs once on an empty volume: pgvector, the voxlace_app rol
 ```bash
 docker compose up -d                          # local database (pgvector enabled on first start)
 cd backend && uvicorn app.main:app --reload   # API on :8000, docs at /docs
-cd backend && python -m app.worker            # worker (Phase 5+)
+# (no separate worker in V1: the API runs a small background loop; SRS 1.3)
 cd backend && ruff check . && ruff format --check . && pytest
 cd backend && alembic upgrade head            # apply migrations (connects with MIGRATIONS_DATABASE_URL)
 cd frontend && npm run dev                    # app on :5173
@@ -65,7 +65,7 @@ Run the checks for every part you touched before saying a task is done.
 1. **User isolation.** Every user-owned table has `user_id`. Every query filters by the current user, and RLS enforces it too. Never accept `user_id` from the request body; take it from the verified token.
 2. **AI calls go through `backend/app/ai/client.py` only.** No other module imports a provider SDK. Model names come from settings, never hard-coded.
 3. **Embeddings are fixed.** `gemini-embedding-2`, 768 dimensions. Stored posts use `title: none | text: <post>`, queries use `task: search result | query: <text>`. One content object per post: a plain list returns one merged vector. Never fall back to another embedding model; queue and retry instead.
-4. **Never publish without approval.** Nothing is sent to any platform unless the draft's status is `approved` by the user. The worker only sends approved, due, unsent Telegram posts.
+4. **Never publish without approval.** Nothing is handed off to any platform unless the draft's status is `approved` by the user. V1 never posts by itself.
 5. **No passwords, no scraping.** Never ask for social platform passwords. Only the user's own exports and official tokens.
 6. **Times are UTC** in the database and API. Convert to the user's time zone only in the UI.
 7. **Schema changes only through Alembic migrations.** Never edit the database by hand or change an applied migration.
@@ -121,4 +121,4 @@ Run the checks for every part you touched before saying a task is done.
 - X length is weighted (twitter-text v3): URLs count 23; a whole emoji (with skin tone, joiners or a flag pair) counts 2; characters outside U+0000–U+10FF and a few punctuation ranges count 2, which includes **Amharic (Ethiopic)** and CJK. Never use plain `len()`. Both counters must pass `samples/x_counter_cases.json`.
 - pgvector: start without a vector index (exact search). Query shape is `ORDER BY embedding <=> :q LIMIT :n`.
 - Gemini free tier returns 429 under load. Back off and retry; keep the user's input.
-- Telegram bots can't use Telegram's native scheduled messages. Our worker sends at the due time.
+- No Telegram bot in V1 (SRS 1.3). When it comes back: bots can't use Telegram's native scheduled messages, so a worker must send at the due time.

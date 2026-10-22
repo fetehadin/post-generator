@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Product** | Voxlace (working name) |
-| **Version** | 1.2 — final V1 scope |
-| **Date** | 13 October 2026 |
+| **Version** | 1.3 — Telegram as a hand-off, chat board, posting times |
+| **Date** | 22 October 2026 |
 | **Authors** | Fetehadin Negash, Nezira |
 | **Status** | Locked. Changes go through a pull request that edits this file. |
 
@@ -34,7 +34,7 @@ This document defines what Voxlace V1 must do and how well it must do it. Every 
 
 ### 1.2 Product scope
 
-Voxlace is a web app that learns a person's writing voice from their own exported posts, daily check-ins and profile. It drafts separate posts for **X**, **LinkedIn** and **Telegram**, following each platform's rules. The user reviews every draft, schedules it on a calendar and publishes it with one click.
+Voxlace is a web app that learns a person's writing voice from their own exported posts, daily check-ins and profile. It drafts separate posts for **X**, **LinkedIn** and **Telegram**, following each platform's rules. The user polishes every draft in a chat, approves it, picks a day (the app picks the best hour for their audience) and publishes it with one click.
 
 V1 must prove one thing: **people actually publish the drafts it writes, with light edits.**
 
@@ -48,7 +48,9 @@ V1 must prove one thing: **people actually publish the drafts it writes, with li
 | **Voice card** | A short written summary of how the user writes on one platform, plus measured stats (length, emoji, hashtags). |
 | **Summary card** | A ~150-word summary of the user's profile form and uploads, used in every prompt. |
 | **Check-in** | A daily note the user writes on the chat board about what they did or think. |
-| **Hand-off** | Moving an approved draft to its platform: pre-filled link (X), copy + open composer (LinkedIn), bot send (Telegram). |
+| **Hand-off** | Moving an approved draft to its platform: pre-filled link (X), copy + open composer (LinkedIn), copy + open the user's channel (Telegram). Voxlace never posts by itself in V1. |
+| **Thread** | One chat on the chat board: a check-in, the drafts made from it and every revision, in order (like a ChatGPT conversation). |
+| **Best hours** | For one platform and day, the user's hours ranked by how active their audience is then: audience places and profession, study-based curves, and later the user's own results. |
 | **Platform profile** | The rules for one platform: length limit, counting rule, tone and structure notes. Stored in the database. |
 | **Fallback chain** | The ordered list of AI models the app tries when one is unavailable. |
 
@@ -71,7 +73,6 @@ A new, standalone, multi-user web app (SaaS from day one, without billing). It d
 - **A managed login provider** (Supabase Auth, used for login only; data stays in our own Postgres).
 - **One Contabo VPS** the team already owns, running everything in Docker.
 - **PostgreSQL + pgvector** for all data, including embeddings.
-- **The Telegram Bot API** for channel publishing.
 - **Static export files** the user uploads. No live reads from X or LinkedIn.
 
 ```mermaid
@@ -79,12 +80,10 @@ flowchart LR
     U[User in browser] -->|HTTPS + login token| FE[React app]
     FE -->|REST JSON| API[FastAPI backend]
     API --> DB[(Postgres + pgvector)]
-    API -->|embed / generate| AI[Gemini + fallback provider]
-    API -->|sendMessage| TG[Telegram Bot API]
-    W[Worker] -->|every minute: due posts| DB
-    W -->|sendMessage| TG
+    API -->|embed / generate| AI[Gemini + Groq fallback]
     FE -->|pre-filled link| X[X composer]
     FE -->|copy + open| LI[LinkedIn composer]
+    FE -->|copy + open| TG[Telegram channel]
 ```
 
 ### 2.2 User classes
@@ -93,7 +92,7 @@ flowchart LR
 |---|---|---|
 | **Builder** (primary) | A developer who ships work and wants to post about it regularly on X, LinkedIn and Telegram in their own voice. | Full |
 | **Invited tester** | A builder invited by the team to try the app with their own data. | Full, invite-only |
-| **Admin** | The two developers. Manage invites and platform profiles. | Via database and Settings; no admin UI |
+| **Admin** | The two developers. Manage invites and platform profiles. | Via the `app.dev` commands and migrations; no admin UI |
 | Other roles (designers, photographers…) | Need different profile fields. | Later |
 
 ### 2.3 Operating environment
@@ -101,7 +100,7 @@ flowchart LR
 - Modern desktop browsers (Chrome, Firefox, Safari, Edge — latest two versions). Mobile layout should work but is not tuned.
 - Backend: Python 3.12+, FastAPI. Frontend: React + Vite + TypeScript on Node LTS.
 - Database: PostgreSQL with pgvector (`pgvector/pgvector:pg18` image, locally and on the server).
-- Hosting: one Contabo VPS running Docker Compose: Caddy (HTTPS + static frontend), API, worker, Postgres. Always on.
+- Hosting: one Contabo VPS running Docker Compose: Caddy (static frontend, behind the server's shared HTTPS Caddy), API, Postgres. Always on.
 
 ### 2.4 Constraints
 
@@ -112,7 +111,7 @@ flowchart LR
 | C-3 | **No platform passwords, no scraping.** Only the user's own exports and official bot tokens. |
 | C-4 | **X API costs money** ($0.015 per post, $0.20 with a URL), so X is hand-off only. |
 | C-5 | **LinkedIn cannot be pre-filled**, so it is copy + open composer. |
-| C-6 | **Telegram bots cannot use Telegram's native scheduled messages.** The app must keep the schedule and send at the due time itself. |
+| C-6 | **No Telegram bot in V1** (decided 22 Oct 2026). Telegram is a hand-off like LinkedIn: copy the text and open the user's channel. Bot publishing (FR-36, FR-43) waits until after V1. |
 | C-7 | **The embedding model is fixed.** Vectors from different models cannot be compared, so there is no embedding fallback. |
 | C-8 | **Free AI quota is shared** by every user of the project and resets at midnight Pacific time. |
 | C-9 | **Free-tier Gemini data may be used to improve Google's products.** Users must be told before uploading. |
@@ -121,7 +120,7 @@ flowchart LR
 
 - Users can request and download their own exports (LinkedIn takes 1–2 days to deliver).
 - Users have at least ~20 past posts per platform for good style matching; below that the app warns and uses a shared example pool.
-- Users click to publish on X and LinkedIn.
+- Users click to publish on every platform, so a suggested time must fall inside the hours they can post.
 - The Contabo server stays up; Docker restarts crashed containers (`restart: unless-stopped`).
 
 ---
@@ -147,16 +146,16 @@ flowchart LR
 | ID | Requirement | Priority | Test |
 |---|---|---|---|
 | FR-5 | The app builds a voice card and style stats per user and platform, and warns when a platform has fewer than 20 posts. | Must | Import 10 posts; the warning appears. |
-| FR-17 | A new user fills in an "About you" form: role, stack, current projects, focus, posting goal, topics, audience, avoid list, voice words and links. Every field stays editable. | Must | Fill, reload, edit one field; values persist. |
+| FR-17 | A new user fills in an "About you" form: role, experience level, discipline, stack, current projects (each with a name, one line and a link), focus areas, posting goal, topics, facts the AI may use, avoid list, voice words, emoji and hashtag habits, links and portfolio. Every field stays editable on the Profile page. | Must | Fill, reload, edit one field; values persist. |
 | FR-18 | The app summarises the form and any uploads into a ~150-word summary card, shows it, and lets the user edit it before it is used. | Must | Edit the card; the next prompt log contains the edited version. |
 | FR-22 | Settings has a tab per platform showing the platform rules, the user's voice card with its stats, and pinned example posts. | Must | Open each tab; all three parts show. |
-| FR-23 | Platform rules (limit, counting rule, tone and structure notes) live in the database and can be edited without changing code. | Must | Edit the X tone note; the next prompt log shows it. |
-| FR-24 | Each user sets a language, and prompts, voice cards and drafts use it. | Must | Set another language; the draft comes back in it. |
+| FR-23 | Platform rules (limit, counting rule, tone and structure notes) live in the database, not in code. In V1 the team changes them with a migration; there is no edit screen (decided 22 Oct 2026). | Must | Change the X tone note in a migration; the next prompt log shows it. |
+| FR-24 | Each user sets a language (or "same as my posts"), and prompts, voice cards and drafts use it. | Must | Set another language; the draft comes back in it. |
 | FR-25 | The user can pin posts as examples and exclude posts from being used as examples. | Must | Exclude a post; it never appears in retrieval. Pin one; it always does. |
 | FR-26 | The user can edit a voice card by hand, and regenerating it keeps those hand edits. | Must | Edit a line, regenerate; the line survives. |
-| FR-33 | Onboarding asks where the audience lives for each platform, the user's discipline, and when they usually post. | Must | Finish onboarding; the answers appear in Settings. |
-| FR-20 | The user can upload a resume (PDF or DOCX) and enter a website address, and the app extracts the text. | Should | Upload a sample resume; the extracted text appears. |
-| FR-21 | Before any extracted text goes to the AI, phone numbers, email addresses and street addresses are removed, and the user reviews the cleaned text. | Should | Upload a resume with a phone and email; neither appears in the prompt log. |
+| FR-33 | Onboarding asks, per platform, the audience's profession and where it lives (up to three places, each a time zone with a share), plus the user's discipline and the hours they can post. All of it stays editable on the Profile page. | Must | Finish onboarding; the answers appear in Profile; change a place there and the best hours change. |
+| FR-20 | The user can upload a resume (PDF or DOCX) and enter a portfolio or website address, and the app extracts the text. | Must | Upload a sample resume; the extracted text appears. |
+| FR-21 | Before any extracted text goes to the AI, phone numbers, email addresses and street addresses are removed, and the user reviews the cleaned text. | Must | Upload a resume with a phone and email; neither appears in the prompt log. |
 
 ### 3.3 Drafting
 
@@ -167,8 +166,9 @@ flowchart LR
 | FR-8 | X, LinkedIn and Telegram each have their own generate action. | Must | Generate for one platform; the other two are untouched. |
 | FR-9 | Each draft shows a live length count using that platform's rule, and blocks copy or publish when over the limit. | Must | Paste a 300-character draft for X; it is flagged. |
 | FR-10 | An edit instruction revises the current draft, and earlier versions stay available. The user can also edit the text by hand. | Must | Ask "shorter"; a new version exists and the old one is viewable. |
-| FR-40 | Each draft has a chat panel. The assistant knows the user's voice card, profile, platform rules and the day's check-in; every reply that changes the text creates a version. It can revise only a selected sentence, convert a draft to another platform, and asks a question instead of inventing a missing fact. | Must | Ask "mention my other project" with two projects in the profile; it asks which one. Select one sentence and ask "fix this"; only that sentence changes. |
+| FR-40 | Drafts are polished in a chat, ChatGPT-style. The assistant knows the user's voice card, profile, platform rules and the day's check-in. Every reply that changes the text appears as a **new full draft** in the thread (and is a new version). It can revise only a selected sentence, write the same post for another platform (a new draft, the original untouched), and asks a question instead of inventing a missing fact. | Must | Ask "mention my other project" with two projects in the profile; it asks which one. Select one sentence and ask "fix this"; only that sentence changes. |
 | FR-41 | The app detects the type of post being drafted (launch, progress, lesson, opinion, humor, tip, event) and adds structure examples from the user's inspiration posts **on the same platform** that are strongest at that type: Telegram drafts learn only from Telegram channels the user admires, X drafts only from X accounts, LinkedIn drafts only from LinkedIn creators. Platforms are never mixed. They shape structure only; voice comes from the user's own posts and facts from FR-19. The editor names the creator it used, and the user can change or turn it off. | Should | Draft a launch for X; the editor shows a launch-strong X creator, never a Telegram channel. No 5-word phrase from any inspiration post appears in the draft. |
+| FR-46 | The chat board keeps one thread per conversation: the check-in, the drafts made from it and every revision. Past threads are listed in the sidebar, newest first, and reopen where they stopped. | Must | Generate for two platforms, revise one, reload; the thread shows all three cards in order. |
 | FR-11 | Every draft is labelled AI-generated and has a status the user sets: draft, approved, published, discarded. | Must | Change the status; it persists after reload. |
 | FR-19 | A draft may state facts only from the summary card, the day's check-in, or GitHub items the user approved. | Must | Request a draft with an empty check-in; it invents no metrics or projects. |
 | FR-31 | Draft generation tries an ordered list of models from configuration, moves to the next when one is unavailable, rate-limited or removed, and records which model wrote each draft. | Must | Disable the first model; the draft arrives and names the second. |
@@ -178,14 +178,15 @@ flowchart LR
 
 | ID | Requirement | Priority | Test |
 |---|---|---|---|
-| FR-12 | Approving a draft hands it off. **X:** opens the composer pre-filled. **LinkedIn:** copies the text and opens the composer. **Telegram:** "Publish now" sends it through the bot, or, if it has a scheduled time, the bot sends it then (FR-35). | Must | Approve one draft per platform; each behaves as described and the text arrives intact. |
+| FR-12 | An approved draft is handed off when the user posts it. **X:** opens the composer pre-filled. **LinkedIn:** copies the text and opens the composer. **Telegram:** copies the text and opens the user's channel (`t.me/<channel>`; the channel name is set in Profile). Then "Posted" marks it published. | Must | Hand off one draft per platform; each behaves as described and the text arrives intact. |
 | FR-13 | The user can place a draft on a calendar date and time and move it, and the app marks it due when the time arrives. | Must | Drag a draft to another day; it saves. |
-| FR-35 | A due post triggers a reminder in the app, plus a Telegram message when a channel is connected. For Telegram, a scheduled job sends an **approved** post through the bot at its due time. | Must | Schedule an approved Telegram draft for the next minute; it appears in the channel within 5 minutes. |
-| FR-42 | The user sets daily check-in reminders (days, local time, quiet hours, channel: in-app or Telegram DM from the bot). The worker sends them on time and skips days that already have a check-in. | Must | Set a reminder for the next minute; it arrives within 5 minutes and not again that day after a check-in. |
-| FR-43 | Replying to a reminder in the Telegram bot saves the reply as that day's check-in and offers a draft back in the same chat. | Should | Reply to the bot; the check-in appears on the chat board. |
-| FR-36 | A user connects a Telegram channel by adding the app's bot as an admin and entering the channel. The app confirms it can post before saving. | Must | Connect a channel without admin rights; it is refused with a message. |
-| FR-16 | Suggested posting windows use the audience answers (location, discipline, usual hours) and are shown in the user's own time. | Should | Change the audience location; the window shifts. |
-| FR-34 | Posting-time suggestions start from study-based defaults and switch to the user's own archive data once they have at least 50 posts with engagement numbers. | Should | Import 60 posts with likes; the suggestion cites the user's own data. |
+| FR-35 | A due post shows a reminder in the app's notification panel. A post still not "Posted" 30 minutes after its time moves to a **Missed** list with "Post now" and "Reschedule". | Must | Schedule an approved draft for the next minute; within 2 minutes it shows as due, and 30 minutes after its time it shows under Missed. |
+| FR-42 | The user sets daily check-in reminders (days and a local time). From that time the app shows the reminder in its notification panel, and stops for the day once there is a check-in. | Must | Set a reminder for the next minute; it shows within 2 minutes, and disappears after a check-in. |
+| FR-43 | Replying to a reminder in the Telegram bot saves the reply as that day's check-in and offers a draft back in the same chat. | Later (after V1) | Reply to the bot; the check-in appears on the chat board. |
+| FR-36 | A user connects a Telegram channel by adding the app's bot as an admin and entering the channel. The app confirms it can post before saving. | Later (after V1) | Connect a channel without admin rights; it is refused with a message. |
+| FR-16 | The app ranks each day's hours per platform by audience activity: the audience's places (time zones with shares) and profession, a study-based curve per platform, and only hours the user can post. Times are shown in the user's own zone with a one-line reason. | Must | Change the audience place on Profile; the best hours shift. |
+| FR-45 | Approving a draft asks only for the **day**. The app picks the hour: the first post on that platform that day gets the best hour, the second the next best that keeps a minimum gap, and so on. The user can change the time. | Must | Approve two X drafts for the same day; they get the best and second-best hours, at least 2 hours apart. |
+| FR-34 | Posting-time suggestions start from study-based defaults and blend in the user's own archive data once they have at least 50 posts with engagement numbers on that platform. | Must | Import 60 posts with likes; the suggestion cites the user's own data. |
 
 ### 3.5 Accounts, limits and privacy
 
@@ -216,9 +217,9 @@ flowchart LR
 | NFR-9 | Maintainability | AI providers, model names and the embedding model are set in configuration, not scattered in code. | Change a model name in one place; the app uses it. |
 | NFR-10 | Privacy | A user can delete all their imported data, including embeddings. | Run the delete; posts and embeddings are gone. |
 | NFR-11 | Privacy | Raw uploaded files are never sent to the AI service. Only cleaned text the user reviewed may be sent. Raw files are deleted after parsing. | Inspect outgoing AI requests during an upload; no file content beyond cleaned text. |
-| NFR-12 | Security | Website fetching accepts only public addresses and stops after a short timeout. | Enter a localhost address; it is rejected. |
+| NFR-12 | Security | Portfolio and website fetching accepts only public addresses and stops after a short timeout. | Enter a localhost address; it is rejected. |
 | NFR-13 | Security | User data is isolated in the database (row-level security), not only in app code. | Query as user B; user A's rows are not returned. |
-| NFR-14 | Reliability | Reminders and scheduled Telegram sends go out within 5 minutes of the due time, and a worker restart never sends a post twice. | Schedule five, restart the worker mid-way; all arrive once, within 5 minutes. |
+| NFR-14 | Reliability | Imports whose embedding failed are retried in the background every few minutes without anyone opening the app, and two API processes never embed the same user at once. | Block the embedding call, unblock it, close the browser; the import finishes. |
 | NFR-15 | Observability | Every draft stores its exact prompt, model and provider. | Open any draft's prompt log. |
 | NFR-16 | Time | All times are stored in UTC and shown in the user's time zone. | Change the user's time zone; calendar times shift, stored values do not. |
 | NFR-17 | Recoverability | The database is backed up nightly to storage off the server, and a restore has been tested. | Restore last night's backup into a fresh container; row counts match. |
@@ -233,24 +234,26 @@ flowchart LR
 | Screen | Purpose |
 |---|---|
 | Sign in / invite | Managed login + invite code. |
-| Onboarding | Privacy notice → About-you form → audience questions → export upload. |
-| Chat board | Daily check-ins and draft requests in one stream, with history. |
-| Draft editor | Draft text, live length counter, chat revisions, versions, status, hand-off buttons. |
-| Draft library | All drafts filtered by status and platform. |
-| Calendar | Week and month views; drag drafts to a date and time. |
-| Settings | Tab per platform (rules, voice card + stats, pinned posts), profile, language, Telegram connection, usage, export/delete. |
+| Onboarding | Privacy notice → pick platforms → export upload (or skip) → role, focus, audience profession and places → first draft. |
+| Chat board (home) | "What did you do today?" with Save and Generate; Generate asks for platforms; drafts and every revision appear as cards in one thread (FR-40, FR-46). Approve asks for the day; the app picks the hour (FR-45). |
+| Left sidebar | Chat (new chat and past threads), Drafts (X · LinkedIn · Telegram), Calendar; Profile at the bottom; light/dark toggle. |
+| Right sidebar | Notifications (due posts, check-in reminder) and Missed posts (FR-35, FR-42). On mobile, a bell. |
+| Drafts | One list per platform; each draft has Reschedule, Copy now (hand-off) and Delete; Edit opens its thread. |
+| Calendar | Month (rows are weeks), week (columns are days, rows hours) and day (rows are hours) views; drag to reschedule; Edit opens the thread. |
+| Profile | About you, work and facts, resume and portfolio, audience per platform (profession and places, editable), when you can post, voice and posts per platform, reminders, Telegram channel name, usage, export/delete. |
 
 ### 5.2 Software interfaces
 
 | Interface | Direction | Use |
 |---|---|---|
 | Gemini API (`google-genai` SDK) | Out | `gemini-embedding-2` at 768 dims for embeddings; Gemini Flash for drafts, summaries and voice cards. |
-| Fallback provider (Groq, OpenRouter or Mistral) | Out | Generation only, when Gemini fails. |
+| Groq API (OpenAI-compatible, over `httpx`) | Out | Generation only, when every Gemini model fails (FR-31). |
 | Supabase Auth (or Auth0) | In/Out | Login; backend verifies the JWT on every request. |
-| Telegram Bot API | Out | `getChatMember` to verify admin rights; `sendMessage` to publish. |
 | X web intent | Browser | `https://x.com/intent/tweet?text=…` pre-filled composer. |
 | LinkedIn | Browser | Open the share composer; text goes via clipboard. |
-| Worker process | Internal | Runs beside the API on the server; every minute it sends due Telegram posts and reminders. |
+| Telegram | Browser | Open `https://t.me/<channel>`; text goes via clipboard. |
+| Background loop | Internal | Runs inside the API process every 5 minutes: retries waiting embeddings (NFR-14). Reminders and missed posts are worked out when the app asks, so nothing is sent. |
+| Portfolio fetch | Out | One GET of a public page the user entered (NFR-12). |
 | GitHub REST API | Out | (Should) Public commits and PR titles for the day. |
 
 ### 5.3 Embedding format rules
@@ -263,7 +266,7 @@ flowchart LR
 
 ## 6. Data model
 
-All tables except `exemplar_posts`, `platform_profiles` and `invites` carry `user_id`, protected by row-level security.
+All tables except `exemplar_posts`, `platform_profiles`, `posting_curves` and `invites` carry `user_id`, protected by row-level security.
 
 ```mermaid
 erDiagram
@@ -277,7 +280,8 @@ erDiagram
     users ||--o{ uploads : has
     users ||--o{ platform_settings : sets
     users ||--o{ provider_usage : uses
-    users ||--o| telegram_connections : connects
+    users ||--o{ threads : chats
+    threads ||--o{ drafts : holds
     users ||--o{ imports : runs
     drafts ||--o{ draft_messages : chats
     users ||--o{ inspiration_posts : collects
@@ -292,20 +296,22 @@ erDiagram
 | `imports` | id, user_id, platform, status, parsed, skipped (JSON), embedded, error, created_at, finished_at | One row per upload; progress for `GET /imports/{id}`. |
 | `voice_cards` | user_id, platform, card_text, hand_edits, stats (JSON), updated_at | Style summary and measured habits. |
 | `checkins` | id, user_id, day, text, created_at | Daily notes. |
-| `drafts` | id, user_id, platform, topic, status, scheduled_for, reminder_sent_at, published_at, created_at | One row per post in progress. |
+| `threads` | id, user_id, title, checkin_id, created_at, updated_at | One chat on the chat board (FR-46). |
+| `drafts` | id, user_id, thread_id, source_draft_id, checkin_id, platform, topic, status, scheduled_for, published_at, created_at | One row per post in progress. `source_draft_id` links a version written for another platform. |
 | `draft_versions` | id, draft_id, text, instruction, model, created_at | Every revision. |
 | `prompt_logs` | id, draft_id, draft_version_id, prompt, model, provider, created_at | Exact prompt behind each draft and each revision. |
-| `draft_messages` | id, draft_id, role (user, assistant), text, draft_version_id, created_at | The chat panel's conversation (FR-40). |
+| `draft_messages` | id, thread_id, draft_id, role (user, assistant), text, draft_version_id, created_at | The thread's conversation (FR-40, FR-46). |
 | `inspiration_posts` | id, user_id, creator, platform, text, post_type, likes, posted_at, embedding | Posts from creators the user admires, **per platform** (a Telegram channel only inspires Telegram drafts); structure examples only (FR-41). Never shown to other users. |
-| `reminder_settings` | user_id, kind, days, local_time, timezone, channel, enabled, last_sent_at | Check-in and posting reminders (FR-42). |
-| `profiles` | user_id, role, stack, current_projects, focus, goal, topics, audience, avoid_list, voice_words, links, discipline, usual_hours, excluded_hashtags, summary_card | About-you form, summary card and import exclusions; editable any time from the Profile page. |
-| `platform_settings` | user_id, platform, audience_location, audience_timezone | Where each audience lives. |
-| `uploads` | id, user_id, kind (resume, website), source, extracted_text, cleaned_text, created_at | Extracted and cleaned text. |
+| `reminder_settings` | user_id, days, local_time, enabled | Check-in reminders, shown in the app (FR-42). |
+| `profiles` | user_id, role, seniority, stack, current_projects, projects (JSON), focus, goal, topics, facts, audience, avoid_list, voice_words, emoji_habit, hashtag_habit, links, portfolio_url, discipline, usual_hours, post_window_start, post_window_end, days_off, language, excluded_hashtags, summary_card | About-you form, summary card and import exclusions; editable any time from the Profile page. |
+| `platform_settings` | user_id, platform, x_premium, audience_places (JSON: time zone + share), audience_profession, goal, posts_per_week, channel | Who each audience is and where it lives; the Telegram channel name for hand-off. |
+| `posting_curves` | platform, audience, weekday, hours (24 scores), source | Study-based activity by local weekday and hour, per platform and audience profession (FR-16, FR-34). Shared seed data. |
+| `uploads` | id, user_id, kind (resume, portfolio), source, extracted_text, cleaned_text, reviewed_at, created_at | Extracted and cleaned text; only reviewed text reaches the AI (FR-21). |
 | `platform_profiles` | platform, char_limit, counting_rule, tone_notes, structure_notes, updated_at | Shared, editable platform rules. |
 | `exemplar_posts` | id, platform, text, embedding | Shared, non-personal example pool for thin histories. |
 | `invites` | code, email, used_by, created_at | Who may sign up. |
 | `provider_usage` | id, user_id, provider, model, purpose, status, created_at | Limits and fallback debugging. |
-| `telegram_connections` | user_id, channel_id, verified_at | Channel the bot may post to. |
+| `telegram_connections` | user_id, channel_id, verified_at | After V1: the channel the bot may post to (FR-36). |
 
 **Indexing:** start with no vector index. pgvector's exact search is fast enough for a few thousand rows per user. Use B-tree indexes on `(user_id, platform)`. Query shape: `ORDER BY embedding <=> :q LIMIT :n`.
 
@@ -319,7 +325,7 @@ Seed values for `platform_profiles`, as of October 2026.
 |---|---|---|---|
 | X | 280 (25,000 with Premium) | Weighted (twitter-text v3): each URL = 23; Ethiopic (Amharic), CJK and emoji characters = 2 | Pre-filled compose link |
 | LinkedIn | 3,000 | Plain count; ~210 characters show before "see more" | Copy + open composer |
-| Telegram | 4,096 | Plain count | Bot sends now or at the scheduled time |
+| Telegram | 4,096 | Plain count | Copy + open the user's channel |
 
 ---
 
@@ -327,6 +333,8 @@ Seed values for `platform_profiles`, as of October 2026.
 
 - Billing, paid plans, teams, admin dashboard.
 - Automatic posting to X and LinkedIn through their APIs.
+- The Telegram bot: channel connect, automatic sends, replies as check-ins (FR-36, FR-43). Planned after V1.
+- Reminders outside the app (Telegram DM, email, browser push).
 - Trend feeds, niche outlier tracking, reply queues.
 - AI-generated images.
 - Model fine-tuning.
@@ -354,12 +362,13 @@ Seed values for `platform_profiles`, as of October 2026.
 | 0 — Foundations | NFR-2, NFR-5, NFR-8 (CI), NFR-9 |
 | 1 — Core voice loop (Telegram) | FR-1 (Telegram), FR-2, FR-3, FR-4, FR-7, FR-39, FR-44, NFR-15 |
 | 2 — Accounts and isolation | FR-27, FR-28, FR-29, FR-37, NFR-7, NFR-13, NFR-18 |
-| 3 — All platforms and voice | FR-1 (X, LinkedIn), FR-5, FR-9, FR-17, FR-18, FR-22–FR-26, FR-33, FR-41 |
-| 4 — Drafting workflow | FR-6, FR-8, FR-10, FR-11, FR-19, FR-40, FR-12 (X, LinkedIn) |
-| 5 — Calendar, Telegram publishing and reminders | FR-12 (Telegram), FR-13, FR-35, FR-36, FR-42, FR-43, NFR-14, NFR-16 |
+| 3 — All platforms and voice | FR-1 (X, LinkedIn), FR-5, FR-9, FR-17, FR-18, FR-20, FR-21, FR-22–FR-26, FR-33, FR-41, NFR-12 |
+| 4 — Drafting workflow | FR-6, FR-8, FR-10, FR-11, FR-19, FR-40, FR-46, FR-12 |
+| 5 — Calendar, posting times and reminders | FR-13, FR-16, FR-34, FR-35, FR-42, FR-45, NFR-14, NFR-16 |
 | 6 — SaaS hardening and deploy | FR-30, FR-31, FR-32, FR-38, NFR-1, NFR-3, NFR-4, NFR-10, NFR-11, NFR-17 |
 | 7 — Private beta | FR-15, success metrics |
-| Stretch | FR-14, FR-16, FR-20, FR-21, FR-34, NFR-12 |
+| Stretch | FR-14 |
+| After V1 | FR-36, FR-43 (Telegram bot) |
 
 ---
 
@@ -367,6 +376,7 @@ Seed values for `platform_profiles`, as of October 2026.
 
 | Version | Date | Change |
 |---|---|---|
+| 1.3 | 22 Oct 2026 | No Telegram bot in V1: Telegram is copy + open channel (C-6, FR-12, FR-35; FR-36 and FR-43 move after V1), and reminders live in the app (FR-42). Chat board threads with a new draft card per revision (FR-40, new FR-46). Posting times move into V1: best hours from audience places and profession (FR-16, FR-34) and the app picks the hour on approve (new FR-45). Resume and portfolio import move into V1 (FR-20, FR-21, NFR-12). FR-23 rules change through migrations. Groq is the fallback provider. NFR-14 is now the background embedding retry. New tables `threads`, `posting_curves`; `profiles`, `platform_settings`, `drafts`, `draft_messages`, `reminder_settings`, `uploads` change. |
 | 1.2 | 17 Oct 2026 | Added FR-40 (chat panel on each draft), FR-41 (inspiration picked by post type), FR-42 (daily check-in reminders), FR-43 (reply to the bot = check-in), FR-44 (excluded hashtags, best-1,000 import cap). New tables `imports`, `draft_messages`, `inspiration_posts`, `reminder_settings`; `source_posts` gains `origin`, `import_id`, `embedding_model`. Decisions behind them: OPEN_QUESTIONS Q2, Q3, Q5, Q24–Q27. |
 | 1.1 | 14 Oct 2026 | Hosting moved to the team's Contabo VPS: always-on worker replaces the external cron; Supabase used for login only; added NFR-17 (backups) and NFR-18 (server hardening). |
 | 1.0 | 13 Oct 2026 | First locked V1. Built from the Pre-Build Plan. Clarified: Telegram is sent by the app at the due time because bots cannot schedule natively (FR-12, FR-35); NFR-6 reworded to "never without explicit approval"; NFR-11 reworded for a hosted app; added NFR-15, NFR-16 and a priority column. |
