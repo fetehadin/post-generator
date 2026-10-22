@@ -1,5 +1,5 @@
 # Copy this file to the server as deploy/.env and fill it in. Never commit the filled-in copy.
-# Make passwords with: openssl rand -base64 32
+# Make passwords with: openssl rand -hex 24  (hex, because base64's / and + break the database URLs)
 
 DOMAIN=voxlace.example.com
 # true when another app's Caddy already owns ports 80/443 (deploy/docker-compose.shared-caddy.yml)
