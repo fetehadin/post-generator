@@ -1,5 +1,6 @@
 """The AI client is tested against a fake Gemini: no test ever calls a real API."""
 
+import json
 from types import SimpleNamespace
 
 import httpx
@@ -164,9 +165,86 @@ def test_generate_raises_ai_unavailable_when_the_network_stays_down():
 
 def test_generate_skips_unsupported_provider_and_fails_clearly_when_all_fail():
     models = FakeModels(gen_failures={"only": [500] * 10})
-    client, _ = make(models, chain="groq:llama,google:only")
-    with pytest.raises(AIUnavailable, match="groq:llama unsupported"):
+    client, _ = make(models, chain="mistral:small,google:only")
+    with pytest.raises(AIUnavailable, match="mistral:small unsupported"):
         client.generate("prompt")
+
+
+class FakeGroq:
+    """A fake Groq endpoint: answers with the queued statuses first, then a draft."""
+
+    def __init__(self, statuses=(), retry_after=None):
+        self.statuses = list(statuses)
+        self.retry_after = retry_after
+        self.requests: list[httpx.Request] = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        if self.statuses:
+            code = self.statuses.pop(0)
+            headers = {"retry-after": self.retry_after} if self.retry_after else {}
+            return httpx.Response(
+                code, json={"error": {"message": f"fake {code}"}}, headers=headers
+            )
+        body = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={"model": body["model"], "choices": [{"message": {"content": " groq draft "}}]},
+        )
+
+
+def make_groq(groq: FakeGroq, models=None, chain="google:first,groq:openai/gpt-oss-120b", key="k"):
+    waits: list[float] = []
+    settings = Settings(
+        _env_file=None, gemini_api_key="test", groq_api_key=key, generation_models=chain
+    )
+    client = AIClient(
+        settings,
+        genai_client=SimpleNamespace(models=models or FakeModels()),
+        sleep=waits.append,
+        http=httpx.Client(transport=httpx.MockTransport(groq)),
+    )
+    return client, waits
+
+
+def test_groq_is_the_fallback_when_gemini_fails_and_is_recorded():
+    groq = FakeGroq()
+    client, _ = make_groq(groq, models=FakeModels(gen_failures={"first": [404]}))
+    result = client.generate("the prompt", temperature=0.7)
+    assert (result.text, result.provider, result.model) == (
+        "groq draft",
+        "groq",
+        "openai/gpt-oss-120b",
+    )
+    sent = json.loads(groq.requests[0].content)
+    assert groq.requests[0].headers["authorization"] == "Bearer k"
+    assert sent["messages"] == [{"role": "user", "content": "the prompt"}]
+    assert sent["temperature"] == 0.7
+    # A reasoning model returns only its answer, never its reasoning.
+    assert sent["include_reasoning"] is False
+
+
+def test_groq_retries_a_rate_limit_waiting_as_asked():
+    groq = FakeGroq(statuses=[429], retry_after="7")
+    client, waits = make_groq(groq, chain="groq:qwen/qwen3.8-27b")
+    assert client.generate("p").provider == "groq"
+    assert waits == [8.0]  # the server's 7 s, plus a second of margin
+    assert "include_reasoning" not in json.loads(groq.requests[-1].content)
+
+
+def test_groq_daily_limit_fails_fast_and_says_why():
+    groq = FakeGroq(statuses=[429], retry_after="20000")
+    client, waits = make_groq(groq, chain="groq:openai/gpt-oss-120b")
+    with pytest.raises(AIUnavailable, match="429: fake 429"):
+        client.generate("p")
+    assert waits == [] and len(groq.requests) == 1
+
+
+def test_groq_without_a_key_is_skipped_not_called():
+    groq = FakeGroq()
+    client, _ = make_groq(groq, chain="groq:openai/gpt-oss-120b,google:first", key="")
+    assert client.generate("p").provider == "google"
+    assert groq.requests == []
 
 
 def test_chain_parsing_defaults_provider_to_google():

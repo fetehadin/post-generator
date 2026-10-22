@@ -3,6 +3,9 @@
 Embeddings use one fixed model and never fall back (C-7, FR-32): on repeated failure
 they raise EmbeddingUnavailable so the import queue can retry later. Generation walks
 the configured chain and records which model actually answered (FR-31, NFR-15).
+
+Providers: Gemini through its SDK, and Groq as the fallback. Groq speaks the OpenAI chat
+format, so a plain HTTP call over httpx is enough; no second SDK.
 """
 
 import logging
@@ -30,6 +33,16 @@ RETRY_HINT = re.compile(
     r"retry in ((?:\d+h)?(?:\d+m)?[\d.]+s)|retryDelay\W+([\d.]+s)", re.IGNORECASE
 )
 DURATION = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?([\d.]+)s")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+
+class ProviderError(Exception):
+    """An HTTP error from Groq, carrying what Gemini's APIError carries: a status code, a
+    message, and how long the server asked us to wait (its Retry-After header)."""
+
+    def __init__(self, code: int, message: str, wait: float | None = None) -> None:
+        super().__init__(f"{code}: {message}")
+        self.code, self.message, self.wait = code, message, wait
 
 
 class AIUnavailable(Exception):
@@ -55,11 +68,13 @@ class AIClient:
         genai_client: object | None = None,
         sleep: Callable[[float], None] = time.sleep,
         max_attempts: int = 5,
+        http: httpx.Client | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self._client = genai_client
         self._sleep = sleep
         self.max_attempts = max_attempts
+        self._http = http
 
     @property
     def client(self):
@@ -111,15 +126,16 @@ class AIClient:
     ) -> GenerationResult:
         """Try each model in the chain; move on when one is down, rate-limited or removed."""
         failures = []
+        providers = {"google": self._generate_google, "groq": self._generate_groq}
         for provider, model in self.settings.generation_chain:
-            if provider != "google":
-                # Second provider lands with FR-31's fallback work in Phase 6.
-                logger.warning("skipping %s:%s, provider not supported yet", provider, model)
+            call = providers.get(provider)
+            if call is None:
+                logger.warning("skipping %s:%s, unknown provider", provider, model)
                 failures.append(f"{provider}:{model} unsupported")
                 continue
             try:
-                return self._generate_google(model, prompt, temperature)
-            except (errors.APIError, httpx.TransportError) as e:
+                return call(model, prompt, temperature)
+            except (errors.APIError, ProviderError, httpx.TransportError, AIUnavailable) as e:
                 logger.warning("%s generation failed on %s: %s", purpose, model, describe(e))
                 failures.append(f"{model} {describe(e)}")
         raise AIUnavailable("all models failed: " + "; ".join(failures))
@@ -145,6 +161,42 @@ class AIClient:
                 self._backoff(attempt, e)
         raise AIUnavailable("unreachable")
 
+    @property
+    def http(self) -> httpx.Client:
+        if self._http is None:
+            self._http = httpx.Client(timeout=self.settings.ai_timeout_seconds)
+        return self._http
+
+    def _generate_groq(self, model: str, prompt: str, temperature: float) -> GenerationResult:
+        if not self.settings.groq_api_key:
+            raise AIUnavailable("GROQ_API_KEY is not set")
+        body = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": temperature,
+        }
+        if model.startswith("openai/gpt-oss"):
+            # A reasoning model: think briefly and return only the answer, not the reasoning.
+            body |= {"reasoning_effort": "low", "include_reasoning": False}
+        headers = {"Authorization": f"Bearer {self.settings.groq_api_key}"}
+        for attempt in range(1, self.max_attempts + 1):
+            try:
+                resp = self.http.post(GROQ_URL, json=body, headers=headers)
+                if resp.status_code != 200:
+                    raise _groq_error(resp)
+                data = resp.json()
+                return GenerationResult(
+                    text=(data["choices"][0]["message"].get("content") or "").strip(),
+                    model=model,
+                    provider="groq",
+                    model_version=data.get("model") or model,
+                )
+            except (ProviderError, httpx.TransportError) as e:
+                if not retryable(e) or attempt == self.max_attempts:
+                    raise
+                self._backoff(attempt, e)
+        raise AIUnavailable("unreachable")
+
     def _backoff(self, attempt: int, err: Exception) -> None:
         """Exponential backoff, but never shorter than what the server asked for."""
         wait = min(60.0, 2.0**attempt)
@@ -159,7 +211,7 @@ def retryable(err: Exception) -> bool:
     """Rate limits, server errors and network drops (DNS, refused, timeout) are worth a retry."""
     if isinstance(err, httpx.TransportError):
         return True
-    if not isinstance(err, errors.APIError) or err.code not in RETRYABLE:
+    if not isinstance(err, errors.APIError | ProviderError) or err.code not in RETRYABLE:
         return False
     # A wait longer than we'd ever sleep means a daily quota: move on now, don't spin.
     hinted = retry_after(err)
@@ -167,18 +219,34 @@ def retryable(err: Exception) -> bool:
 
 
 def describe(err: Exception) -> str:
-    if isinstance(err, errors.APIError):
+    if isinstance(err, errors.APIError | ProviderError):
         return f"{err.code}: {err.message}"
+    if isinstance(err, AIUnavailable):
+        return str(err)
     return f"network error ({type(err).__name__})"
 
 
 def retry_after(err: Exception) -> float | None:
+    if isinstance(err, ProviderError):
+        return err.wait
     text = f"{getattr(err, 'message', '')} {getattr(err, 'details', '')}"
     m = RETRY_HINT.search(text)
     if not m:
         return None
     h, mins, secs = DURATION.fullmatch(m.group(1) or m.group(2)).groups()
     return int(h or 0) * 3600 + int(mins or 0) * 60 + float(secs)
+
+
+def _groq_error(resp: httpx.Response) -> ProviderError:
+    try:
+        message = resp.json()["error"]["message"]
+    except (ValueError, KeyError, TypeError):
+        message = resp.text[:200]
+    try:
+        wait = float(resp.headers["retry-after"])
+    except (KeyError, ValueError):
+        wait = None
+    return ProviderError(resp.status_code, message, wait)
 
 
 _default: AIClient | None = None
