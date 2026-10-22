@@ -200,6 +200,8 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 ### Phase 5 — Calendar and Telegram publishing
 
+> **Changed 22 Oct 2026 (SRS 1.3):** no Telegram bot in V1. This phase is now *Calendar, posting times and reminders*: month/week/day calendar, best hours from audience places and profession (FR-16, FR-34), the app picks the hour on approve (FR-45), in-app reminders and Missed posts (FR-35, FR-42), and a background embedding retry inside the API (NFR-14). The Telegram rows below wait until after V1.
+
 **Goal:** plan the week on a calendar; Telegram posts go out on time by themselves after approval.
 
 **Database:** `telegram_connections`; `drafts.scheduled_for`, `reminder_sent_at`, `published_at` in use.
