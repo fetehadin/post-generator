@@ -86,8 +86,13 @@ Run it once by hand, and test a restore once (the command is at the bottom of `b
 
 **7. Deploy on every merge to `main`:** in GitHub → Settings → Environments → `production`:
 - secrets `DEPLOY_SSH_KEY` (a key that only this workflow uses), `DEPLOY_KNOWN_HOSTS` (`ssh-keyscan YOUR-SERVER`), `DEPLOY_USER` (`deploy`) and `DEPLOY_HOST`;
-- variable `DEPLOY_PATH` (`/srv/voxlace`);
+- variables `DEPLOY_PATH` (`/srv/voxlace`) and `DOMAIN` (the health check calls `https://$DOMAIN/api/v1/health`);
 - then the repository variable `DEPLOY_ENABLED` = `true`. See `docs/CI_CD.md`.
+
+**Our server, the short way:** `./deploy/finish-setup.sh` from the repo root on your laptop does steps 4–7's
+remaining parts in one go. It copies the AI and login keys from your local settings file to the server
+(`push-keys.sh`, values never printed), sets the GitHub secrets and variables above, starts Voxlace, and
+turns `DEPLOY_ENABLED` on only after the health check passes.
 
 ## Sharing the server with another Caddy (our Contabo box)
 
