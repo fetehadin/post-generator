@@ -105,7 +105,11 @@ def embed_in_background(user_id: uuid.UUID, ai: AIClient | None = None) -> None:
     key = f"embed:{user_id}"
     with get_engine().connect() as conn:
         if not conn.scalar(text("SELECT pg_try_advisory_lock(hashtext(:k))"), {"k": key}):
+            conn.commit()
             return
+        # The lock belongs to the connection, not the transaction: end the transaction now so
+        # the connection isn't left "idle in transaction" for the whole run.
+        conn.commit()
         try:
             while True:
                 report = embed_pending(user_id, ai=ai)
