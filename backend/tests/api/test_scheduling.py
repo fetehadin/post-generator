@@ -154,3 +154,72 @@ def test_posting_hours_need_a_start_and_a_different_end(api):
     assert r.status_code == 400
     ok = api.put(f"{API}/profile", json={"post_window_start": "20:00", "post_window_end": "02:00"})
     assert ok.json()["post_window_start"] == "20:00:00"
+
+
+def test_a_discarded_draft_cant_be_put_on_the_calendar(api):
+    setup_user(api)
+    d = new_draft(api)
+    api.patch(f"{API}/drafts/{d}", json={"status": "discarded"})
+    r = api.post(f"{API}/drafts/{d}/schedule", json={"day": in_three_days().isoformat()})
+    assert r.status_code == 409 and r.json()["error"]["code"] == "discarded"
+    assert api.get(f"{API}/drafts/{d}").json()["status"] == "discarded"
+
+
+def test_a_picked_time_must_be_on_the_picked_day(api):
+    setup_user(api)
+    day = in_three_days()
+    other_day = datetime.combine(day + timedelta(days=1), datetime.min.time(), ADDIS)
+    r = api.post(
+        f"{API}/drafts/{new_draft(api)}/schedule",
+        json={"day": day.isoformat(), "at": other_day.replace(hour=10).isoformat()},
+    )
+    assert r.status_code == 400 and r.json()["error"]["code"] == "wrong_day"
+
+
+def test_a_picked_time_outside_the_posting_hours_comes_with_a_warning(api):
+    setup_user(api)
+    day = in_three_days()
+    late = datetime.combine(day, datetime.min.time(), ADDIS).replace(hour=23)
+    r = api.post(
+        f"{API}/drafts/{new_draft(api)}/schedule",
+        json={"day": day.isoformat(), "at": late.isoformat()},
+    ).json()
+    assert datetime.fromisoformat(r["scheduled_for"]) == late
+    assert "outside the hours you post" in r["warning"]
+
+
+def test_a_post_picked_before_the_others_is_ranked_first(api):
+    setup_user(api)
+    day = in_three_days()
+    api.post(f"{API}/drafts/{new_draft(api)}/schedule", json={"day": day.isoformat()})
+    early = datetime.combine(day, datetime.min.time(), ADDIS).replace(hour=8)
+    r = api.post(
+        f"{API}/drafts/{new_draft(api)}/schedule",
+        json={"day": day.isoformat(), "at": early.isoformat()},
+    ).json()
+    assert r["rank"] == 1
+
+
+def test_another_users_draft_cant_be_scheduled(api, make_user):
+    setup_user(api)
+    d = new_draft(api)
+    api.state["user"] = make_user()
+    r = api.post(f"{API}/drafts/{d}/schedule", json={"day": in_three_days().isoformat()})
+    assert r.status_code == 404
+
+
+def test_null_audience_settings_go_back_to_their_defaults(api):
+    api.put(
+        f"{API}/platforms/telegram/settings",
+        json={
+            "audience_places": [{"timezone": "Europe/Berlin", "share": 100}],
+            "audience_profession": "developers",
+        },
+    )
+    r = api.put(
+        f"{API}/platforms/telegram/settings",
+        json={"audience_places": None, "audience_profession": None},
+    )
+    assert r.status_code == 200, r.text
+    body = api.get(f"{API}/platforms/telegram").json()
+    assert (body["audience_places"], body["audience_profession"]) == ([], "general")

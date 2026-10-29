@@ -128,6 +128,12 @@ def in_window(hour: int, start: time, end: time) -> bool:
     return start <= t < end if start < end else (t >= start or t < end)
 
 
+def _exists(t: datetime) -> bool:
+    """False for a wall time the clock skips (02:30 on a spring-forward night): it would
+    land on the same instant as the next hour."""
+    return t.astimezone(UTC).astimezone(t.tzinfo).replace(tzinfo=None) == t.replace(tzinfo=None)
+
+
 def pick_hour(
     day: date,
     scores: list[float],
@@ -140,9 +146,11 @@ def pick_hour(
     """The best free hour of `day`, as an aware local datetime, and whether the gap had to be
     given up because the day is full. None when no hour of the window is left."""
     open_hours = [
-        datetime.combine(day, time(h), user_tz)
+        t
         for h in range(24)
-        if in_window(h, *window) and datetime.combine(day, time(h), user_tz) > now + LEAD
+        if in_window(h, *window)
+        and _exists(t := datetime.combine(day, time(h), user_tz))
+        and t > now + LEAD
     ]
     if not open_hours:
         return None
@@ -259,6 +267,8 @@ def schedule(
     or at `at` when the user picked a time. Approval keeps its rules (FR-9)."""
     now = now or datetime.now(UTC)
     current = library.detail(user_id, draft_id)
+    if current.draft.status == "discarded":
+        raise DraftError("discarded", "Restore this draft before you schedule it.", 409)
     platform = current.draft.platform
     with user_session(user_id) as s:
         ctx = _context(s, user_id, platform)
@@ -273,10 +283,17 @@ def schedule(
                 Draft.scheduled_for < start + timedelta(days=1),
             )
         ).all()
-    rank = len(taken) + 1
     warning = None
     if at is not None:
         when, reason = at, "You picked this time."
+        if at.astimezone(ctx.user_tz).date() != day:
+            raise DraftError("wrong_day", f"That time isn't on {day:%a %d %b} in your time zone.")
+        start_t, end_t = ctx.window
+        if not in_window(at.astimezone(ctx.user_tz).hour, start_t, end_t):
+            warning = (
+                f"That's outside the hours you post ({start_t:%H:%M}–{end_t:%H:%M}), "
+                "so you may not be around to post it."
+            )
     else:
         picked = pick_hour(
             day, _scores(ctx, day), ctx.user_tz, ctx.window, taken, GAP[platform], now
@@ -293,6 +310,7 @@ def schedule(
         if crowded:
             name = PLATFORM_NAMES[platform]
             warning = f"That day already has {len(taken)} {name} posts close together."
+    rank = sum(t < when for t in taken) + 1  # its place in the day's order, not a count
     if platform == "linkedin" and taken and warning is None:
         warning = "LinkedIn tends to show a second post on the same day to fewer people."
     changes: dict = {"scheduled_for": when.astimezone(UTC)}
