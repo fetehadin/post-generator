@@ -1,0 +1,30 @@
+# Used when another Caddy on the server already owns ports 80/443 (deploy/docker-compose.shared-caddy.yml).
+# That Caddy handles HTTPS for the domain and forwards everything here as plain HTTP.
+:80 {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	# Uploads are at most 64 MB (docs/API.md); allow a little room for the form.
+	request_body /api/* {
+		max_size 70MB
+	}
+
+	# voxlace-api, not api: the shared network has another app's `api` (docker-compose.shared-caddy.yml).
+	handle /api/* {
+		reverse_proxy voxlace-api:8000
+	}
+
+	# The React app: unknown paths fall back to index.html so routes like /drafts/123 work.
+	handle {
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+	}
+}
