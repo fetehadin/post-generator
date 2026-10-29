@@ -41,6 +41,9 @@ class Profile(CreatedAt, Base):
     usual_hours: Mapped[str] = mapped_column(Text, default="", server_default="")
     language: Mapped[str] = mapped_column(String(32), default="auto", server_default="auto")
     excluded_hashtags: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    # The hours they can post on their own clock; every hand-off needs them awake (FR-45).
+    post_window_start: Mapped[time] = mapped_column(Time, server_default="08:00")
+    post_window_end: Mapped[time] = mapped_column(Time, server_default="22:00")
     summary_card: Mapped[str] = mapped_column(Text, default="", server_default="")
     summary_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(

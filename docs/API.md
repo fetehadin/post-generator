@@ -174,7 +174,9 @@ Everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44). Created wi
   "language": "auto",
   "excluded_hashtags": ["#family", "#me"],
   "summary_card": "I build Voxlace…",
-  "summary_updated_at": "2026-10-21T16:00:00Z"
+  "summary_updated_at": "2026-10-21T16:00:00Z",
+  "post_window_start": "08:00:00",
+  "post_window_end": "22:00:00"
 }
 ```
 
@@ -184,7 +186,7 @@ Everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44). Created wi
 
 ### `PUT /profile`
 
-Send only the fields that change (same names as above, except `summary_updated_at`). Strings are trimmed and hashtags normalised. Editing `summary_card` sets `summary_updated_at`. Returns `GET /profile`'s shape.
+Send only the fields that change (same names as above, except `summary_updated_at`). Strings are trimmed and hashtags normalised. Editing `summary_card` sets `summary_updated_at`. Returns `GET /profile`'s shape. `post_window_start`/`post_window_end` are the hours the user can post, on their own clock (a window may cross midnight, e.g. 20:00–02:00); the same start and end → `400 empty_window`.
 
 ### `POST /profile/summary`
 
@@ -211,7 +213,12 @@ One Profile tab per platform (FR-22): its rules, the user's voice card and stats
   "voice_card": "- Opens with a one-line hook…",
   "voice_card_updated_at": "2026-10-22T09:00:00Z",
   "x_premium": true,
-  "premium_source": "export"
+  "premium_source": "export",
+  "audience_places": [{ "timezone": "Africa/Addis_Ababa", "share": 70 }, { "timezone": "Europe/Berlin", "share": 30 }],
+  "audience_profession": "developers",
+  "goal": "grow my channel",
+  "posts_per_week": 4,
+  "channel": null
 }
 ```
 
@@ -231,7 +238,31 @@ When a card exists, drafts for that platform add it before the example posts. An
 
 ### `PUT /platforms/{platform}/settings`
 
-`{"x_premium": true}`. X only (`400 not_supported` otherwise). The user's answer always wins over the export's guess. Returns `GET`'s shape.
+Send only what changes; returns `GET`'s shape.
+
+| Field | Rule |
+|---|---|
+| `x_premium` | X only (`400 not_supported` otherwise). The user's answer always wins over the export's guess (Q31). |
+| `audience_places` | Up to 3 `{"timezone", "share"}` (IANA name, share 1–100 in percent; shares are weighed against each other). Unknown zone → `400 invalid_timezone`; the same zone twice → `400 duplicate_place`. `[]` (or `null`) = the audience lives where the user does (FR-33). |
+| `audience_profession` | `general`, `developers`, `business`, `students` or `creatives`; `null` → `general`. |
+| `goal` | Free text, up to 500 characters. |
+| `posts_per_week` | 0–50. |
+| `channel` | Telegram only: the channel's public name (`@fetescript`, `fetescript` or `https://t.me/fetescript` → saved as `fetescript`); used for the hand-off (FR-12). Bad name → `400 invalid_channel`; `""` clears it. |
+
+### `GET /platforms/{platform}/best-hours?start=2026-10-26&days=7`
+
+Each day's hours scored for this platform's audience (FR-16, FR-34). `days` 1–42 (default 7).
+
+```json
+{
+  "platform": "telegram", "timezone": "Africa/Addis_Ababa", "source": "studies",
+  "days": [ { "date": "2026-10-26", "scores": [0.21, 0.12, "… 24 values, the user's local hours"], "best": [19, 9, 20] } ]
+}
+```
+
+- A score is how active the audience is at that hour of the user's day, 1.0 = the day's best. Each audience place is looked up on its own clock (study curves per platform and weekday, reshaped by the audience's profession), then weighed by share.
+- `best`: the top three hours inside the user's posting window (`post_window_start`/`end` in `GET /profile`), best first.
+- `source` is `your_posts` once the user has 50+ posts with reactions on this platform: their own results are blended in per hour, weighted by how many posts back each hour.
 
 ---
 
@@ -286,6 +317,26 @@ A row plus the editor's data: `topic`, `checkin_id`, `versions` (`[{"id", "numbe
 ### `POST /drafts/{id}/revise`
 
 `{"instruction": "Shorter", "selection"?: "one sentence from the text"}`. The chat (FR-10, FR-40): the AI revises the current text into a new version, using the user's voice card, summary card, topic and the platform rules, and only given facts. With `selection`, only that part changes (`400 selection_changed` if it isn't in the text any more). If a fact is missing, the assistant asks a question instead and no version is made. Both lines are saved to `messages`; the prompt is logged. Only while `draft` → else `409 not_editable`. `503 ai_unavailable` when the AI is busy.
+
+### `POST /drafts/{id}/schedule`
+
+Approve and put on the calendar in one step (FR-45). `{"day": "2026-10-26", "at"?: "2026-10-26T13:30:00+03:00"}`.
+
+```json
+{
+  "draft": { "…": "a GET /drafts row, now approved with scheduled_for" },
+  "scheduled_for": "2026-10-26T16:00:00Z",
+  "rank": 1,
+  "reason": "70% of your audience is in Addis Ababa (19:00 there) · Telegram's evening peak",
+  "warning": null
+}
+```
+
+- Without `at`, the app picks the best hour of that day (the user's own day) inside their posting window and at least 15 minutes from now, skipping an hour the clock jumps over (daylight saving). The first post on that platform that day gets the best hour; later ones the best hour at least 2 h (X), 3 h (Telegram) or 4 h (LinkedIn) from the others.
+- `rank`: the post's place in that day's order on this platform (1 = earliest).
+- `warning`: the day is full so the gap couldn't be kept, a second LinkedIn post that day, or a picked `at` outside the posting window.
+- With `at`, that time is used (`reason`: "You picked this time."). It must fall on `day` in the user's time zone → else `400 wrong_day`.
+- Approval rules still apply: `409 over_limit`, `409 already_published`. A discarded draft → `409 discarded` (restore it first). Another user's draft → `404 not_found`. No hour left that day → `400 no_time_left`.
 
 ### `POST /drafts/{id}/versions/{version_id}/restore`
 
