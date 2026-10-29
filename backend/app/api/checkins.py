@@ -1,7 +1,6 @@
 """Daily check-ins: save, list, edit and delete (FR-6)."""
 
 import uuid
-from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Response
 
@@ -29,8 +28,7 @@ def _out(c: Checkin) -> CheckinOut:
 
 @router.post("", response_model=CheckinOut, status_code=201)
 def create(body: CheckinIn, user_id: uuid.UUID = Depends(current_user)) -> CheckinOut:
-    day = body.day or datetime.now(UTC).date()
-    return _out(service.create(user_id, _text(body.text), day))
+    return _out(service.create(user_id, _text(body.text), body.day))
 
 
 @router.get("", response_model=CheckinsOut)

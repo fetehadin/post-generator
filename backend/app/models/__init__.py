@@ -1,6 +1,6 @@
 """SQLAlchemy models. Importing this package registers every table on Base.metadata."""
 
-from app.models.accounts import Invite, Profile
+from app.models.accounts import Invite, Profile, ReminderSettings
 from app.models.base import Base
 from app.models.drafts import (
     Checkin,
@@ -9,6 +9,7 @@ from app.models.drafts import (
     DraftVersion,
     PlatformProfile,
     PromptLog,
+    Thread,
 )
 from app.models.imports import Import, SourcePost
 from app.models.user import User
@@ -26,7 +27,9 @@ __all__ = [
     "PlatformProfile",
     "PlatformSettings",
     "PromptLog",
+    "ReminderSettings",
     "SourcePost",
+    "Thread",
     "User",
     "VoiceCard",
 ]

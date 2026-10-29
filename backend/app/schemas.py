@@ -1,10 +1,10 @@
 """Request and response bodies. They mirror docs/API.md; change both together."""
 
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
 Platform = Literal["telegram", "x", "linkedin"]
 
@@ -75,6 +75,7 @@ class DraftOut(BaseModel):
     model: str | None
     examples_used: int
     created_at: datetime
+    thread_id: uuid.UUID
 
 
 class PromptOut(BaseModel):
@@ -89,6 +90,26 @@ class MeOut(BaseModel):
     email: str
     admitted: bool  # invite redeemed or email allowed (FR-28)
     privacy_accepted: bool  # uploads are blocked until true (FR-37)
+    timezone: str = Field("UTC", description='IANA name, e.g. "Africa/Addis_Ababa" (NFR-16)')
+
+
+class MePatchIn(BaseModel):
+    timezone: str = Field(min_length=1, max_length=64)
+
+
+class ReminderIO(BaseModel):
+    """GET/PUT /me/reminders (FR-42): the daily check-in reminder, shown in the app."""
+
+    enabled: bool
+    days: list[int] = Field(description="0 = Monday … 6 = Sunday")
+    local_time: time = Field(description='In the user\'s own time zone, e.g. "18:00"')
+
+    @field_validator("days")
+    @classmethod
+    def _weekdays(cls, days: list[int]) -> list[int]:
+        if any(d not in range(7) for d in days):
+            raise ValueError("days are 0 (Monday) to 6 (Sunday)")
+        return days
 
 
 class UsageOut(BaseModel):
@@ -228,10 +249,81 @@ class DraftRowOut(BaseModel):
     published_at: datetime | None
     created_at: datetime
     updated_at: datetime = Field(description="When the current version was made")
+    thread_id: uuid.UUID | None = None
 
 
 class DraftsOut(BaseModel):
     items: list[DraftRowOut]
+
+
+class NotificationsOut(BaseModel):
+    """GET /me/notifications (FR-35, FR-42): asked every minute by the app."""
+
+    due: list[DraftRowOut] = Field(description="Approved, from 10 min before to 30 min after")
+    missed: list[DraftRowOut] = Field(description="Approved, time passed 30+ min ago, not posted")
+    checkin_reminder: bool
+
+
+class ThreadIn(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+    day: date | None = Field(None, description="The user's own day; default today, their time")
+
+
+class ThreadGenerateIn(BaseModel):
+    platforms: list[Platform] = Field(min_length=1, max_length=3)
+
+
+class ConvertIn(BaseModel):
+    platform: Platform
+
+
+class ThreadRowOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    platforms: list[Platform]
+    updated_at: datetime
+
+
+class ThreadsOut(BaseModel):
+    items: list[ThreadRowOut]
+
+
+class CardOut(BaseModel):
+    """A draft version shown as a card in the thread."""
+
+    version_id: uuid.UUID
+    number: int
+    text: str
+    length: LengthOut
+
+
+class ThreadMessageOut(BaseModel):
+    id: uuid.UUID
+    role: Literal["user", "assistant"]
+    text: str
+    draft_id: uuid.UUID | None
+    card: CardOut | None = Field(description="Set when this message is a draft version")
+    created_at: datetime
+
+
+class GenerateFailureOut(BaseModel):
+    platform: Platform
+    code: str
+    message: str
+
+
+class ThreadOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    checkin_id: uuid.UUID | None
+    checkin_text: str
+    created_at: datetime
+    updated_at: datetime
+    messages: list[ThreadMessageOut]
+    drafts: list[DraftRowOut] = Field(description="Each draft's current state, oldest first")
+    failures: list[GenerateFailureOut] = Field(
+        default_factory=list, description="Platforms that couldn't be written (generate only)"
+    )
 
 
 class VersionOut(BaseModel):

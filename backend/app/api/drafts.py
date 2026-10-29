@@ -5,17 +5,18 @@ behind a draft (NFR-15)."""
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
 from app.ai.client import AIClient, AIUnavailable, EmbeddingUnavailable
 from app.api.deps import get_ai
+from app.api.shapes import row_out, thread_out
 from app.core.auth import current_user
 from app.core.errors import AppError
 from app.schemas import (
+    ConvertIn,
     DraftDetailOut,
     DraftOut,
     DraftPatchIn,
-    DraftRowOut,
     DraftsOut,
     DraftStatsOut,
     DraftStatus,
@@ -25,9 +26,10 @@ from app.schemas import (
     Platform,
     PromptOut,
     ReviseIn,
+    ThreadOut,
     VersionOut,
 )
-from app.services import library
+from app.services import library, threads
 from app.services.drafting import DraftError, generate_draft, prompt_for
 from app.services.revising import revise
 
@@ -36,28 +38,9 @@ router = APIRouter(prefix="/drafts", tags=["drafts"])
 AI_BUSY = "The AI service is busy right now. Try again in a minute."
 
 
-def _length(r: library.DraftRow) -> LengthOut:
-    return LengthOut(count=r.length.count, limit=r.length.limit, over=r.length.over)
-
-
-def _row(r: library.DraftRow) -> DraftRowOut:
-    d = r.draft
-    return DraftRowOut(
-        id=d.id,
-        platform=d.platform,
-        status=d.status,
-        text=r.text,
-        length=_length(r),
-        scheduled_for=d.scheduled_for,
-        published_at=d.published_at,
-        created_at=d.created_at,
-        updated_at=r.updated_at,
-    )
-
-
 def _detail(r: library.DraftDetail) -> DraftDetailOut:
     return DraftDetailOut(
-        **_row(r).model_dump(),
+        **row_out(r).model_dump(),
         topic=r.draft.topic,
         checkin_id=r.draft.checkin_id,
         versions=[
@@ -105,6 +88,7 @@ def generate(
         model=r.model_version or r.model,
         examples_used=len(r.examples),
         created_at=r.created_at,
+        thread_id=r.thread_id,
     )
 
 
@@ -120,7 +104,7 @@ def list_drafts(
     rows = library.list_drafts(
         user_id, status, platform, scheduled_from, scheduled_to, created_from
     )
-    return DraftsOut(items=[_row(r) for r in rows])
+    return DraftsOut(items=[row_out(r) for r in rows])
 
 
 @router.get("/stats", response_model=DraftStatsOut)
@@ -165,6 +149,32 @@ def revise_draft(
         raise _fail(e) from e
     except AIUnavailable as e:
         raise AppError("ai_unavailable", AI_BUSY, 503) from e
+
+
+@router.post("/{draft_id}/convert", response_model=ThreadOut, status_code=201)
+def convert_draft(
+    draft_id: uuid.UUID,
+    body: ConvertIn,
+    user_id: uuid.UUID = Depends(current_user),
+    ai: AIClient = Depends(get_ai),
+) -> ThreadOut:
+    """FR-40: the same post for another platform, as a new card in the draft's thread."""
+    try:
+        return thread_out(threads.convert(user_id, draft_id, body.platform, ai=ai))
+    except DraftError as e:
+        raise _fail(e) from e
+    except (AIUnavailable, EmbeddingUnavailable) as e:
+        raise AppError("ai_unavailable", AI_BUSY, 503) from e
+
+
+@router.delete("/{draft_id}", status_code=204)
+def delete_draft(draft_id: uuid.UUID, user_id: uuid.UUID = Depends(current_user)) -> Response:
+    """Delete a discarded draft for good (Drafts → Discarded → Delete forever)."""
+    try:
+        library.delete_forever(user_id, draft_id)
+    except DraftError as e:
+        raise _fail(e) from e
+    return Response(status_code=204)
 
 
 @router.post("/{draft_id}/versions/{version_id}/restore", response_model=DraftDetailOut)

@@ -19,7 +19,9 @@ from app.models import (
     DraftVersion,
     PlatformSettings,
     Profile,
+    ReminderSettings,
     SourcePost,
+    Thread,
     User,
     VoiceCard,
 )
@@ -43,13 +45,38 @@ def export_all(user_id: uuid.UUID) -> dict:
                 {"text": v.text, "instruction": v.instruction, "created_at": _iso(v.created_at)}
             )
         messages: dict[uuid.UUID, list] = {}
+        thread_notes: dict[uuid.UUID, list] = {}  # messages about a whole thread
         for m in mine(DraftMessage):
-            messages.setdefault(m.draft_id, []).append(
-                {"role": m.role, "text": m.text, "created_at": _iso(m.created_at)}
-            )
+            line = {"role": m.role, "text": m.text, "created_at": _iso(m.created_at)}
+            if m.draft_id is not None:
+                messages.setdefault(m.draft_id, []).append(line)
+            elif m.thread_id is not None:
+                thread_notes.setdefault(m.thread_id, []).append(line)
+        reminder = s.get(ReminderSettings, user_id)
         return {
             "exported_at": datetime.now(UTC).isoformat(),
-            "account": {"email": user.email, "created_at": _iso(user.created_at)},
+            "account": {
+                "email": user.email,
+                "timezone": user.timezone,
+                "created_at": _iso(user.created_at),
+            },
+            "reminder": (
+                {
+                    "enabled": reminder.enabled,
+                    "days": reminder.days,
+                    "local_time": reminder.local_time.isoformat(timespec="minutes"),
+                }
+                if reminder
+                else None
+            ),
+            "threads": [
+                {
+                    "title": t.title,
+                    "created_at": _iso(t.created_at),
+                    "messages": thread_notes.get(t.id, []),
+                }
+                for t in mine(Thread)
+            ],
             "profile": (
                 {
                     **{name: getattr(profile, name) for name in FIELDS},
