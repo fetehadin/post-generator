@@ -59,7 +59,7 @@ On mobile, Chat · Drafts · Calendar · Profile become a bottom tab bar.
 | Place | Purpose | Requirements |
 |---|---|---|
 | **Chat board** (home, `/` and `/chat/:id`) | "What did you do today?" → Save or Generate → pick platforms → a draft card per platform in the thread → talk to it until it's right → Approve → pick a day → it's on the calendar | FR-6, FR-7, FR-8, FR-10, FR-40, FR-45, FR-46 |
-| **Drafts** (`/drafts/:platform`) | One platform's drafts by status; each card has Reschedule, Copy now and Delete; Edit opens its thread | FR-10, FR-11, FR-12 |
+| **Drafts** (`/drafts/:platform`) | One platform's drafts by status; each card has Reschedule, Delete and, once approved, Copy now; Edit opens its thread | FR-10, FR-11, FR-12 |
 | **Calendar** | Month, week and day views; drag to reschedule; Edit opens the thread | FR-13, FR-16 |
 | **Profile** (avatar) | Everything about you, all editable: about you, work and facts, resume and portfolio, audience per platform (profession and places), when you can post, voice and posts per platform, reminders, Telegram channel name, usage, export and delete | FR-1, FR-5, FR-17, FR-18, FR-20–FR-26, FR-30, FR-33, FR-38, FR-42 |
 
@@ -135,7 +135,7 @@ The home screen is a ChatGPT-style thread with one question at the top.
 - **Cards are the drafts.** A card shows the platform, version, the draft in serif, the length counter and "AI draft". Click a card to reply to it: the box shows **Replying to: X draft**. With one draft in the thread, replies go to it.
 - **Every reply that changes the text is a new full card** (v2, v3…), like ChatGPT's answers. Older cards stay above, folded to their first line. A question from the assistant appears as a plain message.
 - **Quick changes** (Shorter, Punchier, More casual, Add a hook) sit above the box when a card is selected. Selecting a sentence in a card scopes the next change to it.
-- **Card actions:** Approve; Copy; ⋯ → Make an X / LinkedIn / Telegram version (a new card, FR-40), Edit by hand, Discard.
+- **Card actions:** Approve; Copy and open (approved cards only: nothing is handed off before Approve, CLAUDE.md rule 4); ⋯ → Make an X / LinkedIn / Telegram version (a new card, FR-40), Edit by hand, Discard.
 - **Approve** asks in place: "Which day?" (the next seven days as chips, plus a date). The app answers with the hour it picked and why: "Tue 18:00 · 70% of your audience (Addis Ababa) is off work · Telegram's evening peak" with **Change time**. Then the card shows "Approved · on your calendar".
 - An empty thread shows starter ideas under the box.
 
@@ -143,7 +143,7 @@ The home screen is a ChatGPT-style thread with one question at the top.
 
 - The sidebar's Drafts opens to X · LinkedIn · Telegram; each opens `/drafts/:platform`.
 - Status tabs: Drafts · Approved · Posted · Discarded.
-- Each card: first lines, status, scheduled time. Icons along the bottom: **Reschedule** (pick a day; the hour is picked for you), **Copy now** (copies the text and opens X / LinkedIn / your Telegram channel, then asks "Did you post it?" → Posted), **Delete** (moves it to Discarded with Undo; Discarded has "Delete forever"). **Edit** opens the thread.
+- Each card: first lines, status, scheduled time. Icons along the bottom: **Reschedule** (pick a day; the hour is picked for you), **Copy now** on approved posts only (copies the text and opens X / LinkedIn / your Telegram channel, then asks "Did you post it?" → Posted; a draft shows Approve in its place), **Delete** (moves it to Discarded with Undo; Discarded has "Delete forever"). **Edit** opens the thread.
 
 ### 4.3 Calendar
 
@@ -307,8 +307,8 @@ Product components to build on top:
 | AI unavailable (503) | "Drafts are unavailable right now. Your check-in is saved." |
 | Daily limit reached | "You've used today's 30 drafts. You can generate more tomorrow." (Which "day" is still OPEN_QUESTIONS Q10.) |
 | Under 20 posts | Voice strength badge: "Still learning: import more posts for a closer match." (FR-5) |
-| Empty Today | Prompt starters + "Write today's check-in". |
-| Empty Drafts | "Your drafts will appear here. Start from Today." with a button. |
+| Empty chat | Prompt starters + "Write today's check-in". |
+| Empty Drafts | "Your drafts will appear here. Start a chat." with a button. |
 | Empty Calendar | "Approve a draft and pick a time to see it here." |
 | Import failed | Names the problem and the fix: "This isn't a Telegram export. Export your channel as JSON from Telegram Desktop." |
 | Missed post | Calendar item and the Missed list turn `--danger`: "Tue 09:00 passed. Post now or reschedule." |
@@ -319,7 +319,7 @@ Product components to build on top:
 
 - **One verb per action, everywhere.** Generate → Revise → Approve → Schedule → Publish. The toast repeats the verb: Publish → "Published".
 - **Sentence case** for everything. No all-caps labels.
-- **Say what happens.** "Publish to Telegram now", "Open in X", "Copy text and open LinkedIn".
+- **Say what happens.** "Copy and open Telegram", "Open in X", "Copy text and open LinkedIn".
 - **Errors say what happened and what to do.** No "Oops", no apologies, never "Something went wrong" alone.
 - **Talk about the user's world**, not the system: "your posts", "your voice", not "embeddings", "vectors" or "RAG".
 - **Times always with a zone hint** when it's ambiguous: "18:00 your time (10:00 New York)".

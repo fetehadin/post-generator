@@ -37,7 +37,7 @@ Don't add or swap a major dependency (framework, ORM, database, auth, state libr
 ## Repo map
 
 ```
-backend/    FastAPI app, worker, migrations, tests     → see backend/CLAUDE.md
+backend/    FastAPI app, migrations, tests             → see backend/CLAUDE.md
 frontend/   React app                                  → see frontend/CLAUDE.md
 deploy/     Production compose, Caddyfile, backups     → see deploy/README.md
 samples/    Small anonymised exports for parser tests

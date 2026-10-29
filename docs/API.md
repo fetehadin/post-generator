@@ -330,6 +330,6 @@ The last 7 days (FR-15): `{"created": 4, "published": 2, "publish_rate": 0.5, "e
 
 | Phase | Method and path | Purpose |
 |---|---|---|
-| 3 | `GET /platform-profiles` · `PUT /platform-profiles/{platform}` | Platform rules |
-| 5 | `POST /telegram/connect` · `POST /drafts/{id}/publish` | Connect channel; publish now |
-| 5 | *(no endpoint)* | Due posts and reminders are sent by the worker process, not over HTTP |
+| 3 | `GET /platform-profiles` | Platform rules (read-only; the team changes them by migration, FR-23) |
+| After V1 | `POST /telegram/connect` · `POST /drafts/{id}/publish` | Connect a channel; publish now (FR-36) |
+| 5 | `GET /me/notifications` | Due, missed and check-in reminders, worked out on request; nothing is sent (FR-35, FR-42) |
