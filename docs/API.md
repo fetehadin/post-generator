@@ -143,7 +143,7 @@ Login itself happens in the browser with Supabase; the API only verifies the tok
 Works for any valid token, admitted or not.
 
 ```json
-{ "id": "6f1c…", "email": "sam@example.com", "admitted": true, "privacy_accepted": false }
+{ "id": "6f1c…", "email": "sam@example.com", "admitted": true, "privacy_accepted": false, "timezone": "UTC" }
 ```
 
 ### `POST /me/invite`
@@ -264,7 +264,8 @@ A row:
   "text": "the current version",
   "length": { "count": 238, "limit": 280, "over": false },
   "scheduled_for": "2026-10-23T15:00:00Z", "published_at": null,
-  "created_at": "…", "updated_at": "when the current version was made"
+  "created_at": "…", "updated_at": "when the current version was made",
+  "thread_id": "the chat it lives in"
 }
 ```
 
@@ -308,7 +309,7 @@ Today's use against the daily limits (FR-30), per UTC day:
 
 ### `GET /me/export`
 
-Everything the user gave Voxlace or made with it, as one JSON download (FR-38): account email, profile and summary card, voice cards, platform settings, posts (no embeddings), check-ins, and drafts with their versions and chat. `Content-Disposition: attachment`.
+Everything the user gave Voxlace or made with it, as one JSON download (FR-38): account email and time zone, reminder, profile and summary card, voice cards, platform settings, posts (no embeddings), check-ins, threads, and drafts with their versions and chat. `Content-Disposition: attachment`.
 
 ### `DELETE /me`
 
@@ -326,10 +327,70 @@ The last 7 days (FR-15): `{"created": 4, "published": 2, "publish_rate": 0.5, "e
 
 ---
 
+## Chat board, notifications and time zone (SRS 1.3)
+
+### Threads (FR-40, FR-46)
+
+A thread is one conversation: what the user did today (saved as that day's check-in), the drafts made from it and every revision, in order. A message with a `card` is a draft version; every reply that changes a draft adds a new card. `POST /drafts/generate` still works and now puts its draft in a new thread of its own (its response gains `thread_id`).
+
+| Method and path | Body | Returns |
+|---|---|---|
+| `POST /threads` | `{"text": "…", "day"?: "2026-10-22"}` (`day` defaults to today on the user's clock) | `201` a thread |
+| `GET /threads` | | `{"items": [{"id", "title", "platforms": ["telegram"], "updated_at"}]}`, last touched first, 50 at most |
+| `GET /threads/{id}` | | a thread; another user's → `404` |
+| `POST /threads/{id}/generate` | `{"platforms": ["x", "linkedin"]}` (1–3) | `201` a thread with one new card per platform; a platform that couldn't be written is in `failures` and the others still arrive |
+| `POST /drafts/{id}/convert` | `{"platform": "linkedin"}` | `201` the draft's thread with a new draft for that platform written from this one; the original is unchanged. Same platform → `400 same_platform` |
+| `DELETE /drafts/{id}` | | `204`; only a `discarded` draft → else `409 not_discarded` |
+
+A thread:
+
+```jsonc
+{
+  "id": "…", "title": "Finished the Telegram importer", "checkin_id": "…",
+  "checkin_text": "Finished the Telegram importer and wrote tests",
+  "created_at": "…", "updated_at": "…",
+  "messages": [
+    { "id": "…", "role": "user", "text": "Finished the Telegram importer…", "draft_id": null, "card": null, "created_at": "…" },
+    { "id": "…", "role": "assistant", "text": "", "draft_id": "d1",
+      "card": { "version_id": "…", "number": 1, "text": "the draft", "length": { "count": 238, "limit": 280, "over": false } } },
+    { "id": "…", "role": "user", "text": "Shorter", "draft_id": "d1", "card": null },
+    { "id": "…", "role": "assistant", "text": "v2: Shorter", "draft_id": "d1", "card": { "number": 2, "…": "…" } }
+  ],
+  "drafts": [ /* each draft's current state, as a GET /drafts row */ ],
+  "failures": [ { "platform": "linkedin", "code": "no_posts", "message": "…" } ]   // generate only
+}
+```
+
+Hand edits ("Edited by hand") and restores ("Restored v2") also add a card, with `role: "user"`. Revising stays `POST /drafts/{id}/revise`; read the thread again afterwards.
+
+### `PATCH /me`
+
+`{"timezone": "Africa/Addis_Ababa"}` (an IANA name; unknown → `400 invalid_timezone`). Returns `GET /me`'s shape, which now includes `timezone` (default `"UTC"`). The app sends the browser's zone on first use; Profile can change it. Stored times stay UTC (NFR-16).
+
+### `GET /me/notifications`
+
+Asked by the app every minute (FR-35, FR-42). Nothing is ever sent from the server.
+
+```json
+{ "due": [row], "missed": [row], "checkin_reminder": true }
+```
+
+- `due`: approved posts from 10 minutes before their time to 30 minutes after.
+- `missed`: approved posts whose time passed more than 30 minutes ago and that aren't marked Posted.
+- `checkin_reminder`: the reminder is on, today is one of its days, its time has passed on the user's clock, and there's no check-in for today yet.
+
+### `GET /me/reminders` · `PUT /me/reminders`
+
+`{"enabled": true, "days": [0, 1, 2, 3, 4], "local_time": "18:00"}`: days are 0 (Monday) to 6 (Sunday); the time is on the user's own clock. Default: off, weekdays, 18:00. A day outside 0–6 → `422`.
+
+### Publishing what you posted
+
+When a draft becomes `published`, its text is also saved as one of the user's own posts (`origin: "voxlace"`) and embedded by the background retry, so future drafts learn from it.
+
+---
+
 ## Later phases (shape to be agreed at the start of each phase)
 
 | Phase | Method and path | Purpose |
 |---|---|---|
-| 3 | `GET /platform-profiles` | Platform rules (read-only; the team changes them by migration, FR-23) |
-| After V1 | `POST /telegram/connect` · `POST /drafts/{id}/publish` | Connect a channel; publish now (FR-36) |
-| 5 | `GET /me/notifications` | Due, missed and check-in reminders, worked out on request; nothing is sent (FR-35, FR-42) |
+| After V1 | `POST /telegram/connect` · `POST /drafts/{id}/publish` | Telegram bot: connect a channel; publish now (FR-36) |

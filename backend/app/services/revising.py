@@ -12,7 +12,7 @@ from string import Template
 
 from app.ai.client import AIClient, AIUnavailable, default_client
 from app.core.db import user_session
-from app.models import Draft, DraftMessage, PlatformProfile, PromptLog
+from app.models import Draft, DraftMessage, PlatformProfile, PromptLog, Thread
 from app.services.drafting import (
     COUNTING_NOTES,
     PLATFORM_NAMES,
@@ -101,8 +101,16 @@ def revise(
     with user_session(user_id) as s:
         draft = s.get(Draft, draft_id)
         s.add(
-            DraftMessage(user_id=user_id, draft_id=draft_id, role="user", text=instruction.strip())
+            DraftMessage(
+                user_id=user_id,
+                thread_id=draft.thread_id,
+                draft_id=draft_id,
+                role="user",
+                text=instruction.strip(),
+            )
         )
+        if draft.thread_id is not None:
+            s.get(Thread, draft.thread_id).updated_at = datetime.now(UTC)
         s.flush()
         version = None
         if answer.upper().startswith(QUESTION):
@@ -116,6 +124,7 @@ def revise(
         s.add(
             DraftMessage(
                 user_id=user_id,
+                thread_id=draft.thread_id,
                 draft_id=draft_id,
                 role="assistant",
                 text=reply,

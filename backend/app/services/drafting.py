@@ -13,13 +13,21 @@ from datetime import datetime
 from pathlib import Path
 from string import Template
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.ai.client import AIClient, AIUnavailable, GenerationResult, default_client
 from app.checks import invented_numbers, longest_copy
 from app.core.db import user_session
 from app.counting import post_length
-from app.models import Checkin, Draft, DraftVersion, PlatformProfile, PromptLog
+from app.models import (
+    Checkin,
+    Draft,
+    DraftMessage,
+    DraftVersion,
+    PlatformProfile,
+    PromptLog,
+    Thread,
+)
 from app.services.profile import get_profile
 from app.services.retrieval import Example, find_examples
 from app.services.usage import LimitReached, check_drafts
@@ -45,6 +53,7 @@ class DraftError(Exception):
 @dataclass(frozen=True)
 class DraftResult:
     draft_id: uuid.UUID
+    thread_id: uuid.UUID
     text: str
     length: int
     char_limit: int
@@ -62,6 +71,8 @@ def build_prompt(
     about: str = "",
     language: str = "auto",
     voice: str = "",
+    adapt_from: str | None = None,
+    adapt_approved: bool = False,
 ) -> str:
     blocks = []
     if voice.strip():
@@ -76,7 +87,7 @@ def build_prompt(
         platform_name=PLATFORM_NAMES[profile.platform],
         example_count=len(examples),
         examples="\n\n".join(blocks),
-        facts=_facts(topic, about, language),
+        facts=_facts(topic, about, language, adapt_from, adapt_approved),
         char_limit=profile.char_limit,
         counting_note=COUNTING_NOTES.get(profile.counting_rule, profile.counting_rule),
         tone_notes=profile.tone_notes,
@@ -84,9 +95,18 @@ def build_prompt(
     )
 
 
-def _facts(topic: str, about: str, language: str) -> str:
+def _facts(
+    topic: str,
+    about: str,
+    language: str,
+    adapt_from: str | None = None,
+    adapt_approved: bool = False,
+) -> str:
     """FR-19: the only facts a draft may state: the user's own summary card and today's topic.
-    With no card and the default language, this is exactly the Phase 1 facts block."""
+    With no card and the default language, this is exactly the Phase 1 facts block.
+    `adapt_from` is the same post written for another platform (FR-40). Only once the user
+    approved it are its facts theirs (rule 10); before that it's model output, so it shapes
+    the wording only and adds no facts. Its sentences are never copied."""
     parts = []
     if about.strip():
         parts.append(
@@ -100,9 +120,27 @@ def _facts(topic: str, about: str, language: str) -> str:
             "Today's check-in or topic:\n(none today: pick one thing from the summary card above "
             "and write about it)"
         )
+    if adapt_from and adapt_from.strip():
+        status = (
+            "approved by the writer, so its facts may be used"
+            if adapt_approved
+            else "not approved yet: use it for what the post is about, but state only facts "
+            "from the summary card and the check-in above"
+        )
+        parts.append(
+            f"The same post, already written for another platform ({status}; write it fresh "
+            "for this platform's readers and rules, don't copy its sentences):\n"
+            + adapt_from.strip()
+        )
     if language and language != "auto":
         parts.append(f"Write the post in {language}.")  # FR-24
     return "\n\n".join(parts)
+
+
+def thread_title(text: str) -> str:
+    """A thread's name in the sidebar: the first line of what the user wrote, cut short."""
+    first = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    return first if len(first) <= 60 else first[:59].rstrip() + "…"
 
 
 def clean_output(text: str) -> str:
@@ -180,10 +218,16 @@ def generate_draft(
     topic: str,
     ai: AIClient | None = None,
     checkin_id: uuid.UUID | None = None,
+    thread_id: uuid.UUID | None = None,
+    adapt_from: str | None = None,
+    source_draft_id: uuid.UUID | None = None,
+    adapt_approved: bool = False,
 ) -> DraftResult:
+    """Write one draft and put it in a thread as a card (FR-46): in `thread_id`, or in a new
+    thread of its own when none is given."""
     about = get_profile(user_id)
     topic = (topic or "").strip()
-    if not topic and not about.summary_card.strip():
+    if not topic and not adapt_from and not about.summary_card.strip():
         raise DraftError(
             "missing_topic",
             "Write what you did today, or fill in your summary card in Profile first.",
@@ -194,6 +238,8 @@ def generate_draft(
     with user_session(user_id) as s:
         if checkin_id is not None and s.get(Checkin, checkin_id) is None:  # RLS: own rows only
             raise DraftError("not_found", "That check-in doesn't exist.", 404)
+        if thread_id is not None and s.get(Thread, thread_id) is None:
+            raise DraftError("not_found", "That chat doesn't exist.", 404)
         profile = s.get(PlatformProfile, platform)
         if profile is None:
             raise DraftError("unknown_platform", f"Unknown platform: {platform}")
@@ -209,21 +255,44 @@ def generate_draft(
         )
 
     prompt = build_prompt(
-        profile, examples, topic, about.summary_card, about.language, voice_card(user_id, platform)
+        profile,
+        examples,
+        topic,
+        about.summary_card,
+        about.language,
+        voice_card(user_id, platform),
+        adapt_from,
+        adapt_approved,
     )
     result: GenerationResult = ai.generate(prompt, purpose="draft")
     text = clean_output(result.text)
     if not text:
         raise AIUnavailable("the model returned nothing")  # 503; nothing is saved
-    # Numbers from the summary card are given facts too, not inventions.
-    facts = f"{topic}\n{about.summary_card}"
+    # Numbers from the summary card are given facts too, not inventions. An unapproved
+    # source draft is model output: a number it made up must not count as a fact (rule 10).
+    facts = f"{topic}\n{about.summary_card}\n{adapt_from if adapt_approved else ''}"
     prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, facts, examples)
     length = post_length(text, profile.counting_rule)
     # Q31: the prompt keeps asking for the short limit; Premium only raises the block (FR-9).
     limit = effective_limit(user_id, profile)
 
     with user_session(user_id) as s:
-        draft = Draft(user_id=user_id, platform=platform, topic=topic, checkin_id=checkin_id)
+        if thread_id is None:
+            title = thread_title(topic or text)
+            thread = Thread(user_id=user_id, title=title, checkin_id=checkin_id)
+            s.add(thread)
+            s.flush()
+            thread_id = thread.id
+        else:
+            s.get(Thread, thread_id).updated_at = func.now()
+        draft = Draft(
+            user_id=user_id,
+            platform=platform,
+            topic=topic,
+            checkin_id=checkin_id,
+            thread_id=thread_id,
+            source_draft_id=source_draft_id,
+        )
         s.add(draft)
         s.flush()
         version = DraftVersion(
@@ -231,6 +300,16 @@ def generate_draft(
         )
         s.add(version)
         s.flush()
+        s.add(  # the draft card in the thread
+            DraftMessage(
+                user_id=user_id,
+                thread_id=thread_id,
+                draft_id=draft.id,
+                role="assistant",
+                text="",
+                draft_version_id=version.id,
+            )
+        )
         s.add(
             PromptLog(
                 user_id=user_id,
@@ -248,6 +327,7 @@ def generate_draft(
 
     return DraftResult(
         draft_id=draft_id,
+        thread_id=thread_id,
         text=text,
         length=length,
         char_limit=limit,

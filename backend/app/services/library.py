@@ -18,7 +18,7 @@ from sqlalchemy.dialects.postgresql import distinct_on
 
 from app.core.db import user_session
 from app.counting import post_length
-from app.models import Draft, DraftMessage, DraftVersion, PlatformProfile
+from app.models import Draft, DraftMessage, DraftVersion, PlatformProfile, SourcePost, Thread
 from app.services.drafting import DraftError
 from app.services.voice import effective_limit
 
@@ -114,9 +114,9 @@ def detail(user_id: uuid.UUID, draft_id: uuid.UUID) -> DraftDetail:
             .where(DraftVersion.draft_id == draft_id)
             .order_by(DraftVersion.created_at)
         ).all()
-        messages = s.scalars(
+        messages = s.scalars(  # the chat lines; a generated card has no text of its own
             select(DraftMessage)
-            .where(DraftMessage.draft_id == draft_id)
+            .where(DraftMessage.draft_id == draft_id, DraftMessage.text != "")
             .order_by(DraftMessage.created_at)
         ).all()
         s.expunge_all()
@@ -137,6 +137,23 @@ def add_version(
     return version
 
 
+def add_card(s, user_id: uuid.UUID, draft: Draft, version: DraftVersion, note: str) -> None:
+    """A version made outside the chat (a hand edit, a restore) still shows in the thread as a
+    new card, so the thread tells the whole story (FR-46)."""
+    s.add(
+        DraftMessage(
+            user_id=user_id,
+            thread_id=draft.thread_id,
+            draft_id=draft.id,
+            role="user",
+            text=note,
+            draft_version_id=version.id,
+        )
+    )
+    if draft.thread_id is not None:
+        s.get(Thread, draft.thread_id).updated_at = datetime.now(UTC)
+
+
 def update(user_id: uuid.UUID, draft_id: uuid.UUID, changes: dict) -> DraftDetail:
     """PATCH /drafts/{id}: text, status and scheduled_for, with the rules in the docstring."""
     current = detail(user_id, draft_id)  # 404 first
@@ -150,11 +167,13 @@ def update(user_id: uuid.UUID, draft_id: uuid.UUID, changes: dict) -> DraftDetai
                 raise DraftError(
                     "not_editable", "Move it back to draft before you change the text.", 409
                 )
-            add_version(s, user_id, d, text.strip(), HAND_EDIT)
+            add_card(s, user_id, d, add_version(s, user_id, d, text.strip(), HAND_EDIT), HAND_EDIT)
 
         status = changes.get("status")
         if status and status != d.status:
             _move(d, status, current, text)
+            if status == "published":
+                _learn_from(s, user_id, d, current.text)
 
         if "scheduled_for" in changes:
             when = changes["scheduled_for"]
@@ -187,6 +206,33 @@ def _move(d: Draft, status: str, current: DraftDetail, new_text: str | None) -> 
     d.status = status
 
 
+def _learn_from(s, user_id: uuid.UUID, d: Draft, text: str) -> None:
+    """A post the user published is now one of their own posts: it joins the voice examples
+    (origin "voxlace"). Its embedding is NULL, so the embedding queue picks it up."""
+    s.add(
+        SourcePost(
+            user_id=user_id,
+            platform=d.platform,
+            origin="voxlace",
+            external_id=f"voxlace:{d.id}",
+            text=text,
+            posted_at=d.published_at,
+        )
+    )
+
+
+def delete_forever(user_id: uuid.UUID, draft_id: uuid.UUID) -> None:
+    """Delete a discarded draft for good: its versions, chat cards and prompt logs go too.
+    Only discarded drafts, so a delete is always two deliberate steps."""
+    with user_session(user_id) as s:
+        d = s.get(Draft, draft_id)
+        if d is None:
+            raise DraftError("not_found", "Not found.", 404)
+        if d.status != "discarded":
+            raise DraftError("not_discarded", "Discard the draft first.", 409)
+        s.delete(d)
+
+
 def restore(user_id: uuid.UUID, draft_id: uuid.UUID, version_id: uuid.UUID) -> DraftDetail:
     """FR-10: bring an earlier version back as the newest one."""
     current = detail(user_id, draft_id)
@@ -198,7 +244,8 @@ def restore(user_id: uuid.UUID, draft_id: uuid.UUID, version_id: uuid.UUID) -> D
         if d.status != "draft":
             raise DraftError("not_editable", "Move it back to draft before you restore.", 409)
         old = s.get(DraftVersion, version_id)
-        add_version(s, user_id, d, old.text, f"Restored v{numbers[version_id]}")
+        note = f"Restored v{numbers[version_id]}"
+        add_card(s, user_id, d, add_version(s, user_id, d, old.text, note), note)
     return detail(user_id, draft_id)
 
 
