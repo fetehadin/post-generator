@@ -149,6 +149,8 @@ class ProfileOut(BaseModel):
     excluded_hashtags: list[str]
     summary_card: str
     summary_updated_at: datetime | None
+    post_window_start: time = Field(description="The hours they can post, on their clock")
+    post_window_end: time
 
 
 class ProfileIn(BaseModel):
@@ -169,6 +171,8 @@ class ProfileIn(BaseModel):
     language: str | None = Field(None, min_length=2, max_length=32)
     excluded_hashtags: list[str] | None = Field(None, max_length=200)
     summary_card: str | None = Field(None, max_length=3000)
+    post_window_start: time | None = None
+    post_window_end: time | None = None
 
 
 class RulesOut(BaseModel):
@@ -191,6 +195,14 @@ class VoiceStatsOut(BaseModel):
     top_hashtags: list[str]
 
 
+Profession = Literal["general", "developers", "business", "students", "creatives"]
+
+
+class AudiencePlace(BaseModel):
+    timezone: str = Field(description='IANA time zone, e.g. "Africa/Addis_Ababa"')
+    share: int = Field(ge=1, le=100, description="Rough share of this audience, in percent")
+
+
 class PlatformOut(BaseModel):
     """GET /platforms/{platform}: the Profile tab for one platform (FR-22)."""
 
@@ -202,6 +214,11 @@ class PlatformOut(BaseModel):
     voice_card_updated_at: datetime | None
     x_premium: bool | None = Field(description="X only; null = not known yet")
     premium_source: Literal["user", "export"] | None
+    audience_places: list[AudiencePlace] = Field(description="Empty = where the user lives")
+    audience_profession: Profession
+    goal: str
+    posts_per_week: int | None
+    channel: str | None = Field(description="Telegram only")
 
 
 class VoiceCardIn(BaseModel):
@@ -209,7 +226,36 @@ class VoiceCardIn(BaseModel):
 
 
 class PlatformSettingsIn(BaseModel):
-    x_premium: bool
+    """PUT /platforms/{platform}/settings: send only what changes."""
+
+    x_premium: bool | None = Field(None, description="X only")
+    audience_places: list[AudiencePlace] | None = Field(None, max_length=3)
+    audience_profession: Profession | None = None
+    goal: str | None = Field(None, max_length=500)
+    posts_per_week: int | None = Field(None, ge=0, le=50)
+    channel: str | None = Field(
+        None, max_length=64, description="Telegram only: the channel's public name, e.g. fetescript"
+    )
+
+
+class BestHoursDayOut(BaseModel):
+    date: date
+    scores: list[float] = Field(description="Your local hours 0–23; the day's best is 1.0")
+    best: list[int] = Field(description="Top hours inside your posting window, best first")
+
+
+class BestHoursOut(BaseModel):
+    """GET /platforms/{platform}/best-hours (FR-16, FR-34)."""
+
+    platform: Platform
+    timezone: str
+    source: Literal["studies", "your_posts"]
+    days: list[BestHoursDayOut]
+
+
+class ScheduleIn(BaseModel):
+    day: date = Field(description="The user's own calendar day")
+    at: AwareDatetime | None = Field(None, description="A time the user picked; else the app picks")
 
 
 DraftStatus = Literal["draft", "approved", "published", "discarded"]
@@ -254,6 +300,16 @@ class DraftRowOut(BaseModel):
 
 class DraftsOut(BaseModel):
     items: list[DraftRowOut]
+
+
+class ScheduleOut(BaseModel):
+    """POST /drafts/{id}/schedule (FR-45): approved and on the calendar."""
+
+    draft: DraftRowOut
+    scheduled_for: datetime
+    rank: int = Field(description="1 = the first post on this platform that day")
+    reason: str
+    warning: str | None
 
 
 class NotificationsOut(BaseModel):

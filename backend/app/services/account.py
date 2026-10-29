@@ -89,7 +89,16 @@ def export_all(user_id: uuid.UUID) -> dict:
             ),
             "voice_cards": [{"platform": c.platform, "card": c.card} for c in mine(VoiceCard)],
             "platform_settings": [
-                {"platform": p.platform, "x_premium": p.x_premium} for p in mine(PlatformSettings)
+                {
+                    "platform": p.platform,
+                    "x_premium": p.x_premium,
+                    "audience_places": p.audience_places,
+                    "audience_profession": p.audience_profession,
+                    "goal": p.goal,
+                    "posts_per_week": p.posts_per_week,
+                    "channel": p.channel,
+                }
+                for p in mine(PlatformSettings)
             ],
             "posts": [
                 {

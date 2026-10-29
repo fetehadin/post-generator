@@ -102,6 +102,11 @@ class PlatformView:
     card_updated_at: datetime | None
     x_premium: bool | None
     premium_source: str | None
+    audience_places: list[dict] = field(default_factory=list)
+    audience_profession: str = "general"
+    goal: str = ""
+    posts_per_week: int | None = None
+    channel: str | None = None
 
     @property
     def effective_limit(self) -> int:
@@ -135,7 +140,27 @@ def view(user_id: uuid.UUID, platform: str) -> PlatformView:
         card_updated_at=card.updated_at if card else None,
         x_premium=settings.x_premium if settings else None,
         premium_source=settings.premium_source if settings else None,
+        audience_places=list(settings.audience_places) if settings else [],
+        audience_profession=settings.audience_profession if settings else "general",
+        goal=settings.goal if settings else "",
+        posts_per_week=settings.posts_per_week if settings else None,
+        channel=settings.channel if settings else None,
     )
+
+
+def update_settings(user_id: uuid.UUID, platform: str, changes: dict) -> None:
+    """The audience and goal for one platform (FR-33), the Telegram channel name (FR-12)."""
+    if not changes:
+        return
+    with user_session(user_id) as s:
+        s.execute(
+            insert(PlatformSettings)
+            .values(user_id=user_id, platform=platform, **changes)
+            .on_conflict_do_update(
+                index_elements=["user_id", "platform"],
+                set_={**changes, "updated_at": datetime.now(UTC)},
+            )
+        )
 
 
 def voice_card(user_id: uuid.UUID, platform: str) -> str:

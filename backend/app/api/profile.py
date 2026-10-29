@@ -24,6 +24,8 @@ def _out(p: Profile) -> ProfileOut:
         excluded_hashtags=list(tags),
         summary_card=p.summary_card,
         summary_updated_at=p.summary_updated_at,
+        post_window_start=p.post_window_start,
+        post_window_end=p.post_window_end,
     )
 
 
@@ -40,6 +42,15 @@ def edit_profile(body: ProfileIn, user_id: uuid.UUID = Depends(current_user)) ->
             del changes[name]
         elif isinstance(value, str):
             changes[name] = value.strip()
+    window = {"post_window_start", "post_window_end"} & changes.keys()
+    if window:
+        for name in window:  # whole minutes on the user's own clock
+            changes[name] = changes[name].replace(second=0, microsecond=0, tzinfo=None)
+        current = service.get_profile(user_id)
+        start = changes.get("post_window_start", current.post_window_start)
+        end = changes.get("post_window_end", current.post_window_end)
+        if start == end:
+            raise AppError("empty_window", "Your posting hours need a start and a later end.")
     if "excluded_hashtags" in changes:
         changes["excluded_hashtags"] = sorted(normalize_hashtags(changes["excluded_hashtags"]))
     return _out(service.update_profile(user_id, changes))
