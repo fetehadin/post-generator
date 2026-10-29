@@ -4,6 +4,8 @@ Gaps, contradictions and traps found by reviewing the SRS (v1.1, Contabo hosting
 
 Status: 🔴 decide before Phase 0 code · 🟡 decide before the phase named · 🟢 note for later
 
+> **Superseded by SRS 1.3 (22 Oct 2026, no Telegram bot or worker in V1):** Q4's double-send part, Q6's worker container, Q22 (the worker's database role), Q27 (Telegram DMs and bot replies) and Q30's mixed theme and teal primary. They come back only if the bot returns after V1.
+
 ---
 
 ## Database and isolation
