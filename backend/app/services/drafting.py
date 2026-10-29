@@ -72,6 +72,7 @@ def build_prompt(
     language: str = "auto",
     voice: str = "",
     adapt_from: str | None = None,
+    adapt_approved: bool = False,
 ) -> str:
     blocks = []
     if voice.strip():
@@ -86,7 +87,7 @@ def build_prompt(
         platform_name=PLATFORM_NAMES[profile.platform],
         example_count=len(examples),
         examples="\n\n".join(blocks),
-        facts=_facts(topic, about, language, adapt_from),
+        facts=_facts(topic, about, language, adapt_from, adapt_approved),
         char_limit=profile.char_limit,
         counting_note=COUNTING_NOTES.get(profile.counting_rule, profile.counting_rule),
         tone_notes=profile.tone_notes,
@@ -94,11 +95,18 @@ def build_prompt(
     )
 
 
-def _facts(topic: str, about: str, language: str, adapt_from: str | None = None) -> str:
+def _facts(
+    topic: str,
+    about: str,
+    language: str,
+    adapt_from: str | None = None,
+    adapt_approved: bool = False,
+) -> str:
     """FR-19: the only facts a draft may state: the user's own summary card and today's topic.
     With no card and the default language, this is exactly the Phase 1 facts block.
-    `adapt_from` is the same post written for another platform (FR-40): its facts came from
-    the same place, so they may be used; its sentences may not."""
+    `adapt_from` is the same post written for another platform (FR-40). Only once the user
+    approved it are its facts theirs (rule 10); before that it's model output, so it shapes
+    the wording only and adds no facts. Its sentences are never copied."""
     parts = []
     if about.strip():
         parts.append(
@@ -113,9 +121,15 @@ def _facts(topic: str, about: str, language: str, adapt_from: str | None = None)
             "and write about it)"
         )
     if adapt_from and adapt_from.strip():
+        status = (
+            "approved by the writer, so its facts may be used"
+            if adapt_approved
+            else "not approved yet: use it for what the post is about, but state only facts "
+            "from the summary card and the check-in above"
+        )
         parts.append(
-            "The same post, already written for another platform (approved facts; write it "
-            "fresh for this platform's readers and rules, don't copy its sentences):\n"
+            f"The same post, already written for another platform ({status}; write it fresh "
+            "for this platform's readers and rules, don't copy its sentences):\n"
             + adapt_from.strip()
         )
     if language and language != "auto":
@@ -207,6 +221,7 @@ def generate_draft(
     thread_id: uuid.UUID | None = None,
     adapt_from: str | None = None,
     source_draft_id: uuid.UUID | None = None,
+    adapt_approved: bool = False,
 ) -> DraftResult:
     """Write one draft and put it in a thread as a card (FR-46): in `thread_id`, or in a new
     thread of its own when none is given."""
@@ -247,13 +262,15 @@ def generate_draft(
         about.language,
         voice_card(user_id, platform),
         adapt_from,
+        adapt_approved,
     )
     result: GenerationResult = ai.generate(prompt, purpose="draft")
     text = clean_output(result.text)
     if not text:
         raise AIUnavailable("the model returned nothing")  # 503; nothing is saved
-    # Numbers from the summary card are given facts too, not inventions.
-    facts = f"{topic}\n{about.summary_card}\n{adapt_from or ''}"
+    # Numbers from the summary card are given facts too, not inventions. An unapproved
+    # source draft is model output: a number it made up must not count as a fact (rule 10).
+    facts = f"{topic}\n{about.summary_card}\n{adapt_from if adapt_approved else ''}"
     prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, facts, examples)
     length = post_length(text, profile.counting_rule)
     # Q31: the prompt keeps asking for the short limit; Premium only raises the block (FR-9).

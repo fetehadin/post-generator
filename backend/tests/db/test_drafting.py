@@ -209,3 +209,28 @@ def test_a_rewrite_that_copies_less_is_kept(make_user):
     shorter_copy = "Ship log fixed the timezone bug everything is UTC, finally"  # 9 words, not 13
     ai = ScriptedAI([COPIED + " A", shorter_copy])
     assert generate_draft(user, "telegram", "timezone bug", ai=ai).text == shorter_copy
+
+
+def test_an_unapproved_source_draft_shapes_wording_but_adds_no_facts(make_user):
+    """Rule 10: a draft the user hasn't approved is model output. Converting it must not turn
+    a number the model made up into a fact."""
+    user = make_user()
+    add_post(user, "1", "200 SUBSCRIBERS! Thank you all.")
+    source = "We hit 300 subscribers this week!"
+    ai = ScriptedAI(["300 subscribers! 🎉", "A new milestone! Thank you all 🎉"])
+    result = generate_draft(user, "telegram", "a subscriber milestone", ai=ai, adapt_from=source)
+    assert "not approved yet" in ai.prompts[0] and source in ai.prompts[0]
+    assert "numbers that aren't in the facts: 300" in ai.prompts[1]
+    assert result.text == "A new milestone! Thank you all 🎉"
+
+
+def test_an_approved_source_draft_counts_as_facts(make_user):
+    user = make_user()
+    add_post(user, "1", "200 SUBSCRIBERS! Thank you all.")
+    source = "We hit 300 subscribers this week!"
+    ai = ScriptedAI(["300 subscribers! 🎉"])
+    result = generate_draft(
+        user, "telegram", "a subscriber milestone", ai=ai, adapt_from=source, adapt_approved=True
+    )
+    assert "approved by the writer" in ai.prompts[0]
+    assert result.text == "300 subscribers! 🎉" and len(ai.prompts) == 1
