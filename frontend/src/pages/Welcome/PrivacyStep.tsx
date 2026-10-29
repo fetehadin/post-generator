@@ -17,8 +17,9 @@ export function PrivacyStep() {
           people's messages.
         </li>
         <li>
-          <b>Google's Gemini AI processes your posts</b> to learn your voice and write drafts. We
-          never train an AI model on them.
+          <b>Google's Gemini AI processes your posts</b> to learn your voice and write drafts. When
+          Gemini is busy, <b>Groq</b> writes the draft instead. We never train an AI model on your
+          posts.
         </li>
         <li>
           <b>We never ask for your social media passwords</b> and never post anything without your
