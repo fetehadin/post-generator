@@ -219,11 +219,9 @@ All settings come from environment variables. See [`.env.example`](.env.example)
 | `POSTGRES_PORT` | Host port for the Docker database |
 | `GEMINI_API_KEY` | Embeddings and generation |
 | `EMBEDDING_MODEL` · `EMBEDDING_DIMENSIONS` | Fixed embedding model; never changed silently |
-| `GENERATION_MODELS` | Ordered fallback chain, comma-separated `provider:model` |
-| `FALLBACK_API_KEY` | Key for the second provider |
+| `GENERATION_MODELS` | Ordered fallback chain, comma-separated `provider:model`; providers `google` and `groq`, e.g. `google:gemini-flash-latest,google:gemini-flash-lite-latest,groq:openai/gpt-oss-120b` |
+| `GROQ_API_KEY` | Key for Groq, the generation fallback (free at console.groq.com) |
 | `AUTH_JWT_SECRET` / `AUTH_JWKS_URL` | Login token verification |
-| `TELEGRAM_BOT_TOKEN` | The app's Telegram bot |
-| `WORKER_INTERVAL_SECONDS` | How often the worker checks for due posts |
 | `DAILY_DRAFT_LIMIT` · `DAILY_EMBED_LIMIT` | Per-user quotas |
 
 ---

@@ -34,7 +34,9 @@ services:
       DATABASE_URL: postgresql+psycopg://${APP_DB_USER:-voxlace_app}:${APP_DB_PASSWORD:?set APP_DB_PASSWORD}@db:5432/${POSTGRES_DB:-voxlace}
       MIGRATIONS_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-voxlace}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-voxlace}
       GEMINI_API_KEY: ${GEMINI_API_KEY:?set GEMINI_API_KEY}
-      GENERATION_MODELS: ${GENERATION_MODELS:-google:gemini-flash-latest,google:gemini-flash-lite-latest}
+      GENERATION_MODELS: ${GENERATION_MODELS:-google:gemini-flash-latest,google:gemini-flash-lite-latest,groq:openai/gpt-oss-120b}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      DAILY_DRAFT_LIMIT: ${DAILY_DRAFT_LIMIT:-40}
       SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL}
       SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
       ALLOWED_EMAILS: ${ALLOWED_EMAILS:-}
