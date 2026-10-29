@@ -30,7 +30,7 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 
 | # | Principle | What it means on screen | Grounded in |
 |---|---|---|---|
-| 1 | **You're the author** | Nothing leaves the app without an explicit Approve or Publish click. The button says exactly what happens: "Publish to Telegram now", not "Submit". | G16 (convey consequences), FR-12, NFR-6 |
+| 1 | **You're the author** | Nothing leaves the app without an explicit Approve or Publish click. The button says exactly what happens: "Copy and open Telegram", not "Submit". | G16 (convey consequences), FR-12, NFR-6 |
 | 2 | **Just the draft** | The editor shows the draft and nothing about how it was made: no sources, no model names, no scores. The user judges the words and gives feedback. Pinning and excluding past posts (FR-25) lives in Voice. *(Changed 19 Oct 2026 at the product owner's request; replaces "Show your sources".)* | Calm by default; FR-11 still labels it "AI draft" |
 | 3 | **Be honest about quality** | Show voice strength per platform from post count ("12 posts: voice is still learning"). Never promise a perfect match. | G1–G2 (what it can do, how well), FR-5 |
 | 4 | **Fix in one click** | Quick revisions (Shorter, Punchier, More casual) sit next to a free-text "Tell it what to change" box. People use both. | G9 (efficient correction); toolbar + free-prompt study |
@@ -43,25 +43,27 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 
 ## 2. Information architecture
 
-**Decided by the product owner, 21 Oct 2026.**
+**Decided by the product owner, 22 Oct 2026** (replaces the 21 Oct layout).
 
 **Left sidebar** (a floating card, inset from the window edge), top to bottom:
-- the wordmark;
-- **Home**, **Calendar**, **Drafts**;
-- at the bottom: the **theme toggle** (light → dark → mixed), the **collapse button** (folds the sidebar to an icon rail; remembered per browser), and **your avatar → Profile**.
+- the wordmark and the **theme toggle** (sun/moon: light ⇄ dark);
+- **Chat**: "New chat", then past threads, newest first (like ChatGPT's history);
+- **Drafts**: opens to **X · LinkedIn · Telegram**, each a list of that platform's drafts;
+- **Calendar**;
+- at the bottom: the collapse button and **your avatar → Profile**.
 
-**There is no right sidebar.** The platform preview is a switch in the editor, "Up next" is in Calendar, and everything about you is in Profile.
+**Right sidebar** (new): **Notifications** (a post is due now, today's check-in reminder) and **Missed** (approved posts whose time passed without "Posted", each with Post now and Reschedule). It hides when empty. On narrow screens it becomes a bell in the header that opens the same panel.
 
-On mobile, Home · Calendar · Drafts · Profile become a bottom tab bar.
+On mobile, Chat · Drafts · Calendar · Profile become a bottom tab bar.
 
 | Place | Purpose | Requirements |
 |---|---|---|
-| **Home** | "What did you do today?": feed Voxlace your progress (the check-in), pick platforms with small logo buttons, **Generate N drafts**, see today's drafts | FR-6, FR-7, FR-8 |
-| **Calendar** | A Google Calendar-style grid (days × hours). Drag a post to change its date and time. **Posted** marks an X or LinkedIn post as published and clears it from the calendar; Telegram posts send themselves | FR-12, FR-13, FR-35 |
-| **Drafts** | Every draft by status and platform; opens the editor | FR-10, FR-11 |
-| **Profile** (avatar) | Everything about you, all editable: about you and the summary card, interests, work, audience, language; your previous posts per platform (pin and exclude), voice cards and imports; and **Settings** (Telegram connection, reminders, usage, export and delete) | FR-1, FR-5, FR-17, FR-18, FR-22, FR-24, FR-25, FR-26, FR-30, FR-33, FR-36, FR-38 |
+| **Chat board** (home, `/` and `/chat/:id`) | "What did you do today?" → Save or Generate → pick platforms → a draft card per platform in the thread → talk to it until it's right → Approve → pick a day → it's on the calendar | FR-6, FR-7, FR-8, FR-10, FR-40, FR-45, FR-46 |
+| **Drafts** (`/drafts/:platform`) | One platform's drafts by status; each card has Reschedule, Delete and, once approved, Copy now; Edit opens its thread | FR-10, FR-11, FR-12 |
+| **Calendar** | Month, week and day views; drag to reschedule; Edit opens the thread | FR-13, FR-16 |
+| **Profile** (avatar) | Everything about you, all editable: about you, work and facts, resume and portfolio, audience per platform (profession and places), when you can post, voice and posts per platform, reminders, Telegram channel name, usage, export and delete | FR-1, FR-5, FR-17, FR-18, FR-20–FR-26, FR-30, FR-33, FR-38, FR-42 |
 
-The **draft editor** isn't a nav item. It opens from Home, Drafts or Calendar as a full page (`/drafts/:id`), so every draft has a shareable URL and the back button works.
+There's no separate editor page any more: a draft is edited in its thread. `/drafts/:id` opens the thread with that card in focus, so every draft keeps a shareable URL.
 
 ---
 
@@ -77,9 +79,9 @@ flowchart LR
     B --> C[Pick platforms<br/>X · LinkedIn · Telegram]
     C --> D[Upload one export<br/>with how-to per platform]
     D --> E[Import result<br/>412 posts · 31 skipped]
-    E --> F[3 quick questions<br/>role · topics · audience]
+    E --> F[Quick questions<br/>role · focus · audience profession and places]
     F --> G[First draft<br/>from a suggested topic]
-    G --> H[Finish profile later<br/>banner on Today]
+    G --> H[Finish profile later<br/>in Profile]
 ```
 
 - Upload **one** export to start. The others can be added from Voice.
@@ -90,15 +92,16 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    A[Today: write check-in] --> B[Generate for 1–3 platforms]
-    B --> C[Editor: revise by chat or hand]
-    C --> D{Ready?}
-    D -->|Not yet| C
-    D -->|Yes| E[Approve]
-    E --> F[Pick a time or publish now]
-    F --> G[Calendar shows it]
-    G --> H[Telegram: worker sends<br/>X/LinkedIn: reminder + hand-off]
-    H --> I[Marked published]
+    A[Chat: what did you do today?] --> B[Generate → pick platforms]
+    B --> C[A draft card per platform]
+    C --> D[Reply to a card: a new full card]
+    D --> E{Ready?}
+    E -->|Not yet| D
+    E -->|Yes| F[Approve → pick a day]
+    F --> G[App picks the best hour<br/>you can change it]
+    G --> H[Calendar]
+    H --> I[Due: notification<br/>copy + open the platform]
+    I --> J[Posted]
 ```
 
 ---
@@ -107,159 +110,113 @@ flowchart LR
 
 Wireframes show layout and hierarchy, not final styling.
 
-### 4.1 Today
+### 4.1 Chat board (home)
 
-The home screen opens like a journal page: the date, one question, one box, today's drafts. Prototype: `design/prototypes/today.html`.
-
-```
-┌──────────┐
-│ Voxlace  │   Wednesday, 21 October
-│[New post]│   What did you work on today?
-│ Today    │   ┌──────────────────────────────────────────────────┐
-│ Drafts   │   │ Finished the Telegram importer, 412 posts in…    │
-│ Calendar │   │ [✓ X] [✓ LinkedIn] [Telegram]  [Generate 2 drafts]│
-│ Voice    │   └──────────────────────────────────────────────────┘
-│          │   Try: (What did you ship today?) (A lesson from this week) (…)
-│          │
-│          │   Today's drafts
-│          │   X         Small win today: the Telegram importer…   Draft
-│ (F) Fete │   LinkedIn  I spent this week on the least…  Approved · Thu 09:00 your time
-└──────────┘
-```
-
-- **Left-aligned, dated heading.** The day is the context; there's no subtitle.
-- **One box.** Platform toggles sit inside it, and the button says what happens: **Generate 2 drafts**. No icon-only send button.
-- **Try:** one row of starter prompts under the box. They solve the blank page.
-- **Today's drafts** are quiet rows: platform, first line, status (kept on mobile, under the line). A new one shows "Writing…" at once (§7). Click a row to open the editor.
-- Nothing else: no counters, no sources, no meta lines. On mobile the avatar sits in the header and opens Settings.
-
-### 4.2 Draft editor (the most important screen)
-
-One column: the draft, then a feedback box. Prototype: `design/prototypes/editor.html`.
+The home screen is a ChatGPT-style thread with one question at the top.
 
 ```
-┌──────────┐ ←  X draft (Draft)     [Edit|Preview]  ⟲  ⋯  [Approve and schedule…]
-│ sidebar  │
-│          │      Small win today: the Telegram importer works end to end.
-│          │
-│          │      412 posts in, 31 skipped (service messages, forwards…).
-│          │      ─────────────────────────────────────────────────────
-│          │      238 / 280                                     AI draft
-│          │
-│          │      (Shorter) (Punchier) (More casual) (Add a hook)
-│          │      ┌ Tell it what to change… ──────────────── [Revise] ┐
-└──────────┘      └────────────────────────────────────────────────────┘
+┌────────────┐                                                         ┌──────────────┐
+│ Voxlace ☾  │   What did you do today?                                │ Notifications│
+│ + New chat │   ┌──────────────────────────────────────────────────┐  │ X post due   │
+│ Chat       │   │ Finished the Telegram importer, 412 posts in…    │  │  now · Open  │
+│  Today's…  │   │                              [Save] [Generate]   │  │              │
+│  Importer… │   └──────────────────────────────────────────────────┘  │ Missed       │
+│ Drafts ▾   │                                                         │ LinkedIn ·   │
+│  X         │   You  Finished the Telegram importer…                  │ Tue 09:00    │
+│  LinkedIn  │   ┌ X draft · v1 ─────────────────────── AI draft ┐     │ [Post now]   │
+│  Telegram  │   │ Small win today: the Telegram importer works…  │     │ [Reschedule] │
+│ Calendar   │   │ 238 / 280   [Approve] [Copy] [Make a LinkedIn…]│     └──────────────┘
+│            │   └────────────────────────────────────────────────┘
+│ (F) Fete   │   ┌ Replying to: X draft ✕ ─ Tell it what to change… ─ [Send] ┐
+└────────────┘   └────────────────────────────────────────────────────────────┘
 ```
 
-- **The draft is the page:** serif text with no box around it, editable in place. A thin teal edge on the left shows focus (a faint one on hover), so the text reads as editable. **Edit / Preview** switches to the platform-true look (X's limit and line breaks, LinkedIn's "see more" fold).
-- **Feedback like a chat:** quick changes as chips, plus a free box ("Tell it what to change…"). Each change creates a version (FR-10). Selecting a sentence scopes the next change to it.
-- **Versions** (⟲) lists each version with its instruction ("v2 · Shorter") and restores in one click. **⋯** holds Versions (for mobile) and Discard draft.
-- **One primary action:** "Approve and schedule…" opens a dialog that picks the time and says exactly what will happen:
-  - X: "Voxlace never posts to X for you. At 18:00 you get a reminder…" → **Approve and remind me**.
-  - Telegram: "At 18:00 Voxlace's bot posts it to your channel." → **Approve · send Fri 18:00**.
-  - LinkedIn: "At 09:00 you get a reminder. One tap copies the text and opens LinkedIn." → **Approve and remind me**.
-- **Length counter** under the text: amber within 10% of the limit, red over it with "cut N characters". Over the limit, Approve is disabled and the reason is written out.
-- **"AI draft"** tag (FR-11), and nothing about sources or models.
+- **Save** keeps the check-in. **Generate** asks "Which platforms?" in the thread (three toggles, remembering the last choice), then posts one card per platform.
+- **Cards are the drafts.** A card shows the platform, version, the draft in serif, the length counter and "AI draft". Click a card to reply to it: the box shows **Replying to: X draft**. With one draft in the thread, replies go to it.
+- **Every reply that changes the text is a new full card** (v2, v3…), like ChatGPT's answers. Older cards stay above, folded to their first line. A question from the assistant appears as a plain message.
+- **Quick changes** (Shorter, Punchier, More casual, Add a hook) sit above the box when a card is selected. Selecting a sentence in a card scopes the next change to it.
+- **Card actions:** Approve; Copy and open (approved cards only: nothing is handed off before Approve, CLAUDE.md rule 4); ⋯ → Make an X / LinkedIn / Telegram version (a new card, FR-40), Edit by hand, Discard.
+- **Approve** asks in place: "Which day?" (the next seven days as chips, plus a date). The app answers with the hour it picked and why: "Tue 18:00 · 70% of your audience (Addis Ababa) is off work · Telegram's evening peak" with **Change time**. Then the card shows "Approved · on your calendar".
+- An empty thread shows starter ideas under the box.
+
+### 4.2 Drafts
+
+- The sidebar's Drafts opens to X · LinkedIn · Telegram; each opens `/drafts/:platform`.
+- Status tabs: Drafts · Approved · Posted · Discarded.
+- Each card: first lines, status, scheduled time. Icons along the bottom: **Reschedule** (pick a day; the hour is picked for you), **Copy now** on approved posts only (copies the text and opens X / LinkedIn / your Telegram channel, then asks "Did you post it?" → Posted; a draft shows Approve in its place), **Delete** (moves it to Discarded with Undo; Discarded has "Delete forever"). **Edit** opens the thread.
 
 ### 4.3 Calendar
 
-- **Week view by default**, month view as a toggle. Times shown in the user's zone, with the audience's zone on hover when they differ (FR-16).
-- Each item shows platform, the first words and status (approved, scheduled, sent, failed).
-- **Drag to reschedule, and an alternative that doesn't need dragging:** every item has a "Move to…" menu with a date and time picker (WCAG 2.5.7).
-- Click an empty slot to "Plan a draft here", which opens Today with that time preset.
-- Telegram items that the worker will send show "Sends automatically"; X and LinkedIn items show "Reminder at 18:00".
+- **Month:** rows are weeks, columns are days; each post is a chip with its time.
+- **Week:** columns are days, rows are hours. **Day:** one column, rows are hours. Both scroll to 07:00 and lightly shade the best hours of the selected platform.
+- Drag a post to another day (month) or slot (week, day); works with touch. Every item also has **Move to…** with a day and time picker (WCAG 2.5.7).
+- Posts at the same time sit side by side. Missed posts are red with Post now.
+- **Edit** opens the draft's thread; **Posted** marks it published.
+- Times are in the user's zone; the views load only their visible range.
 
-### 4.4 Drafts library
+### 4.4 Profile
 
-- A list, not a card grid: platform, first line, status, scheduled time, last edited. Sortable, filterable by status and platform.
-- Bulk actions only where safe: discard and restore. No bulk publish.
+Tabs: **About you** (role, experience, discipline, your time zone, language), **Work** (projects with name, one line and link; stack; focus areas; facts the AI may use), **Resume & portfolio** (upload a PDF/DOCX, enter a URL, review the cleaned text before it's used), **Audience** (per platform: profession, places with shares on a time-zone search, goal, posts per week, and a preview of the best hours), **When you post** (posting window, days off, reminders), **Voice & posts** (per platform: voice card, stats, pin/exclude, import, Telegram channel name), **Account** (usage, export, delete).
 
-### 4.5 Voice
+### 4.5 First run
 
-- **One tab per platform.** Each shows the voice card (editable text; hand edits marked and kept on regenerate, FR-26), measured stats (average length, emoji per post, hashtags, common openers), voice strength from post count, pinned posts and excluded posts.
-- **Imports** section: last import per platform, counts, skipped reasons, "Import again".
-
-### 4.6 Settings
-
-Profile and summary card (FR-17, FR-18), audience per platform (FR-33), language (FR-24), Telegram connection with a status check (FR-36), usage today vs limits (FR-30), export and delete my data (FR-38). Delete asks the user to type "delete" and says exactly what will be removed.
+Invite → privacy → pick platforms → upload one export (or "skip, later") → role, focus areas, audience profession and places (pre-filled from your time zone) → first draft from a suggested topic. Everything else waits in Profile.
 
 ---
 
 ## 5. Visual direction
 
-**Decided 19 Oct 2026 (v2).** Derived from a study of ScholarXIV ([`design/REFERENCE_SCHOLARXIV.md`](../design/REFERENCE_SCHOLARXIV.md)): we take its principles, not its identity. Prototypes: [`design/prototypes/`](../design/prototypes/), which open in any browser. The tokens live in [`design/prototypes/tokens.css`](../design/prototypes/tokens.css). `frontend/src/index.css` still has the v1 values and switches to these in the next frontend PR.
+**Decided 22 Oct 2026 (v3), by the product owner:** ScholarXIV's own colors and style, light and dark only ([`design/REFERENCE_SCHOLARXIV.md`](../design/REFERENCE_SCHOLARXIV.md)). This replaces v2's warm paper, teal primary and the mixed theme. The tokens live in `frontend/src/index.css`.
 
-**Concept: "ink on paper, with one thread."**
-- The user's words are ink on a page, set in a serif.
-- The app is the desk around that page: warm, quiet and flat.
-- One teal **thread** marks everything the AI drew on: sources, focus, links and the AI label.
+**Concept: "a quiet, cool page."**
+- A monochrome zinc base; color only carries meaning.
+- The primary button is near-black and flips to near-white in dark, as on ScholarXIV.
+- The user's words are set in a serif, so the draft is the one bold thing on screen.
+- Teal survives only as a small mark for the AI: the "AI draft" label and the focus ring.
 
-What we kept from the study:
-- a monochrome base where color carries meaning
-- borders and tinted boxes instead of shadows
-- a floating navigation card beside one centered column (we dropped their right panel: too much for a writing tool)
-- an empty screen that asks first, with starter prompts
-- a quiet metadata line on each card
-- real dark themes
-- 150 ms color-only motion
+What we take from ScholarXIV: zinc neutrals, white / `#171717` backgrounds, the black/white primary flip, borders instead of shadows, a floating navigation card, a right panel (we now use one for notifications), an empty screen that asks first, quick 150 ms motion.
 
-What's ours:
-- warm paper neutrals (theirs are cool zinc); we share their interface face, Archivo, by choice
-- a serif for the user's writing
-- the teal thread
-- a **mixed** theme
-- Ethiopic-ready fonts
+What stays ours: a serif for the user's writing, the teal AI mark, Ethiopic-ready fonts.
 
 ### Themes
 
 | Theme | What it is | When |
 |---|---|---|
-| Light | Paper background, white page | Default when the system is light |
-| Dark | Warm off-black, never pure black | Default when the system is dark |
-| **Mixed** | Dark chrome (sidebar, panels, background) around a **light page** (editor, draft cards, previews): a desk lamp on paper | Writing at night without losing the page's look; only Voxlace has it |
+| Light | White page, zinc greys, near-black primary | Default when the system is light |
+| Dark | `#171717` off-black, never pure black; primary flips to near-white | Default when the system is dark |
 
-How it works:
-- The toggle sits in the sidebar header and cycles light → dark → mixed.
-- The choice is saved per user, and the system preference is the first default.
-- In code it's `<html data-theme="…">`. Anything marked `.page` switches back to the light tokens in the mixed theme.
+- The toggle (sun/moon) sits in the sidebar header and switches light ⇄ dark.
+- The choice is saved per browser; the system preference is the first default.
+- In code it's `<html data-theme="light|dark">`.
 
 ### Color tokens
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--paper` | `#F7F6F3` | `#161513` | App background (the desk) |
-| `--surface` | `#FFFFFF` | `#1E1C19` | The page: editor, cards, previews |
-| `--sunken` | `#EFEDE8` | `#282622` | Notes, source posts, inactive chips |
-| `--line` | `#E2DFD8` | `#34312C` | Dividers and card borders (decorative) |
-| `--edge` | `#8A8478` | `#7A7469` | Outlines of inputs and buttons (≥ 3:1) |
-| `--ink` | `#1F1D1A` | `#EDEAE4` | Main text |
-| `--ink-2` | `#5C574E` | `#A9A399` | Secondary text, meta lines, placeholders |
-| `--on-ink` | `#FAF9F6` | `#1F1D1A` | Text on ink (avatar, brand mark) |
-| `--thread` | `#2B6B5B` | `#72C4AE` | The one accent: **primary buttons**, links, focus ring, AI label, sources, selected chips |
-| `--on-thread` | `#FFFFFF` | `#161513` | Text on primary buttons |
-| `--thread-soft` | `#E2EEE9` | `#1F3530` | Current nav item, selected chip fill |
-| `--signal` | `#8F5508` | `#E3A64C` | Near the limit, "still learning", scheduled |
-| `--danger` | `#B42318` | `#F2806F` | Over the limit, errors, delete |
+| `--paper` | `#FFFFFF` | `#171717` | App background |
+| `--surface` | `#FFFFFF` | `#1C1C1C` | Cards, the composer, panels |
+| `--sunken` | `#F4F4F5` | `#262626` | Folded cards, chips, inactive tabs, current nav item |
+| `--line` | `#E4E4E7` | `#2E2E2E` | Dividers and card borders (decorative) |
+| `--edge` | `#8A8A93` | `#7A7A82` | Outlines of inputs and buttons (≥ 3:1) |
+| `--ink` | `#09090B` | `#FAFAFA` | Main text |
+| `--ink-2` | `#52525B` | `#A1A1AA` | Secondary text, meta lines, placeholders |
+| `--primary` | `#18181B` | `#FAFAFA` | **Primary buttons**, selected chips |
+| `--on-primary` | `#FAFAFA` | `#18181B` | Text on primary buttons |
+| `--thread` | `#2B6B5B` | `#72C4AE` | The AI mark only: "AI draft" label, focus ring, links |
+| `--signal` | `#8F5508` | `#E3A64C` | Near the limit, "still learning", due now |
+| `--danger` | `#B42318` | `#F2806F` | Over the limit, errors, missed, delete |
 
 **Contrast, all measured (WCAG 2.2 AA: 4.5:1 for text, 3:1 for UI parts):**
 
 | Pair | Light | Dark |
 |---|---|---|
-| `--ink` on `--paper` / `--surface` / `--sunken` | 15.6 / 16.8 / 14.4 | 15.2 / 14.2 / 12.6 |
-| `--ink-2` on `--paper` / `--surface` / `--sunken` | 6.6 / 7.2 / 6.1 | 7.3 / 6.8 / 6.0 |
-| `--thread` on `--paper` / `--surface` / `--thread-soft` | 5.8 / 6.3 / 5.3 | 8.9 / 8.3 / 6.4 |
-| `--signal` on `--paper` / `--surface` | 5.6 / 6.1 | 8.5 / 8.0 |
-| `--danger` on `--paper` / `--surface` | 6.1 / 6.6 | 7.0 / 6.6 |
-| `--on-thread` on `--thread` (primary button) | 6.3 | 8.9 |
-| `--on-ink` on `--ink` (avatar) | 16.0 | 14.0 |
-| `--edge` on `--surface` / `--paper` (input outlines) | 3.7 / 3.4 | 3.7 / 3.9 |
-| Focus ring `--thread` on `--paper` | 5.8 | 8.9 |
-
-Mixed uses the dark values for chrome and the light values on `.page`, so every pair above still applies.
-
-- **Platform colors only in small badges**, never as backgrounds.
-- **Status never by color alone:** the counter has an icon and words ("fits on X", "24 left", "12 over"); selected chips show ✓.
-- Avoid the common generated looks: purple-to-blue gradients, cream with terracotta, black with acid green, identical cards with the same soft shadow.
+| `--ink` on `--paper` / `--surface` / `--sunken` | 19.9 / 19.9 / 18.1 | 17.2 / 16.3 / 14.5 |
+| `--ink-2` on `--paper` / `--surface` / `--sunken` | 7.7 / 7.7 / 7.0 | 7.0 / 6.6 / 5.9 |
+| `--thread` on `--paper` / `--surface` / `--sunken` | 6.3 / 6.3 / 5.7 | 8.7 / 8.3 / 7.4 |
+| `--signal` on `--paper` / `--surface` | 6.1 / 6.1 | 8.4 / 8.0 |
+| `--danger` on `--paper` / `--surface` | 6.6 / 6.6 | 6.9 / 6.6 |
+| `--on-primary` on `--primary` (primary button) | 17.0 | 17.0 |
+| `--edge` on `--paper` / `--surface` (input outlines) | 3.4 / 3.4 | 4.2 / 4.0 |
 
 ### Type
 
@@ -287,9 +244,9 @@ Headings 22px and up use `--tracking-tight` (−0.02em). Interface line-height i
 
 - 4px grid: `--space-1` to `--space-12` = 4, 8, 12, 16, 24, 32, 48.
 - Radius: `--radius-control` 8px (buttons, inputs, nav items), `--radius-panel` 12px (cards, panels, composer), `--radius-pill` (chips, send button, status badges).
-- **Borders separate, shadows float.** Cards and panels get a 1px `--line` border. Only menus, dialogs and toasts use `--shadow-float`. Focused inputs get a 1px `--thread` ring around the border.
+- **Borders separate, shadows float.** Cards and panels get a 1px `--line` border. Only menus, dialogs and toasts use `--shadow-float`. Focused inputs and buttons get a 2px `--thread` ring.
 - **Bars never hide focus** (WCAG 2.4.11): pages with a sticky composer or action bar set `scroll-padding-bottom` to the bars' height.
-- Layout: a floating sidebar card `--sidebar-width` 264px, inset 12px → icon rail `72px` below 1024px → bottom tab bar below 768px. **No right sidebar.** One centered column, `--column` 720px. The work area is `--surface` (plain white in light); the sidebar card is `--paper`.
+- Layout: a floating sidebar card `--sidebar-width` 264px, inset 12px → icon rail `72px` below 1024px → bottom tab bar below 768px. A **right panel** of 300px for notifications and missed posts from 1280px up; below that it's a bell. One centered column, `--column` 720px.
 
 ### Motion
 
@@ -303,17 +260,17 @@ Headings 22px and up use `--tracking-tight` (−0.02em). Interface line-height i
 |---|---|---|
 | Interface font | Archivo (app), Inter (docs) | **Archivo** + Noto Sans Ethiopic (same face by choice; identity comes from palette, serif and layout) |
 | Content font | Same sans | Source Serif 4 + Noto Serif Ethiopic (the user's ink) |
-| Background light / dark | `#FFFFFF` / `#171717` | `#F7F6F3` warm paper / `#161513` warm off-black |
-| Neutral hue | Cool zinc (hue 240) | Warm stone (hue ~40) |
-| Primary button | Near-black `hsl(240 5.9% 10%)`, flips to white in dark | Teal `--thread`: the AI's color is also the "go" color |
-| Accent | Almost none; green status dot, green docs nav | One teal `--thread` with a single meaning: "the AI drew on this" |
-| Border | `#E4E4E7`, 1px | `--line #E2DFD8` decorative, `--edge #8A8478` for controls (≥ 3:1) |
+| Background light / dark | `#FFFFFF` / `#171717` | the same |
+| Neutral hue | Cool zinc (hue 240) | the same |
+| Primary button | Near-black `hsl(240 5.9% 10%)`, flips to white in dark | the same (`--primary`) |
+| Accent | Almost none; green status dot, green docs nav | A small teal `--thread` for the AI label and focus only |
+| Border | `#E4E4E7`, 1px | `--line #E4E4E7` decorative, `--edge #8A8A93` for controls (≥ 3:1) |
 | Radius controls / cards | 6px / 12px | 8px / 12px, pills for chips |
 | Shadows | None, except floating tabs | None, except menus, dialogs and toasts |
 | Reading text | 16px / 1.7, max 808px | 18px serif / 1.7, max 68ch |
 | Headings | 36px/500, −0.9px tracking | 30px/600, −0.02em |
 | Motion | 150ms `cubic-bezier(0.4,0,0.2,1)`, color + shadow | 150ms `cubic-bezier(0.2,0,0,1)`, color only |
-| Themes | Light, dark (`html.dark`) | Light, dark, **mixed** (`html[data-theme]`) |
+| Themes | Light, dark (`html.dark`) | Light, dark (`html[data-theme]`) |
 
 ---
 
@@ -350,11 +307,11 @@ Product components to build on top:
 | AI unavailable (503) | "Drafts are unavailable right now. Your check-in is saved." |
 | Daily limit reached | "You've used today's 30 drafts. You can generate more tomorrow." (Which "day" is still OPEN_QUESTIONS Q10.) |
 | Under 20 posts | Voice strength badge: "Still learning: import more posts for a closer match." (FR-5) |
-| Empty Today | Prompt starters + "Write today's check-in". |
-| Empty Drafts | "Your drafts will appear here. Start from Today." with a button. |
+| Empty chat | Prompt starters + "Write today's check-in". |
+| Empty Drafts | "Your drafts will appear here. Start a chat." with a button. |
 | Empty Calendar | "Approve a draft and pick a time to see it here." |
 | Import failed | Names the problem and the fix: "This isn't a Telegram export. Export your channel as JSON from Telegram Desktop." |
-| Telegram send failed | Calendar item turns `--danger` with "Didn't send: the bot isn't an admin any more. Reconnect." |
+| Missed post | Calendar item and the Missed list turn `--danger`: "Tue 09:00 passed. Post now or reschedule." |
 
 ---
 
@@ -362,7 +319,7 @@ Product components to build on top:
 
 - **One verb per action, everywhere.** Generate → Revise → Approve → Schedule → Publish. The toast repeats the verb: Publish → "Published".
 - **Sentence case** for everything. No all-caps labels.
-- **Say what happens.** "Publish to Telegram now", "Open in X", "Copy text and open LinkedIn".
+- **Say what happens.** "Copy and open Telegram", "Open in X", "Copy text and open LinkedIn".
 - **Errors say what happened and what to do.** No "Oops", no apologies, never "Something went wrong" alone.
 - **Talk about the user's world**, not the system: "your posts", "your voice", not "embeddings", "vectors" or "RAG".
 - **Times always with a zone hint** when it's ambiguous: "18:00 your time (10:00 New York)".
