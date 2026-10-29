@@ -26,10 +26,12 @@ from app.schemas import (
     Platform,
     PromptOut,
     ReviseIn,
+    ScheduleIn,
+    ScheduleOut,
     ThreadOut,
     VersionOut,
 )
-from app.services import library, threads
+from app.services import library, scheduling, threads
 from app.services.drafting import DraftError, generate_draft, prompt_for
 from app.services.revising import revise
 
@@ -165,6 +167,25 @@ def convert_draft(
         raise _fail(e) from e
     except (AIUnavailable, EmbeddingUnavailable) as e:
         raise AppError("ai_unavailable", AI_BUSY, 503) from e
+
+
+@router.post("/{draft_id}/schedule", response_model=ScheduleOut)
+def schedule_draft(
+    draft_id: uuid.UUID, body: ScheduleIn, user_id: uuid.UUID = Depends(current_user)
+) -> ScheduleOut:
+    """FR-45: approve and put it on a day; the app picks the best free hour unless `at` is
+    given. The answer says why that hour."""
+    try:
+        detail, pick = scheduling.schedule(user_id, draft_id, body.day, body.at)
+    except DraftError as e:
+        raise _fail(e) from e
+    return ScheduleOut(
+        draft=row_out(detail),
+        scheduled_for=pick.at,
+        rank=pick.rank,
+        reason=pick.reason,
+        warning=pick.warning,
+    )
 
 
 @router.delete("/{draft_id}", status_code=204)
