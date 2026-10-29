@@ -41,6 +41,7 @@ class Draft(CreatedAt, Base):
         CheckConstraint("platform IN ('telegram', 'x', 'linkedin')", name="platform"),
         CheckConstraint("status IN ('draft', 'approved', 'published', 'discarded')", name="status"),
         Index("ix_drafts_user_created", "user_id", "created_at"),
+        Index("ix_drafts_user_scheduled", "user_id", "scheduled_for"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -55,6 +56,30 @@ class Draft(CreatedAt, Base):
     checkin_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("checkins.id", ondelete="SET NULL")
     )
+    thread_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("threads.id", ondelete="SET NULL"), index=True
+    )
+    # Written from another draft: "make a LinkedIn version" (FR-40).
+    source_draft_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("drafts.id", ondelete="SET NULL")
+    )
+
+
+class Thread(CreatedAt, Base):
+    """One conversation on the chat board: a check-in, its drafts, every revision (FR-46)."""
+
+    __tablename__ = "threads"
+    __table_args__ = (Index("ix_threads_user_updated", "user_id", "updated_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(Text, server_default="")
+    checkin_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("checkins.id", ondelete="SET NULL")
+    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class DraftVersion(CreatedAt, Base):
@@ -96,7 +121,9 @@ class PromptLog(CreatedAt, Base):
 
 
 class DraftMessage(CreatedAt, Base):
-    """One line of the editor's chat: the user's request or the assistant's answer (FR-40)."""
+    """One line of a thread: the user's words or the assistant's answer (FR-40, FR-46). A
+    message with a draft_version_id is a draft card; one without a draft_id is about the
+    whole thread, such as the check-in."""
 
     __tablename__ = "draft_messages"
     __table_args__ = (CheckConstraint("role IN ('user', 'assistant')", name="role"),)
@@ -105,7 +132,10 @@ class DraftMessage(CreatedAt, Base):
         primary_key=True, server_default=text("gen_random_uuid()")
     )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    draft_id: Mapped[uuid.UUID] = mapped_column(
+    thread_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("threads.id", ondelete="CASCADE"), index=True
+    )
+    draft_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("drafts.id", ondelete="CASCADE"), index=True
     )
     role: Mapped[str] = mapped_column(String(16))

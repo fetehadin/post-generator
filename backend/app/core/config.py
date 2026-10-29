@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     # revisions); posts count what an import adds, since each new post is embedded once.
     daily_draft_limit: int = 40
     daily_post_limit: int = 3000
+    # NFR-14: how often the API retries waiting embeddings in the background; 0 turns it off.
+    embedding_retry_seconds: int = 300
 
     @property
     def login_configured(self) -> bool:

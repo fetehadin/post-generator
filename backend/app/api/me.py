@@ -6,28 +6,81 @@ from fastapi import APIRouter, Depends, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
+from app.api.shapes import row_out
 from app.core.auth import Identity, admit_if_allowed, create_user, current_user, identity
 from app.core.db import user_session
 from app.core.errors import AppError
 from app.models import Invite, User
-from app.schemas import DeleteMeIn, InviteIn, MeOut, UsageOut
-from app.services import account, usage
+from app.schemas import (
+    DeleteMeIn,
+    InviteIn,
+    MeOut,
+    MePatchIn,
+    NotificationsOut,
+    ReminderIO,
+    UsageOut,
+)
+from app.services import account, notifications, usage
+from app.services.clock import valid_zone
 
 router = APIRouter(prefix="/me", tags=["me"])
 
 
 def _me(who: Identity) -> MeOut:
     admitted = admit_if_allowed(who)
-    accepted = False
+    accepted, timezone = False, "UTC"
     if admitted:
         with user_session(who.user_id) as s:
-            accepted = s.get(User, who.user_id).privacy_accepted_at is not None
-    return MeOut(id=who.user_id, email=who.email, admitted=admitted, privacy_accepted=accepted)
+            user = s.get(User, who.user_id)
+            accepted, timezone = user.privacy_accepted_at is not None, user.timezone
+    return MeOut(
+        id=who.user_id,
+        email=who.email,
+        admitted=admitted,
+        privacy_accepted=accepted,
+        timezone=timezone,
+    )
 
 
 @router.get("", response_model=MeOut)
 def get_me(who: Identity = Depends(identity)) -> MeOut:
     return _me(who)
+
+
+@router.patch("", response_model=MeOut)
+def update_me(
+    body: MePatchIn, user_id=Depends(current_user), who: Identity = Depends(identity)
+) -> MeOut:
+    """NFR-16: the user's own time zone. The app sends the browser's on first use; Profile
+    can change it. Stored times stay UTC."""
+    if not valid_zone(body.timezone):
+        raise AppError("invalid_timezone", "Pick a time zone from the list.")
+    with user_session(user_id) as s:
+        s.get(User, user_id).timezone = body.timezone
+    return _me(who)
+
+
+@router.get("/notifications", response_model=NotificationsOut)
+def get_notifications(user_id=Depends(current_user)) -> NotificationsOut:
+    """FR-35, FR-42: due posts, missed posts and today's check-in reminder, right now."""
+    n = notifications.notifications(user_id)
+    return NotificationsOut(
+        due=[row_out(r) for r in n.due],
+        missed=[row_out(r) for r in n.missed],
+        checkin_reminder=n.checkin_reminder,
+    )
+
+
+@router.get("/reminders", response_model=ReminderIO)
+def get_reminders(user_id=Depends(current_user)) -> ReminderIO:
+    r = notifications.get_reminder(user_id)
+    return ReminderIO(enabled=r.enabled, days=r.days, local_time=r.local_time)
+
+
+@router.put("/reminders", response_model=ReminderIO)
+def put_reminders(body: ReminderIO, user_id=Depends(current_user)) -> ReminderIO:
+    r = notifications.set_reminder(user_id, body.enabled, body.days, body.local_time)
+    return ReminderIO(enabled=r.enabled, days=r.days, local_time=r.local_time)
 
 
 @router.post("/invite", response_model=MeOut)

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.ai.client import AIUnavailable, GenerationResult
 from app.api.deps import get_ai
-from app.core.auth import current_user
+from app.core.auth import Identity, current_user, identity
 from app.main import create_app
 
 DIMS = 768
@@ -41,6 +41,10 @@ def api(make_user):
     app = create_app()
     state = {"user": make_user(), "ai": FakeAI()}
     app.dependency_overrides[current_user] = lambda: state["user"]
+    # Routes that need the login identity (/me) see the same user, with make_user's email.
+    app.dependency_overrides[identity] = lambda: Identity(
+        state["user"], f"{state['user']}@test.local", email_confirmed=True
+    )
     app.dependency_overrides[get_ai] = lambda: state["ai"]
     client = TestClient(app, raise_server_exceptions=False)
     client.state = state

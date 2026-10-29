@@ -5,8 +5,6 @@ response as a background task; if the server restarts, the queue is still in the
 database and GET /imports/{id} starts it again (OPEN_QUESTIONS Q6).
 """
 
-import logging
-import threading
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, UploadFile
@@ -24,36 +22,15 @@ from app.importers.x import parse_x
 from app.models import Import, SourcePost, User
 from app.schemas import ImportOut
 from app.services import usage, voice
-from app.services.embedding import embed_pending
+from app.services.embedding import embed_in_background
 from app.services.posts import save_posts
 from app.services.profile import excluded_hashtags
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/imports", tags=["imports"])
 
 # One parser per platform. Each reads only the posts from its export (FR-39).
 PARSERS = {"telegram": parse_telegram, "x": parse_x, "linkedin": parse_linkedin}
 MAX_UPLOAD_BYTES = 64 * 1024 * 1024  # the largest real channel export so far is 41 MB
-_running: set[uuid.UUID] = set()
-_running_lock = threading.Lock()
-
-
-def embed_in_background(user_id: uuid.UUID, ai: AIClient) -> None:
-    """Embed everything waiting for this user, best posts first. One run per user at a time."""
-    with _running_lock:
-        if user_id in _running:
-            return
-        _running.add(user_id)
-    try:
-        while True:
-            report = embed_pending(user_id, ai=ai)
-            if report.stopped_reason or report.remaining == 0 or report.embedded == 0:
-                if report.stopped_reason:
-                    logger.info("embedding paused for a user: %s", report.stopped_reason[:80])
-                break
-    finally:
-        with _running_lock:
-            _running.discard(user_id)
 
 
 def _out(s, imp: Import) -> ImportOut:
