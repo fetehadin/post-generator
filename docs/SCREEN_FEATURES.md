@@ -16,6 +16,18 @@ The suggestions follow the calm layout agreed on 19 Oct 2026:
 - there is no right sidebar;
 - drafts show nothing about where they came from.
 
+> **Changed by the product owner, 22 Oct 2026 (SRS 1.3, DESIGN.md §2 and §4 win over any row below):**
+> - **Telegram is a hand-off** (copy + open your channel). No bot: the Telegram connection, "sends automatically", failed sends and Telegram reminders are **Later**.
+> - **Home is a chat board** with threads in the left sidebar; each revision is a new draft card. The editor page becomes the thread.
+> - **Right sidebar** with Notifications and Missed posts (a bell on narrow screens).
+> - **Drafts** opens to X · LinkedIn · Telegram; cards have Reschedule, Copy now, Delete.
+> - **Calendar** has month, week and day views.
+> - **Approve asks only for the day**; the app picks the best hour (FR-45). Best posting hours (FR-16, FR-34) are **Show** (approve and calendar).
+> - **Resume and portfolio import** (FR-20, FR-21) are **Show** in Profile.
+> - **Audience per platform** (profession and places) is editable in Profile.
+> - **Platform rules** (FR-23): no screen; changed by migration.
+> - **Themes:** light and dark only, ScholarXIV colors.
+
 > **Layout decided by the product owner, 21 Oct 2026** (DESIGN.md §2): the sidebar has Home · Calendar · Drafts, the theme toggle and a collapse button; **Voice and Settings now live inside Profile** (the avatar). Where a row below says Voice or Settings, read **Profile**. The editor's feedback is a **chat thread** (ChatGPT-style), and Calendar is a **Google Calendar-style grid** with a **Posted** button.
 
 ---

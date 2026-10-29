@@ -8,7 +8,6 @@ Python 3.12 · FastAPI · Pydantic v2 · SQLAlchemy 2.0 (sync, psycopg 3) · Ale
 backend/
 ├── app/
 │   ├── main.py            App factory, routers, CORS, error handlers
-│   ├── worker.py          Loop: send due Telegram posts and reminders (Phase 5)
 │   ├── core/
 │   │   ├── config.py      Settings (pydantic-settings) — the only place env vars are read
 │   │   ├── db.py          Engine, session, per-request RLS user setting
@@ -77,11 +76,11 @@ ruff check . --fix && ruff format .
 - Read only the posts file from each export (FR-39).
 - Each importer has tests against `samples/` covering normal, formatted, empty, duplicate and broken input.
 
-## Worker (`app/worker.py`)
+## Background work (no worker in V1)
 
-- Loop every `settings.worker_interval_seconds`: select approved drafts with `scheduled_for <= now()` and `published_at IS NULL` using `FOR UPDATE SKIP LOCKED`, send, then set `published_at` in the same transaction.
-- Safe to restart at any moment: never double-send (NFR-14). On a send failure, record it and retry next loop; give up after 3 tries and notify in-app.
-- The worker uses a role allowed to read due drafts across users (a narrow RLS policy for it), then sets `app.user_id` for each draft it processes.
+- V1 never posts by itself (SRS 1.3). Due and missed posts and check-in reminders are worked out on request by `GET /me/notifications`; nothing is sent.
+- The only background job is the embedding retry loop inside the API (NFR-14): every few minutes it asks a narrow `SECURITY DEFINER` function which users have waiting posts, then embeds each user's posts in that user's own session, under a per-user advisory lock so two API processes never embed the same user.
+- A Telegram sending worker comes back after V1 (FR-36, FR-43). When it does: `FOR UPDATE SKIP LOCKED`, set `published_at` in the same transaction, never double-send.
 
 ## Tests
 
