@@ -24,7 +24,7 @@ How two developers take Voxlace from an empty repo to a private beta. It covers 
 
 ### What you're building, in one paragraph
 
-A user uploads their old posts. The backend splits them into rows, turns each into an **embedding** (768 numbers that capture meaning) and stores it in **Postgres + pgvector**. When the user asks for a draft, the backend embeds the topic, finds their most similar past posts, and builds a prompt from four things: those examples, their voice card, today's check-in, and the platform's rules. It sends that prompt to **Gemini**, saves the draft, and shows it in **React**. The user edits it, schedules it on the calendar and approves it. X and LinkedIn get a hand-off; Telegram is sent by the bot: a **worker** running beside the API on your Contabo server checks every minute and sends scheduled posts on time.
+A user uploads their old posts. The backend splits them into rows, turns each into an **embedding** (768 numbers that capture meaning) and stores it in **Postgres + pgvector**. When the user asks for a draft, the backend embeds the topic, finds their most similar past posts, and builds a prompt from four things: those examples, their voice card, today's check-in, and the platform's rules. It sends that prompt to **Gemini**, saves the draft, and shows it in **React**. The user edits it, schedules it on the calendar and approves it. When the time comes, the app reminds them and hands the post off: X opens pre-filled, LinkedIn and Telegram get the text copied and the composer or channel opened. Voxlace never posts by itself in V1 (SRS 1.3).
 
 ### The order you build in
 
@@ -37,11 +37,11 @@ flowchart TD
     P2["Phase 2 — Accounts & isolation<br/>login · invites · user_id everywhere · RLS"]
     P3["Phase 3 — All platforms & voice<br/>X + LinkedIn import · voice cards · profile · settings"]
     P4["Phase 4 — Drafting workflow<br/>chat board · revisions · library · hand-off"]
-    P5["Phase 5 — Calendar & Telegram publishing<br/>calendar · bot connect · worker sender · reminders"]
+    P5["Phase 5 — Calendar, posting times & reminders<br/>calendar · best hours · in-app reminders · missed posts"]
     P6["Phase 6 — SaaS hardening & deploy<br/>fallback models · limits · export/delete · backups"]
     P7["Phase 7 — Private beta<br/>invite testers · metrics · fix what hurts"]
     P0 --> P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7
-    P7 -.-> S["Stretch: GitHub context · posting windows · resume import · idea inbox"]
+    P7 -.-> S["Stretch: GitHub context · idea inbox · Telegram bot (after V1)"]
 ```
 
 **Why this order:**
@@ -172,7 +172,8 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 | LinkedIn parser: `Shares.csv` (text + date only) | Settings: tab per platform — rules, voice card, pinned posts |
 | Weighted X counter (URL = 23; Ethiopic, CJK and emoji = 2, as twitter-text) with tests | Live length counter on the draft card using the platform rule |
 | Voice card + stats per platform; warning under 20 posts; keep hand edits on regenerate | Pin / exclude buttons on posts |
-| Summary card from the profile form (~150 words, editable) | Edit platform rules in Settings (no code change) |
+| Summary card from the profile form and reviewed resume/portfolio text (~150 words, editable) | Platform rules shown in Profile; the team changes them by migration (FR-23) |
+| Resume (PDF/DOCX) and portfolio import, contact details stripped, user reviews the text (FR-20, FR-21, NFR-12) | Upload and review screen in Profile |
 | Use pinned/excluded posts in retrieval; exemplar pool for thin histories | |
 
 **Demo:** the same topic produces three clearly different drafts — a tight X post, a LinkedIn post with a strong first line, a Telegram post — each in your voice and language.
@@ -198,18 +199,22 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 ---
 
-### Phase 5 — Calendar and Telegram publishing
+### Phase 5 — Calendar, posting times and reminders
 
-**Goal:** plan the week on a calendar; Telegram posts go out on time by themselves after approval.
+> **Changed 22 Oct 2026 (SRS 1.3):** no Telegram bot in V1. This phase is now *Calendar, posting times and reminders*: month/week/day calendar, best hours from audience places and profession (FR-16, FR-34), the app picks the hour on approve (FR-45), in-app reminders and Missed posts (FR-35, FR-42), and a background embedding retry inside the API (NFR-14). The table below is the V1 plan; the old Telegram bot rows are listed after it and wait until after V1.
 
-**Database:** `telegram_connections`; `drafts.scheduled_for`, `reminder_sent_at`, `published_at` in use.
+**Goal:** plan the week on a calendar; approve with a day and the app picks the hour; due and missed posts show up in the app.
+
+**Database:** `threads`, `reminder_settings`, `posting_curves`; `drafts.scheduled_for`, `published_at` in use; audience places on `platform_settings`.
 
 | Track A — Data & AI | Track B — App & Platform |
 |---|---|
-| Due-post query: approved + `scheduled_for <= now()` + not yet sent, safe to run twice | Calendar: week and month views, drag to reschedule (store UTC, show local) |
-| `worker.py`: every minute, send due Telegram posts and reminders | Telegram connect flow: bot as admin → `getChatMember` check → save |
-| Retry + mark failures without double-sending | "Publish now" for Telegram; reminders in the app |
-| Lock each due row (`FOR UPDATE SKIP LOCKED`) so a restart never double-sends | Worker service in the production compose file, `restart: unless-stopped` |
+| Best-hours engine: audience places on their own clocks + profession + study curves, own data blended in after 50 posts (FR-16, FR-34) | Calendar: month, week and day views, drag to reschedule (store UTC, show local) |
+| Approve with a day → pick the best free hour with per-platform gaps (FR-45) | Approve-by-day in the thread; audience places on Profile |
+| Notifications worked out on request: due, missed after 30 min, check-in reminder (FR-35, FR-42) | Notifications and Missed panel; reminders and time zone in Profile |
+| Background embedding retry inside the API, one process per user via an advisory lock (NFR-14) | |
+
+After V1 (FR-36, FR-43): Telegram connect (bot as admin → `getChatMember` → save), a worker that sends due Telegram posts with `FOR UPDATE SKIP LOCKED` so it never double-sends, and replies to the bot as check-ins.
 
 **Demo:** approve a Telegram draft for 5 minutes from now, close the laptop, and it appears in your channel on time.
 
@@ -248,7 +253,7 @@ Each phase lists its goal, the tables it adds, the tasks per track, and a **demo
 
 ### Stretch (after the core works)
 
-GitHub context (FR-14) · suggested posting windows (FR-16, FR-34) · resume and website import with contact stripping (FR-20, FR-21, NFR-12) · idea inbox · angle suggestions · metrics page.
+GitHub context (FR-14) · Telegram bot: connect, auto-send, reply as check-in (FR-36, FR-43) · idea inbox · angle suggestions · metrics page.
 
 ---
 
@@ -325,8 +330,8 @@ A task is done when **all** of these are true:
 | 2 | Supabase Auth (login only), JWT verification (`PyJWT`), Postgres row-level security, Contabo VPS, `ufw`, Caddy, production Docker Compose, GitHub Actions deploy over SSH |
 | 3 | Python `csv`, Unicode handling for the weighted counter, React forms |
 | 4 | Clipboard API, X web intent URLs |
-| 5 | FullCalendar (or a simple week grid), Telegram Bot API via `httpx`, a worker process (plain loop or APScheduler) |
-| 6 | Second AI provider (Groq, OpenRouter or Mistral), structured logging |
+| 5 | A simple calendar grid, `zoneinfo` for time zones, Postgres advisory locks |
+| 6 | Groq as the second AI provider (over `httpx`), structured logging |
 | 7 | Simple metrics queries, a feedback form |
 | Stretch | GitHub REST API, `pypdf` / `python-docx`, regex-based contact stripping |
 

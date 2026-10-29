@@ -27,9 +27,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     embedding_model: str = "gemini-embedding-2"
     embedding_dimensions: int = 768
-    # Ordered fallback chain, comma-separated "provider:model" (FR-31).
+    # Ordered fallback chain, comma-separated "provider:model" (FR-31). Providers: google, groq.
     generation_models: str = "google:gemini-flash-latest"
-    fallback_api_key: str = ""
+    groq_api_key: str = ""
     # Longest one AI call may take before it counts as a network drop and is retried.
     ai_timeout_seconds: int = 60
     # FR-30: per user per UTC day. Drafts count every AI writing call (new drafts and chat
