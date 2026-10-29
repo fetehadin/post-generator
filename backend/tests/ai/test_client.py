@@ -247,6 +247,47 @@ def test_groq_without_a_key_is_skipped_not_called():
     assert groq.requests == []
 
 
+@pytest.mark.parametrize(
+    "reply",
+    [
+        httpx.Response(200, text="<html>not json</html>"),
+        httpx.Response(200, json={"choices": []}),
+        httpx.Response(200, json={"choices": [{"message": {"content": "   "}}]}),
+        httpx.Response(200, json={"choices": [{"message": {"content": None}}]}),
+    ],
+    ids=["not-json", "no-choices", "blank", "null"],
+)
+def test_groq_unreadable_or_empty_reply_moves_on_instead_of_saving_nothing(reply):
+    client = AIClient(
+        Settings(
+            _env_file=None,
+            gemini_api_key="test",
+            groq_api_key="k",
+            generation_models="groq:openai/gpt-oss-120b,google:first",
+        ),
+        genai_client=SimpleNamespace(models=FakeModels()),
+        sleep=lambda _: None,
+        http=httpx.Client(transport=httpx.MockTransport(lambda _: reply)),
+    )
+    result = client.generate("p")
+    assert (result.provider, result.text) == ("google", "draft from first")
+
+
+def test_gemini_blank_reply_moves_on_and_all_blank_fails_clearly():
+    class Blank(FakeModels):
+        def generate_content(self, model, contents, config):
+            self.gen_calls.append(model)
+            if model == "first":
+                return SimpleNamespace(text="  ", model_version=None)
+            return super().generate_content(model, contents, config)
+
+    client, _ = make(Blank())
+    assert client.generate("p").model == "second"
+    client, _ = make(Blank(), chain="google:first")
+    with pytest.raises(AIUnavailable, match="empty reply"):
+        client.generate("p")
+
+
 def test_chain_parsing_defaults_provider_to_google():
     s = Settings(_env_file=None, generation_models=" google:a , b,groq:c ")
     assert s.generation_chain == [("google", "a"), ("google", "b"), ("groq", "c")]

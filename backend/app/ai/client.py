@@ -148,7 +148,7 @@ class AIClient:
                     model=model, contents=prompt, config=config
                 )
                 return GenerationResult(
-                    text=(resp.text or "").strip(),
+                    text=_answer(resp.text),
                     model=model,
                     provider="google",
                     model_version=getattr(resp, "model_version", None),
@@ -184,9 +184,13 @@ class AIClient:
                 resp = self.http.post(GROQ_URL, json=body, headers=headers)
                 if resp.status_code != 200:
                     raise _groq_error(resp)
-                data = resp.json()
+                try:
+                    data = resp.json()
+                    content = data["choices"][0]["message"].get("content")
+                except (ValueError, KeyError, IndexError, TypeError, AttributeError) as e:
+                    raise AIUnavailable(f"{model} sent a reply we couldn't read") from e
                 return GenerationResult(
-                    text=(data["choices"][0]["message"].get("content") or "").strip(),
+                    text=_answer(content),
                     model=model,
                     provider="groq",
                     model_version=data.get("model") or model,
@@ -205,6 +209,15 @@ class AIClient:
             wait = min(MAX_WAIT, max(wait, hinted + 1.0))
         logger.info("AI call got %s, retrying in %.0fs", describe(err), wait)
         self._sleep(wait)
+
+
+def _answer(text: str | None) -> str:
+    """The model's text, or AIUnavailable when it's blank, so the chain moves on instead of
+    saving an empty draft."""
+    text = (text or "").strip()
+    if not text:
+        raise AIUnavailable("the model sent an empty reply")
+    return text
 
 
 def retryable(err: Exception) -> bool:
