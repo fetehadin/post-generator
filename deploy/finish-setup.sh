@@ -6,9 +6,12 @@
 set -euo pipefail
 
 REPO=fetehadin/post-generator
-HOST=169.58.96.52
+# Where the server is: from the environment or the git-ignored deploy/local.env
+# (copy deploy/local.env.example). Never commit them: the repo is public.
+[ -f deploy/local.env ] && . deploy/local.env
+: "${HOST:?set HOST in deploy/local.env (see deploy/local.env.example)}"
+: "${DOMAIN:?set DOMAIN in deploy/local.env (see deploy/local.env.example)}"
 SERVER=deploy@$HOST
-DOMAIN=voxlace.duckdns.org
 DEPLOY_KEY="$HOME/.ssh/voxlace_deploy"   # made for GitHub Actions only; already allowed on the server
 
 echo "== 1/3 Keys to the server"

@@ -4,7 +4,10 @@
 # file over SSH, without printing them. Only key names and "copied"/"missing" are shown.
 set -euo pipefail
 
-SERVER="${SERVER:-deploy@169.58.96.52}"
+# The server comes from SERVER, or HOST in the git-ignored deploy/local.env.
+[ -z "${SERVER:-}" ] && [ -f deploy/local.env ] && . deploy/local.env
+SERVER="${SERVER:-${HOST:+deploy@$HOST}}"
+: "${SERVER:?set HOST in deploy/local.env (see deploy/local.env.example)}"
 REMOTE_FILE="${REMOTE_FILE:-/srv/voxlace/deploy/.env}"
 LOCAL_FILE="${LOCAL_FILE:-.env}"
 KEYS=(GEMINI_API_KEY GROQ_API_KEY SUPABASE_PUBLISHABLE_KEY)

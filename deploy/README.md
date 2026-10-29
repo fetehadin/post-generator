@@ -42,14 +42,15 @@ Do this once, as a person with access to the server, the domain and the GitHub r
 **1. Server (Ubuntu, as root once):**
 
 ```bash
-adduser deploy && usermod -aG sudo deploy
-mkdir -p /home/deploy/.ssh && cp ~/.ssh/authorized_keys /home/deploy/.ssh/ && chown -R deploy: /home/deploy/.ssh
 sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/; s/^#\?PermitRootLogin .*/PermitRootLogin no/' /etc/ssh/sshd_config
 systemctl restart ssh
 ufw allow 22 && ufw allow 80 && ufw allow 443 && ufw --force enable
 apt update && apt install -y unattended-upgrades rsync git && dpkg-reconfigure -plow unattended-upgrades
-curl -fsSL https://get.docker.com | sh && usermod -aG docker deploy
+curl -fsSL https://get.docker.com | sh
+./add-deploy-user.sh     # from this repo's deploy/ folder: the deploy user (Docker, no sudo) and /srv/voxlace
 ```
+
+The `deploy` user has **no sudo**: GitHub Actions logs in as it, so a leaked CI key must not mean root. Do admin work as root or your own user. Before turning password login off, check `ssh deploy@YOUR-SERVER` works from your laptop.
 
 **2. Domain:** add an `A` record for your domain pointing at the server's IP.
 
@@ -61,7 +62,6 @@ curl -fsSL https://get.docker.com | sh && usermod -aG docker deploy
 **4. The app (as `deploy`):**
 
 ```bash
-sudo mkdir -p /srv/voxlace && sudo chown deploy: /srv/voxlace
 git clone https://github.com/fetehadin/post-generator.git /srv/voxlace && cd /srv/voxlace
 cp deploy/server-env.template deploy/.env && nano deploy/.env     # fill in every value
 ./deploy/deploy.sh "$(git rev-parse HEAD)"                        # build, migrate, start
@@ -89,34 +89,34 @@ Run it once by hand, and test a restore once (the command is at the bottom of `b
 - variables `DEPLOY_PATH` (`/srv/voxlace`) and `DOMAIN` (the health check calls `https://$DOMAIN/api/v1/health`);
 - then the repository variable `DEPLOY_ENABLED` = `true`. See `docs/CI_CD.md`.
 
-**Our server, the short way:** `./deploy/finish-setup.sh` from the repo root on your laptop does steps 4–7's
+**Our server, the short way:** copy `deploy/local.env.example` to `deploy/local.env` (git-ignored) and put the server's address and domain in it. Then `./deploy/finish-setup.sh` from the repo root on your laptop does steps 4–7's
 remaining parts in one go. It copies the AI and login keys from your local settings file to the server
 (`push-keys.sh`, values never printed), sets the GitHub secrets and variables above, starts Voxlace, and
 turns `DEPLOY_ENABLED` on only after the health check passes.
 
 ## Sharing the server with another Caddy (our Contabo box)
 
-Our server already runs tajstore, whose Caddy owns ports 80 and 443 and also serves redart. Only one
+Our server already runs another app whose Caddy owns ports 80 and 443 for every site on it. Only one
 program can listen on a port, so Voxlace's Caddy steps back:
 
 ```mermaid
 flowchart LR
-    Internet -->|443| Shared[tajstore Caddy<br/>HTTPS for every domain]
-    Shared -->|voxlace.duckdns.org| Web[voxlace-web<br/>our Caddy, plain HTTP]
+    Internet -->|443| Shared[The other app's Caddy<br/>HTTPS for every domain]
+    Shared -->|YOUR-DOMAIN| Web[voxlace-web<br/>our Caddy, plain HTTP]
     Web -->|/api| API[voxlace-api]
     API --> DB[(Voxlace Postgres)]
 ```
 
 - `docker-compose.shared-caddy.yml` removes our Caddy's ports, swaps in `Caddyfile.internal` (plain
-  HTTP on :80), and joins the shared network (`tajstore_default`) as `voxlace-web`.
-- Our API is called `voxlace-api` there, because tajstore's network already has an `api`.
+  HTTP on :80), and joins the shared network (`SHARED_NETWORK` in the server settings) as `voxlace-web`.
+- Our API is called `voxlace-api` there, because the other app's network already has an `api`.
 - The database and the API never join the shared network.
-- Set `SHARED_CADDY=true` in the server settings file; `deploy.sh` then adds the override itself.
+- Set `SHARED_CADDY=true` and `SHARED_NETWORK` in the server settings file (Compose 2.24+); `deploy.sh` then adds the override itself.
 
-Add this block to `/opt/tajstore/Caddyfile`, then reload that Caddy:
+Add this block to the other app's Caddyfile, then reload that Caddy:
 
 ```caddy
-voxlace.duckdns.org {
+YOUR-DOMAIN {
 	encode zstd gzip
 	header -Server
 	reverse_proxy voxlace-web:80
@@ -124,17 +124,17 @@ voxlace.duckdns.org {
 ```
 
 ```bash
-cd /opt/tajstore
+cd /path/to/the-other-app
 docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile
 docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
-Until Voxlace is running, the domain returns 502; tajstore and redart aren't affected. If tajstore ever
+Until Voxlace is running, the domain returns 502; the other sites aren't affected. If the other app ever
 rebuilds its network, run `./deploy/deploy.sh "$(git rev-parse HEAD)"` again so our Caddy rejoins it.
 
 ## Server checklist (once)
 
-- [ ] Non-root user with sudo; SSH key login only; password login off
+- [ ] `deploy` user with Docker and no sudo (`add-deploy-user.sh`); SSH key login only; password login off. **The script leaves sshd and `ufw` alone: these two lines stay open until you do them by hand (NFR-18).**
 - [ ] `ufw` allows 22, 80, 443 only
 - [ ] Unattended security upgrades on
 - [ ] Docker + Compose plugin installed

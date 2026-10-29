@@ -4,6 +4,8 @@
 DOMAIN=voxlace.example.com
 # true when another app's Caddy already owns ports 80/443 (deploy/docker-compose.shared-caddy.yml)
 SHARED_CADDY=false
+# With SHARED_CADDY=true: the other Caddy's Docker network (docker network ls), e.g. otherapp_default
+SHARED_NETWORK=
 
 POSTGRES_USER=voxlace
 POSTGRES_PASSWORD=

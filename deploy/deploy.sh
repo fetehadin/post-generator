@@ -7,7 +7,8 @@ set -euo pipefail
 SHA="${1:?usage: deploy.sh <git-sha>}"
 COMPOSE="docker compose -f deploy/docker-compose.prod.yml"
 # Another app's Caddy owns ports 80/443 on this server (deploy/docker-compose.shared-caddy.yml).
-if grep -qx 'SHARED_CADDY=true' deploy/.env; then
+# Accepts SHARED_CADDY=true, "true" or 'true', with spaces or Windows line endings.
+if tr -d '\r' < deploy/.env | grep -qiE '^[[:space:]]*SHARED_CADDY[[:space:]]*=[[:space:]]*["'"'"']?true["'"'"']?[[:space:]]*$'; then
   COMPOSE="$COMPOSE -f deploy/docker-compose.shared-caddy.yml"
 fi
 COMPOSE="$COMPOSE --env-file deploy/.env"
