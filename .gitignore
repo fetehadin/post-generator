@@ -48,3 +48,6 @@ frontend/screenshots/
 design/reference/
 design/node_modules/
 design/prototypes/screenshots/
+
+# Where the server is (deploy/local.env.example); kept out of the public repo
+deploy/local.env

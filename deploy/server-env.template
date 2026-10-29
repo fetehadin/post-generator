@@ -1,7 +1,11 @@
 # Copy this file to the server as deploy/.env and fill it in. Never commit the filled-in copy.
-# Make passwords with: openssl rand -base64 32
+# Make passwords with: openssl rand -hex 24  (hex, because base64's / and + break the database URLs)
 
 DOMAIN=voxlace.example.com
+# true when another app's Caddy already owns ports 80/443 (deploy/docker-compose.shared-caddy.yml)
+SHARED_CADDY=false
+# With SHARED_CADDY=true: the other Caddy's Docker network (docker network ls), e.g. otherapp_default
+SHARED_NETWORK=
 
 POSTGRES_USER=voxlace
 POSTGRES_PASSWORD=
@@ -24,3 +28,5 @@ ALLOWED_EMAILS=
 
 # Off-server copy for deploy/backup.sh: an rsync destination such as user@host:/backups/voxlace
 BACKUP_REMOTE=
+# Where dumps are kept on the server (14 days); the deploy user must be able to write here.
+BACKUP_DIR=/home/deploy/backups/voxlace
