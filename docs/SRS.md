@@ -308,7 +308,7 @@ erDiagram
 | `posting_curves` | platform, audience, weekday, hours (24 scores), source | Study-based activity by local weekday and hour, per platform and audience profession (FR-16, FR-34). Shared seed data. |
 | `uploads` | id, user_id, kind (resume, portfolio), source, cleaned_text, removed (JSON counts), reviewed_at, created_at, updated_at | Cleaned text only; the raw text is never stored. Only reviewed text reaches the AI (FR-21). |
 | `platform_profiles` | platform, char_limit, counting_rule, tone_notes, structure_notes, updated_at | Shared, editable platform rules. |
-| `exemplar_posts` | id, platform, text, embedding | Shared, non-personal example pool for thin histories. |
+| `exemplar_posts` | id, platform, post_type, text, created_at | Shared, non-personal inspiration pool per platform, written by the team (never a real person's or user's posts). Used for structure only when a user has fewer than 20 posts on that platform. |
 | `invites` | code, email, used_by, created_at | Who may sign up. |
 | `provider_usage` | id, user_id, provider, model, purpose, status, created_at | Limits and fallback debugging. |
 | `telegram_connections` | user_id, channel_id, verified_at | After V1: the channel the bot may post to (FR-36). |

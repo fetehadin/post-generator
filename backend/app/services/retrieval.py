@@ -11,17 +11,18 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.ai.client import AIClient, default_client
 from app.core.config import get_settings
 from app.core.db import user_session
-from app.models import SourcePost
+from app.models import ExemplarPost, SourcePost
 
 EXAMPLES = 8
 CANDIDATES = 40  # closest posts considered before dropping near-copies
 NEAR_COPY = 0.95  # cosine similarity above which two posts count as the same example
+THIN = 20  # fewer usable posts than this on a platform: add the inspiration pool (FR-5)
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,34 @@ def nearest_posts(
     return chosen
 
 
+def usable_count(session: Session, user_id: uuid.UUID, platform: str) -> int:
+    """Posts that can be examples: this user's, this platform, embedded, not excluded."""
+    return session.scalar(
+        select(func.count()).where(
+            SourcePost.user_id == user_id,
+            SourcePost.platform == platform,
+            SourcePost.excluded.is_(False),
+            SourcePost.embedding.is_not(None),
+            SourcePost.embedding_model == get_settings().embedding_model,
+        )
+    )
+
+
+def inspiration(user_id: uuid.UUID, platform: str) -> list[str]:
+    """The shared inspiration pool for a platform when the user has fewer than THIN posts
+    there; otherwise nothing, so prompts for established users don't change."""
+    with user_session(user_id) as s:
+        if usable_count(s, user_id, platform) >= THIN:
+            return []
+        return list(
+            s.scalars(
+                select(ExemplarPost.text)
+                .where(ExemplarPost.platform == platform)
+                .order_by(ExemplarPost.post_type)
+            )
+        )
+
+
 def find_examples(
     user_id: uuid.UUID,
     platform: str,
@@ -86,7 +115,11 @@ def find_examples(
     ai: AIClient | None = None,
     k: int = EXAMPLES,
 ) -> list[Example]:
-    """Embed the topic (outside any transaction), then search as this user."""
+    """Embed the topic (outside any transaction), then search as this user. With no usable
+    posts there's nothing to search, so the embedding call is skipped."""
+    with user_session(user_id) as s:
+        if usable_count(s, user_id, platform) == 0:
+            return []
     query_vector = (ai or default_client()).embed_query(topic)
     with user_session(user_id) as s:
         return nearest_posts(s, user_id, platform, query_vector, k=k)

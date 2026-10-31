@@ -25,7 +25,10 @@ class FakeAI:
         self.reply = reply
         self.prompts: list[str] = []
 
+    embedded = 0
+
     def embed_query(self, text):
+        self.embedded += 1
         return vec(1)
 
     def generate(self, prompt, purpose="draft", temperature=0.9):
@@ -133,9 +136,49 @@ def test_empty_topic_without_a_summary_card_is_refused(make_user):
         generate_draft(make_user(), "telegram", "   ", ai=FakeAI())
 
 
-def test_no_posts_yet_gives_a_clear_message(make_user):
+@pytest.mark.parametrize("platform", ["telegram", "x", "linkedin"])
+def test_with_no_posts_yet_the_inspiration_pool_shapes_the_draft(make_user, platform):
+    ai = FakeAI()
+    result = generate_draft(make_user(), platform, "Shipped the importer", ai=ai)
+    prompt = ai.prompts[0]
+    assert "## Inspiration (not their voice)" in prompt and "[A]" in prompt
+    assert "(none yet: they haven't imported posts here)" in prompt
+    assert result.examples == [] and ai.embedded == 0  # nothing to search, no embedding call
+
+
+def test_inspiration_is_only_for_this_platform(make_user):
+    ai = FakeAI()
+    generate_draft(make_user(), "x", "topic", ai=ai)
+    assert "dark mode" not in ai.prompts[0]  # a Telegram exemplar
+    assert "Unpopular opinion" in ai.prompts[0]  # an X exemplar
+
+
+def test_twenty_posts_turn_the_inspiration_off(make_user):
+    user = make_user()
+    for i in range(20):
+        add_post(user, str(i), f"my own post number {i}", v=vec(1, i / 10))
+    ai = FakeAI()
+    generate_draft(user, "telegram", "topic", ai=ai)
+    assert "Inspiration" not in ai.prompts[0]
+
+
+def test_no_posts_and_no_pool_gives_a_clear_message(make_user, monkeypatch):
+    monkeypatch.setattr("app.services.drafting.inspiration", lambda *_: [])
     with pytest.raises(DraftError, match="Import your export first"):
         generate_draft(make_user(), "telegram", "topic", ai=FakeAI())
+
+
+def test_without_a_pool_the_prompt_is_unchanged():
+    profile = PlatformProfile(
+        platform="x",
+        char_limit=280,
+        counting_rule="x_weighted",
+        tone_notes="t",
+        structure_notes="s",
+    )
+    ex = [Example(None, "a post", 0.9, False)]
+    assert build_prompt(profile, ex, "topic") == build_prompt(profile, ex, "topic", pool=[])
+    assert "Inspiration" not in build_prompt(profile, ex, "topic")
 
 
 COPIED = "Ship log fixed the timezone bug everything is UTC in the database now"

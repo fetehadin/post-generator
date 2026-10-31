@@ -29,7 +29,7 @@ from app.models import (
     Thread,
 )
 from app.services.profile import get_profile
-from app.services.retrieval import Example, find_examples
+from app.services.retrieval import Example, find_examples, inspiration
 from app.services.usage import LimitReached, check_drafts
 from app.services.voice import effective_limit, voice_card
 
@@ -73,6 +73,7 @@ def build_prompt(
     voice: str = "",
     adapt_from: str | None = None,
     adapt_approved: bool = False,
+    pool: list[str] | None = None,
 ) -> str:
     blocks = []
     if voice.strip():
@@ -86,12 +87,27 @@ def build_prompt(
     return TEMPLATE.substitute(
         platform_name=PLATFORM_NAMES[profile.platform],
         example_count=len(examples),
-        examples="\n\n".join(blocks),
+        examples="\n\n".join(blocks) or "(none yet: they haven't imported posts here)",
+        inspiration=_inspiration(profile.platform, pool or []),
         facts=_facts(topic, about, language, adapt_from, adapt_approved),
         char_limit=profile.char_limit,
         counting_note=COUNTING_NOTES.get(profile.counting_rule, profile.counting_rule),
         tone_notes=profile.tone_notes,
         structure_notes=profile.structure_notes,
+    )
+
+
+def _inspiration(platform: str, pool: list[str]) -> str:
+    """Shared example posts for a thin history: structure only. Empty = no change."""
+    if not pool:
+        return ""
+    name = PLATFORM_NAMES[platform]
+    posts = "\n\n".join(f"[{chr(65 + i)}]\n{p}" for i, p in enumerate(pool))
+    return (
+        f"\n\n## Inspiration (not their voice)\nThey have few or no {name} posts yet. These "
+        f"are example {name} posts written by the Voxlace team, not by them. Learn only how a "
+        "good post here is shaped: the first line, line breaks, length and ending. Never use "
+        "their wording, topics or facts.\n\n" + posts
     )
 
 
@@ -247,7 +263,9 @@ def generate_draft(
 
     # With an empty box, the summary card is what the examples should be close to.
     examples = find_examples(user_id, platform, topic or about.summary_card[:1000], ai=ai)
-    if not examples:
+    # Fewer than 20 posts here: the shared inspiration pool shapes the structure (FR-5).
+    pool = inspiration(user_id, platform)
+    if not examples and not pool:
         raise DraftError(
             "no_posts",
             f"No {PLATFORM_NAMES[platform]} posts are ready yet. Import your export first, "
@@ -263,6 +281,7 @@ def generate_draft(
         voice_card(user_id, platform),
         adapt_from,
         adapt_approved,
+        pool,
     )
     result: GenerationResult = ai.generate(prompt, purpose="draft")
     text = clean_output(result.text)
@@ -271,7 +290,9 @@ def generate_draft(
     # Numbers from the summary card are given facts too, not inventions. An unapproved
     # source draft is model output: a number it made up must not count as a fact (rule 10).
     facts = f"{topic}\n{about.summary_card}\n{adapt_from if adapt_approved else ''}"
-    prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, facts, examples)
+    # Inspiration sentences must not be copied either.
+    copy_sources = examples + [Example(uuid.uuid4(), t, 0.0, False) for t in pool]
+    prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, facts, copy_sources)
     length = post_length(text, profile.counting_rule)
     # Q31: the prompt keeps asking for the short limit; Premium only raises the block (FR-9).
     limit = effective_limit(user_id, profile)
