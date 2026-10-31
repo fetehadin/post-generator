@@ -391,3 +391,73 @@ def test_a_timeout_is_retried_like_a_network_drop():
     client, waits = make(SlowOnce())
     assert client.generate("prompt").text == "ok"
     assert waits == [2.0]
+
+
+# ---- the generation deadline (NFR-3)
+
+
+class FakeClock:
+    """Time moves only when the client sleeps or a fake call takes time."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+def make_timed(models, deadline=40, chain="google:first,google:second"):
+    clock = FakeClock()
+    settings = Settings(
+        _env_file=None,
+        gemini_api_key="test",
+        generation_models=chain,
+        generation_deadline_seconds=deadline,
+    )
+    client = AIClient(
+        settings, genai_client=SimpleNamespace(models=models), sleep=clock.sleep, clock=clock
+    )
+    return client, clock
+
+
+def test_retries_stop_at_the_deadline_and_the_next_model_is_tried():
+    # first: 429 forever. Waits 2+4+8 = 14 s; the next 16 s wait would pass 20 s, so move on.
+    models = FakeModels(gen_failures={"first": [429] * 10})
+    client, clock = make_timed(models, deadline=20)
+    assert client.generate("prompt").model == "second"
+    assert models.gen_calls == ["first"] * 4 + ["second"]
+    assert clock.now == 14
+
+
+def test_past_the_deadline_the_rest_of_the_chain_is_not_tried():
+    models = FakeModels(gen_failures={"first": [429] * 10})
+    client, clock = make_timed(models, deadline=20)
+
+    def slow_failure(model, contents, config):
+        models.gen_calls.append(model)
+        clock.now += 25  # one hung call uses the whole budget
+        raise api_error(500)
+
+    models.generate_content = slow_failure
+    with pytest.raises(AIUnavailable) as e:
+        client.generate("prompt")
+    assert models.gen_calls == ["first"]
+    assert "second not tried, out of time" in str(e.value)
+
+
+def test_each_call_gets_only_the_time_that_is_left():
+    seen = []
+    models = FakeModels()
+
+    def record(model, contents, config):
+        seen.append(config.http_options.timeout)
+        return SimpleNamespace(text="draft", model_version="v")
+
+    models.generate_content = record
+    client, clock = make_timed(models, deadline=40)
+    clock.now = 0
+    client.generate("prompt")
+    assert seen == [40_000]  # under ai_timeout_seconds (60), so the deadline wins

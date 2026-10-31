@@ -69,12 +69,14 @@ class AIClient:
         sleep: Callable[[float], None] = time.sleep,
         max_attempts: int = 5,
         http: httpx.Client | None = None,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.settings = settings or get_settings()
         self._client = genai_client
         self._sleep = sleep
         self.max_attempts = max_attempts
         self._http = http
+        self._clock = clock
 
     @property
     def client(self):
@@ -124,7 +126,9 @@ class AIClient:
     def generate(
         self, prompt: str, purpose: str = "draft", temperature: float = 0.9
     ) -> GenerationResult:
-        """Try each model in the chain; move on when one is down, rate-limited or removed."""
+        """Try each model in the chain; move on when one is down, rate-limited or removed.
+        Everything together stops at the generation deadline (NFR-3)."""
+        deadline = self._clock() + self.settings.generation_deadline_seconds
         failures = []
         providers = {"google": self._generate_google, "groq": self._generate_groq}
         for provider, model in self.settings.generation_chain:
@@ -133,16 +137,28 @@ class AIClient:
                 logger.warning("skipping %s:%s, unknown provider", provider, model)
                 failures.append(f"{provider}:{model} unsupported")
                 continue
+            if self._clock() >= deadline:
+                failures.append(f"{model} not tried, out of time")
+                continue
             try:
-                return call(model, prompt, temperature)
+                return call(model, prompt, temperature, deadline)
             except (errors.APIError, ProviderError, httpx.TransportError, AIUnavailable) as e:
                 logger.warning("%s generation failed on %s: %s", purpose, model, describe(e))
                 failures.append(f"{model} {describe(e)}")
         raise AIUnavailable("all models failed: " + "; ".join(failures))
 
-    def _generate_google(self, model: str, prompt: str, temperature: float) -> GenerationResult:
-        config = types.GenerateContentConfig(temperature=temperature)
+    def _left(self, deadline: float) -> float:
+        """Seconds for the next call: the usual timeout, or less near the deadline."""
+        return max(1.0, min(float(self.settings.ai_timeout_seconds), deadline - self._clock()))
+
+    def _generate_google(
+        self, model: str, prompt: str, temperature: float, deadline: float
+    ) -> GenerationResult:
         for attempt in range(1, self.max_attempts + 1):
+            config = types.GenerateContentConfig(
+                temperature=temperature,
+                http_options=types.HttpOptions(timeout=int(self._left(deadline) * 1000)),
+            )
             try:
                 resp = self.client.models.generate_content(
                     model=model, contents=prompt, config=config
@@ -158,7 +174,7 @@ class AIClient:
                 # anything else moves on.
                 if not retryable(e) or attempt == self.max_attempts:
                     raise
-                self._backoff(attempt, e)
+                self._backoff(attempt, e, deadline)
         raise AIUnavailable("unreachable")
 
     @property
@@ -167,7 +183,9 @@ class AIClient:
             self._http = httpx.Client(timeout=self.settings.ai_timeout_seconds)
         return self._http
 
-    def _generate_groq(self, model: str, prompt: str, temperature: float) -> GenerationResult:
+    def _generate_groq(
+        self, model: str, prompt: str, temperature: float, deadline: float
+    ) -> GenerationResult:
         if not self.settings.groq_api_key:
             raise AIUnavailable("GROQ_API_KEY is not set")
         body = {
@@ -181,7 +199,9 @@ class AIClient:
         headers = {"Authorization": f"Bearer {self.settings.groq_api_key}"}
         for attempt in range(1, self.max_attempts + 1):
             try:
-                resp = self.http.post(GROQ_URL, json=body, headers=headers)
+                resp = self.http.post(
+                    GROQ_URL, json=body, headers=headers, timeout=self._left(deadline)
+                )
                 if resp.status_code != 200:
                     raise _groq_error(resp)
                 try:
@@ -198,15 +218,18 @@ class AIClient:
             except (ProviderError, httpx.TransportError) as e:
                 if not retryable(e) or attempt == self.max_attempts:
                     raise
-                self._backoff(attempt, e)
+                self._backoff(attempt, e, deadline)
         raise AIUnavailable("unreachable")
 
-    def _backoff(self, attempt: int, err: Exception) -> None:
-        """Exponential backoff, but never shorter than what the server asked for."""
+    def _backoff(self, attempt: int, err: Exception, deadline: float | None = None) -> None:
+        """Exponential backoff, but never shorter than what the server asked for. A wait that
+        would pass the generation deadline re-raises instead, so the chain moves on."""
         wait = min(60.0, 2.0**attempt)
         hinted = retry_after(err)
         if hinted is not None:
             wait = min(MAX_WAIT, max(wait, hinted + 1.0))
+        if deadline is not None and self._clock() + wait >= deadline:
+            raise err
         logger.info("AI call got %s, retrying in %.0fs", describe(err), wait)
         self._sleep(wait)
 
