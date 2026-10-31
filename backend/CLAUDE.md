@@ -81,6 +81,7 @@ ruff check . --fix && ruff format .
 - No separate worker in V1 (SRS 1.3). The API starts one daemon thread at startup (`lifespan` in `main.py`) that every `settings.embedding_retry_seconds` (default 300; 0 = off) embeds posts still waiting.
 - It finds waiting users through the narrow database function `users_waiting_for_embeddings()` (ids only), then works as each user under RLS. A Postgres advisory lock per user (`embed_in_background`) keeps two API processes from embedding the same user at once (NFR-14).
 - Reminders, due and missed posts are worked out when the app asks (`GET /me/notifications`); nothing is sent, so there is nothing to double-send.
+- A Telegram sending worker comes back after V1 (FR-36, FR-43). When it does: `FOR UPDATE SKIP LOCKED`, set `published_at` in the same transaction, never double-send.
 
 ## Tests
 

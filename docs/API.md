@@ -243,8 +243,8 @@ Send only what changes; returns `GET`'s shape.
 | Field | Rule |
 |---|---|
 | `x_premium` | X only (`400 not_supported` otherwise). The user's answer always wins over the export's guess (Q31). |
-| `audience_places` | Up to 3 `{"timezone", "share"}` (IANA name, share 1–100 in percent; shares are weighed against each other). Unknown zone → `400 invalid_timezone`; the same zone twice → `400 duplicate_place`. `[]` = the audience lives where the user does (FR-33). |
-| `audience_profession` | `general`, `developers`, `business`, `students` or `creatives`. |
+| `audience_places` | Up to 3 `{"timezone", "share"}` (IANA name, share 1–100 in percent; shares are weighed against each other). Unknown zone → `400 invalid_timezone`; the same zone twice → `400 duplicate_place`. `[]` (or `null`) = the audience lives where the user does (FR-33). |
+| `audience_profession` | `general`, `developers`, `business`, `students` or `creatives`; `null` → `general`. |
 | `goal` | Free text, up to 500 characters. |
 | `posts_per_week` | 0–50. |
 | `channel` | Telegram only: the channel's public name (`@fetescript`, `fetescript` or `https://t.me/fetescript` → saved as `fetescript`); used for the hand-off (FR-12). Bad name → `400 invalid_channel`; `""` clears it. |
@@ -332,10 +332,11 @@ Approve and put on the calendar in one step (FR-45). `{"day": "2026-10-26", "at"
 }
 ```
 
-- Without `at`, the app picks the best hour of that day (the user's own day) inside their posting window and at least 15 minutes from now. The first post on that platform that day (`rank` 1) gets the best hour; later ones the best hour at least 2 h (X), 3 h (Telegram) or 4 h (LinkedIn) from the others.
-- `warning`: the day is full so the gap couldn't be kept, or this is a second LinkedIn post that day.
-- With `at`, that time is used (`reason`: "You picked this time.").
-- Approval rules still apply: `409 over_limit`, `409 already_published`. No hour left that day → `400 no_time_left`.
+- Without `at`, the app picks the best hour of that day (the user's own day) inside their posting window and at least 15 minutes from now, skipping an hour the clock jumps over (daylight saving). The first post on that platform that day gets the best hour; later ones the best hour at least 2 h (X), 3 h (Telegram) or 4 h (LinkedIn) from the others.
+- `rank`: the post's place in that day's order on this platform (1 = earliest).
+- `warning`: the day is full so the gap couldn't be kept, a second LinkedIn post that day, or a picked `at` outside the posting window.
+- With `at`, that time is used (`reason`: "You picked this time."). It must fall on `day` in the user's time zone → else `400 wrong_day`.
+- Approval rules still apply: `409 over_limit`, `409 already_published`. A discarded draft → `409 discarded` (restore it first). Another user's draft → `404 not_found`. No hour left that day → `400 no_time_left`.
 
 ### `POST /drafts/{id}/versions/{version_id}/restore`
 

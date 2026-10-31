@@ -10,7 +10,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.ai.client import AIClient, AIUnavailable, EmbeddingUnavailable
 from app.core.db import user_session
@@ -82,7 +82,7 @@ def list_threads(user_id: uuid.UUID, limit: int = 50) -> list[ThreadRow]:
         if threads:
             rows = s.execute(
                 select(Draft.thread_id, Draft.platform)
-                .where(Draft.thread_id.in_([t.id for t in threads]))
+                .where(Draft.user_id == user_id, Draft.thread_id.in_([t.id for t in threads]))
                 .distinct()
             ).all()
             for thread_id, platform in rows:
@@ -101,15 +101,20 @@ def detail(user_id: uuid.UUID, thread_id: uuid.UUID) -> ThreadDetail:
         checkin = s.get(Checkin, thread.checkin_id) if thread.checkin_id else None
         messages = s.scalars(
             select(DraftMessage)
-            .where(DraftMessage.thread_id == thread_id)
+            .where(DraftMessage.user_id == user_id, DraftMessage.thread_id == thread_id)
             .order_by(DraftMessage.created_at, DraftMessage.id)
         ).all()
         drafts = s.scalars(
-            select(Draft).where(Draft.thread_id == thread_id).order_by(Draft.created_at)
+            select(Draft)
+            .where(Draft.user_id == user_id, Draft.thread_id == thread_id)
+            .order_by(Draft.created_at)
         ).all()
         versions = s.scalars(
             select(DraftVersion)
-            .where(DraftVersion.draft_id.in_([d.id for d in drafts]))
+            .where(
+                DraftVersion.user_id == user_id,
+                DraftVersion.draft_id.in_([d.id for d in drafts]),
+            )
             .order_by(DraftVersion.created_at)
         ).all()
         s.expunge_all()
@@ -171,24 +176,32 @@ def convert(
         raise DraftError("same_platform", "Pick a different platform.")
     if d.thread_id is None:
         raise DraftError("not_found", "Not found.", 404)
-    with user_session(user_id) as s:
-        s.add(
-            DraftMessage(
-                user_id=user_id,
-                thread_id=d.thread_id,
-                draft_id=d.id,
-                role="user",
-                text=f"Make a {PLATFORM_NAMES[platform]} version",
-            )
-        )
-    generate_draft(
-        user_id,
-        platform,
-        d.topic,
-        ai=ai,
-        checkin_id=d.checkin_id,
+    ask = DraftMessage(
+        user_id=user_id,
         thread_id=d.thread_id,
-        adapt_from=source.text,
-        source_draft_id=d.id,
+        draft_id=d.id,
+        role="user",
+        text=f"Make a {PLATFORM_NAMES[platform]} version",
     )
+    with user_session(user_id) as s:
+        s.add(ask)
+        s.flush()
+        ask_id = ask.id
+    try:
+        generate_draft(
+            user_id,
+            platform,
+            d.topic,
+            ai=ai,
+            checkin_id=d.checkin_id,
+            thread_id=d.thread_id,
+            adapt_from=source.text,
+            source_draft_id=d.id,
+            adapt_approved=d.status in ("approved", "published"),
+        )
+    except Exception:
+        # No card came back (AI busy, daily limit…): don't leave the request in the thread.
+        with user_session(user_id) as s:
+            s.execute(delete(DraftMessage).where(DraftMessage.id == ask_id))
+        raise
     return detail(user_id, d.thread_id)

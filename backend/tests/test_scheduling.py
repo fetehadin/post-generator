@@ -121,3 +121,16 @@ def test_the_reason_names_the_place_its_local_time_and_the_peak():
         "your audience is in Addis Ababa (15:00 there) · a good afternoon slot on X"
         " · your own posts do well around then"
     )
+
+
+def test_an_hour_the_clock_skips_is_never_picked():
+    # 29 Mar 2026: Berlin jumps from 02:00 to 03:00, so 02:00 doesn't exist that night.
+    berlin = ZoneInfo("Europe/Berlin")
+    scores = [0.0] * 24
+    scores[2] = 1.0
+    scores[3] = 0.5
+    picked = pick_hour(
+        date(2026, 3, 29), scores, berlin, (time(0), time(23)), [], timedelta(hours=2),
+        datetime(2026, 3, 1, tzinfo=UTC),
+    )  # fmt: skip
+    assert picked is not None and picked[0].hour == 3

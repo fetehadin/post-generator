@@ -101,6 +101,9 @@ def edit_settings(
             raise AppError("invalid_timezone", "Pick each place from the list.")
         if len({p["timezone"] for p in places}) != len(places):
             raise AppError("duplicate_place", "Each place can be listed once.")
+        changes["audience_places"] = places  # null clears the list; the column is never NULL
+    if "audience_profession" in changes and changes["audience_profession"] is None:
+        changes["audience_profession"] = "general"  # null goes back to the default
     if "channel" in changes:
         if platform != "telegram":
             raise AppError("not_supported", "Only Telegram has a channel name.")

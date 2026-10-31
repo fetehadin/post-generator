@@ -123,7 +123,18 @@ def test_another_users_thread_is_not_found(api, ai, make_user):
     )
     convert = api.post(f"{API}/drafts/{draft_id}/convert", json={"platform": "x"})
     assert convert.status_code == 404
+    assert api.delete(f"{API}/drafts/{draft_id}").status_code == 404
     assert api.get(f"{API}/threads").json()["items"] == []
+
+
+def test_a_failed_conversion_leaves_no_request_in_the_thread(api, ai):
+    upload(api)  # Telegram posts only: there's nothing to learn an X voice from yet
+    t = start(api)
+    source = generate(api, t["id"], ["telegram"])["drafts"][0]
+    before = api.get(f"{API}/threads/{t['id']}").json()["messages"]
+    r = api.post(f"{API}/drafts/{source['id']}/convert", json={"platform": "x"})
+    assert r.status_code == 400, r.text
+    assert api.get(f"{API}/threads/{t['id']}").json()["messages"] == before
 
 
 # Time zone, notifications and reminders
