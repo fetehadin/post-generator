@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    SmallInteger,
     String,
     Text,
     func,
@@ -23,12 +24,16 @@ class ExemplarPost(Base):
     structure only when a user has few posts there. Not user-owned, so no RLS."""
 
     __tablename__ = "exemplar_posts"
+    __table_args__ = (
+        CheckConstraint("platform IN ('telegram', 'x', 'linkedin')", name="platform"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, server_default=text("gen_random_uuid()")
     )
     platform: Mapped[str] = mapped_column(String(16), index=True)
     post_type: Mapped[str] = mapped_column(String(32))
+    position: Mapped[int] = mapped_column(SmallInteger)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )

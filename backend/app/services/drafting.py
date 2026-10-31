@@ -29,7 +29,7 @@ from app.models import (
     Thread,
 )
 from app.services.profile import get_profile
-from app.services.retrieval import Example, find_examples, inspiration
+from app.services.retrieval import Example, find_examples, inspiration, post_counts
 from app.services.usage import LimitReached, check_drafts
 from app.services.voice import effective_limit, voice_card
 
@@ -40,6 +40,8 @@ COUNTING_NOTES = {
     "x_weighted": "links count as 23; emoji and non-Latin scripts such as Amharic count as 2",
 }
 EXAMPLE_MAX_CHARS = 1200
+# The "match their voice" lines of the template, replaced when they have no posts.
+NO_VOICE = re.compile(r"Below are 0 of their real past .*?sign-off\.", re.DOTALL)
 
 
 class DraftError(Exception):
@@ -84,10 +86,10 @@ def build_prompt(
     for i, e in enumerate(examples, 1):
         text = e.text if len(e.text) <= EXAMPLE_MAX_CHARS else e.text[:EXAMPLE_MAX_CHARS] + "…"
         blocks.append(f"[{i}]\n{text}")
-    return TEMPLATE.substitute(
+    prompt = TEMPLATE.substitute(
         platform_name=PLATFORM_NAMES[profile.platform],
         example_count=len(examples),
-        examples="\n\n".join(blocks) or "(none yet: they haven't imported posts here)",
+        examples="\n\n".join(blocks) or "(none yet)",
         inspiration=_inspiration(profile.platform, pool or []),
         facts=_facts(topic, about, language, adapt_from, adapt_approved),
         char_limit=profile.char_limit,
@@ -95,6 +97,15 @@ def build_prompt(
         tone_notes=profile.tone_notes,
         structure_notes=profile.structure_notes,
     )
+    if not examples:
+        # No posts of their own: there is no voice to match, so don't ask the model to.
+        prompt = NO_VOICE.sub(
+            f"They have no {PLATFORM_NAMES[profile.platform]} posts yet, so there is no voice "
+            "to match: write plainly and naturally, in the language of the topic.",
+            prompt,
+            count=1,
+        )
+    return prompt
 
 
 def _inspiration(platform: str, pool: list[str]) -> str:
@@ -106,8 +117,10 @@ def _inspiration(platform: str, pool: list[str]) -> str:
     return (
         f"\n\n## Inspiration (not their voice)\nThey have few or no {name} posts yet. These "
         f"are example {name} posts written by the Voxlace team, not by them. Learn only how a "
-        "good post here is shaped: the first line, line breaks, length and ending. Never use "
-        "their wording, topics or facts.\n\n" + posts
+        "good post here is shaped: the first line, line breaks, length and ending. Parts in "
+        "[brackets] are empty slots, not facts: fill them only from the facts below, or leave "
+        "them out. Never use their wording or topics, and never add a call to action, an "
+        "event, a link or an offer from them.\n\n" + posts
     )
 
 
@@ -262,13 +275,27 @@ def generate_draft(
         s.expunge(profile)
 
     # With an empty box, the summary card is what the examples should be close to.
-    examples = find_examples(user_id, platform, topic or about.summary_card[:1000], ai=ai)
+    name = PLATFORM_NAMES[platform]
+    counts = post_counts(user_id, platform)
+    if counts.usable == 0 and counts.waiting:
+        # Just imported: drafting now would ignore their voice entirely, so say so instead.
+        raise DraftError(
+            "posts_learning",
+            f"Your {name} posts are still being learned. Try again in a few minutes.",
+            409,
+        )
+    # With no usable posts there's nothing to search, so the topic isn't embedded.
+    examples = (
+        find_examples(user_id, platform, topic or about.summary_card[:1000], ai=ai)
+        if counts.usable
+        else []
+    )
     # Fewer than 20 posts here: the shared inspiration pool shapes the structure (FR-5).
-    pool = inspiration(user_id, platform)
+    pool = inspiration(user_id, platform) if counts.thin else []
     if not examples and not pool:
         raise DraftError(
             "no_posts",
-            f"No {PLATFORM_NAMES[platform]} posts are ready yet. Import your export first, "
+            f"No {name} posts are ready yet. Import your export first, "
             "then wait until they're learned.",
         )
 

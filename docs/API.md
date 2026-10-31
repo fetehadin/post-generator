@@ -122,7 +122,7 @@ Returns the post in `GET /posts`'s item shape. Another user's post is `404`.
 }
 ```
 
-`length.count` uses the platform's rule (X: links 23, most emoji 2). Errors: `missing_topic`, `no_posts` (no posts and no inspiration pool for the platform), `ai_unavailable`. With fewer than 20 usable posts on the platform, the prompt adds the shared inspiration pool (`exemplar_posts`, structure only), so drafting works before any import; `examples_used` counts only the user's own posts.
+`length.count` uses the platform's rule (X: links 23, most emoji 2). Errors: `missing_topic`, `no_posts` (no posts and no inspiration pool for the platform), `409 posts_learning` (posts are imported but none is embedded yet, so a draft now would ignore their voice), `ai_unavailable`. With fewer than 20 usable posts on the platform, the prompt adds the shared inspiration pool (`exemplar_posts`, structure only), so drafting works before any import; `examples_used` counts only the user's own posts. The pool's posts are templates whose specifics are `[slots]`, so they add no facts.
 
 ### `GET /drafts/{id}/prompt`
 

@@ -124,7 +124,10 @@ def test_generate_and_read_the_prompt(api):
     assert "Shipped the parser" in p["prompt"] and p["provider"] == "google"
 
 
-def test_generate_errors_use_the_shared_shape(api):
+def test_generate_errors_use_the_shared_shape(api, monkeypatch):
+    monkeypatch.setattr("app.services.drafting.inspiration", lambda *_: [])
+    r = api.post("/api/v1/drafts/generate", json={"platform": "telegram", "topic": "x"})
+    assert (r.status_code, r.json()["error"]["code"]) == (400, "no_posts")
     r = api.post("/api/v1/drafts/generate", json={"platform": "telegram", "topic": "   "})
     assert r.json()["error"]["code"] == "missing_topic"
     r = api.post("/api/v1/drafts/generate", json={"platform": "myspace"})
