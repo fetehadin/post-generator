@@ -36,6 +36,10 @@ DURATION = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?([\d.]+)s")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
+MODEL_SHARE = 0.6  # of the time left, for one model while backups remain
+GEMINI_MIN_SECONDS = 10  # Gemini's smallest allowed call deadline
+
+
 class ProviderError(Exception):
     """An HTTP error from Groq, carrying what Gemini's APIError carries: a status code, a
     message, and how long the server asked us to wait (its Retry-After header)."""
@@ -131,7 +135,8 @@ class AIClient:
         deadline = self._clock() + self.settings.generation_deadline_seconds
         failures = []
         providers = {"google": self._generate_google, "groq": self._generate_groq}
-        for provider, model in self.settings.generation_chain:
+        chain = self.settings.generation_chain
+        for i, (provider, model) in enumerate(chain):
             call = providers.get(provider)
             if call is None:
                 logger.warning("skipping %s:%s, unknown provider", provider, model)
@@ -140,8 +145,12 @@ class AIClient:
             if self._clock() >= deadline:
                 failures.append(f"{model} not tried, out of time")
                 continue
+            # While backups remain, one model may use only part of what's left, so a slow first
+            # model can't leave the backups no time at all.
+            now = self._clock()
+            share = deadline if i == len(chain) - 1 else now + (deadline - now) * MODEL_SHARE
             try:
-                return call(model, prompt, temperature, deadline)
+                return call(model, prompt, temperature, share)
             except (errors.APIError, ProviderError, httpx.TransportError, AIUnavailable) as e:
                 logger.warning("%s generation failed on %s: %s", purpose, model, describe(e))
                 failures.append(f"{model} {describe(e)}")
@@ -155,6 +164,9 @@ class AIClient:
         self, model: str, prompt: str, temperature: float, deadline: float
     ) -> GenerationResult:
         for attempt in range(1, self.max_attempts + 1):
+            if deadline - self._clock() < GEMINI_MIN_SECONDS:
+                # Gemini refuses a call deadline under 10 s (400), so don't ask; move on.
+                raise AIUnavailable(f"{model} not tried, under {GEMINI_MIN_SECONDS} s left")
             config = types.GenerateContentConfig(
                 temperature=temperature,
                 http_options=types.HttpOptions(timeout=int(self._left(deadline) * 1000)),
