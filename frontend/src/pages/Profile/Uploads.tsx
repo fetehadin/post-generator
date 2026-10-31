@@ -38,6 +38,7 @@ export function Uploads() {
   const resume = useUploadResume()
   const portfolio = useAddPortfolio()
   const [url, setUrl] = useState('')
+  const [takenOut, setTakenOut] = useState(false)
   const error = resume.error ?? portfolio.error
 
   return (
@@ -51,7 +52,10 @@ export function Uploads() {
             disabled={resume.isPending}
             onChange={(e) => {
               const file = e.target.files?.[0]
-              if (file) resume.mutate(file)
+              if (file) {
+                portfolio.reset()
+                resume.mutate(file)
+              }
               e.target.value = ''
             }}
             className="mt-1 block w-full text-sm"
@@ -60,7 +64,9 @@ export function Uploads() {
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            if (url.trim()) portfolio.mutate(url.trim(), { onSuccess: () => setUrl('') })
+            if (!url.trim()) return
+            resume.reset()
+            portfolio.mutate(url.trim(), { onSuccess: () => setUrl('') })
           }}
           className="text-sm"
         >
@@ -91,14 +97,24 @@ export function Uploads() {
         </p>
       )}
 
+      {takenOut && (
+        <p role="status" className="text-sm text-muted">
+          Your summary card may still mention it. Rewrite the card under About you to take it out.
+        </p>
+      )}
+
       {uploads.data?.map((u) => (
-        <UploadCard key={`${u.id}-${u.updated_at}`} upload={u} />
+        <UploadCard
+          key={`${u.id}-${u.updated_at}`}
+          upload={u}
+          onTakenOut={() => setTakenOut(true)}
+        />
       ))}
     </div>
   )
 }
 
-function UploadCard({ upload }: { upload: Upload }) {
+function UploadCard({ upload, onTakenOut }: { upload: Upload; onTakenOut: () => void }) {
   const [text, setText] = useState(upload.text)
   const edit = useEditUpload()
   const remove = useDeleteUpload()
@@ -116,7 +132,9 @@ function UploadCard({ upload }: { upload: Upload }) {
           {label} <span className="font-normal text-muted">· {upload.source}</span>
         </h3>
         <span className="text-sm text-muted">
-          {upload.reviewed ? 'Used in your summary card' : 'Not used until you review it'}
+          {upload.reviewed
+            ? 'Used when you write your summary card'
+            : 'Not used until you check it'}
         </span>
       </div>
       <p className="mt-1 text-sm text-muted">{removedNote(upload.removed)}</p>
@@ -143,7 +161,12 @@ function UploadCard({ upload }: { upload: Upload }) {
         <button
           type="button"
           disabled={busy || changed}
-          onClick={() => edit.mutate({ id: upload.id, reviewed: !upload.reviewed })}
+          onClick={() =>
+            edit.mutate(
+              { id: upload.id, reviewed: !upload.reviewed },
+              { onSuccess: (u) => !u.reviewed && onTakenOut() },
+            )
+          }
           className={
             upload.reviewed
               ? button
@@ -155,7 +178,7 @@ function UploadCard({ upload }: { upload: Upload }) {
         <button
           type="button"
           disabled={busy}
-          onClick={() => remove.mutate(upload.id)}
+          onClick={() => remove.mutate(upload.id, { onSuccess: onTakenOut })}
           className="text-sm text-muted underline"
         >
           Delete

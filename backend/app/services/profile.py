@@ -41,7 +41,6 @@ FIELDS = {
     "hashtag_habit": "Hashtag habits",
     "portfolio_url": "Portfolio",
 }
-PROJECT_STATUSES = ("idea", "building", "live", "paused")
 UPLOAD_CHARS = 4000  # per reviewed upload in the summary prompt
 UPLOAD_LABELS = {"resume": "Resume", "portfolio": "Portfolio page"}
 SAMPLE_POSTS = 5

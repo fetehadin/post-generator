@@ -26,7 +26,7 @@ Validation errors (422) also list the fields:
 |---|---|
 | 400 | `invalid_file`, `unsupported_platform`, `missing_topic`, `no_posts`, `invalid_cursor`, `invalid_invite` |
 | 401 | `not_logged_in`: no token, or it's expired, forged or not for a logged-in user |
-| 403 | `invite_required` (logged in, but not admitted yet), `privacy_required` (`POST /imports` before accepting the notice) |
+| 403 | `invite_required` (logged in, but not admitted yet), `privacy_required` (`POST /imports`, `POST /uploads/resume` or `POST /uploads/portfolio` before accepting the notice) |
 | 404 | `not_found`: also for another user's data (never reveal it exists) |
 | 422 | `validation_error` (with `fields`) |
 | 429 | `rate_limited`, `daily_limit_reached` (from Phase 6) |
@@ -156,7 +156,7 @@ Returns the same shape as `GET /me`. Codes are case-insensitive and work once; a
 
 ### `POST /me/privacy-accept`
 
-Records that the user accepted the privacy notice (FR-37) and returns `GET /me`'s shape. Until then `POST /imports` answers `403 privacy_required`.
+Records that the user accepted the privacy notice (FR-37) and returns `GET /me`'s shape. Until then `POST /imports` and both upload endpoints answer `403 privacy_required`.
 
 ---
 
@@ -210,10 +210,11 @@ Text from a resume or a public portfolio page, used only for the summary card. T
 ```
 
 - `POST /uploads/resume`: multipart `file`, a PDF or DOCX up to 5 MB → `201` and the upload. Errors: `400 invalid_file` (wrong type, too large, unreadable or password-protected) and `400 no_text` (a scanned PDF, or no text left).
-- `POST /uploads/portfolio`: `{"url": "https://me.dev"}` → `201`. Only `http`/`https` on ports 80 and 443, where the name resolves to public addresses only. Every redirect is checked again (at most 3), with a 10-second timeout and a 2 MB limit. Errors: `400 invalid_url` (localhost, private networks or a bad address) and `400 fetch_failed` (unreachable, not a web page, too large, or a non-200 answer).
+- `POST /uploads/portfolio`: `{"url": "https://me.dev"}` → `201`. Only `http`/`https` on ports 80 and 443, where the name resolves to public addresses only. Every redirect is checked again (at most 3), with a 10-second timeout and a 2 MB limit. The server connects to the address it checked, so a name can't switch to a private address between check and fetch. The whole fetch stops after 15 seconds. Errors: `400 invalid_url` (localhost, private networks or a bad address) and `400 fetch_failed` (unreachable, slow, not a web page, too large, or a non-200 answer).
 - `GET /uploads` → `{"items": [upload, …]}`, newest first.
 - `PATCH /uploads/{id}`: `{"text"?: "…", "reviewed"?: true}`. Edited text is cleaned again, so a pasted phone number is still removed, and the counts in `removed` add up. Blank `text` → `400 missing_text`.
 - `DELETE /uploads/{id}` → `204`.
+- Un-reviewing or deleting doesn't change a summary card that was already written. The user rewrites the card to take the text out.
 - Someone else's upload → `404 not_found`.
 
 ---

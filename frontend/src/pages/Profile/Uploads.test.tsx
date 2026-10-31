@@ -60,13 +60,13 @@ test('says what was removed, in words', () => {
 
 test('text is not used until the user marks it checked', async () => {
   renderUploads()
-  expect(await screen.findByText('Not used until you review it')).toBeInTheDocument()
+  expect(await screen.findByText('Not used until you check it')).toBeInTheDocument()
   expect(screen.getByText('Removed 1 email and 2 phone numbers.')).toBeInTheDocument()
 
   await userEvent.click(
     screen.getByRole('button', { name: 'I checked it: use in my summary card' }),
   )
-  expect(await screen.findByText('Used in your summary card')).toBeInTheDocument()
+  expect(await screen.findByText('Used when you write your summary card')).toBeInTheDocument()
   expect(sent('PATCH /uploads/u1')).toEqual([{ reviewed: true }])
 })
 
@@ -84,6 +84,7 @@ test('delete removes it', async () => {
   renderUploads()
   await userEvent.click(await screen.findByRole('button', { name: 'Delete' }))
   expect(calls()).toContain('DELETE /uploads/u1')
+  expect(await screen.findByText(/Rewrite the card under About you/)).toBeInTheDocument()
   expect(await screen.findByLabelText('Portfolio page')).toBeInTheDocument()
   expect(screen.queryByText('cv.pdf')).not.toBeInTheDocument()
 })

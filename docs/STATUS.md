@@ -16,7 +16,12 @@ A running log so anyone (Nezira especially) can catch up: what was done, where, 
 - `.env.example`: Groq set up as STATUS asked (model in `GENERATION_MODELS`, empty `GROQ_API_KEY`); the Telegram and worker variables were replaced by `EMBEDDING_RETRY_SECONDS`.
 
 **Follow-ups from this task**
-- The portfolio fetch checks DNS, then httpx looks the name up again. A DNS-rebinding server could answer differently the second time. Pinning the checked IP would close this. Low risk: we only read text, nothing is sent back to the caller except the cleaned page.
+- Review (fresh-context subagent): 2 must-fix, 6 should-fix, all fixed on the branch.
+  - Must-fix: the fetch now connects to the checked IP with the real Host and TLS name (DNS rebinding), and ignores proxy variables. `update` and `delete` check `user_id` too (rule 1).
+  - Should-fix: bad ports and brackets give `invalid_url` instead of a 500; hidden emails (`[at]`, `dot`, full-width @), `wa.me`/`tel:` numbers and extensions are removed; "5 Drive integrations" is no longer read as an address; long lines lose only the address; zip-bomb guard on DOCX; any PDF error becomes `invalid_file`; 15 s deadline for the whole fetch; Profile says the card must be rewritten after un-reviewing or deleting.
+  - Now 335 backend and 98 frontend tests.
+- Step 3 (demo, partial): live drafts from real posts on X (72 posts) and Telegram (413): no invented numbers, longest copied run 1–2 words. They took 26–92 s; the logs show `ConnectError` retries to Google from this machine, so it's mostly the local network. The missing overall time limit in `generate()` is still worth fixing. No LinkedIn posts exist yet, so the three-platform demo waits for a LinkedIn export.
+- Frontend tests: with every worker this machine sometimes kills one (SIGKILL, low memory). `npx vitest run --maxWorkers=2` passes all of them.
 - A stray root `package.json`, `package-lock.json` and `node_modules` (`@supabase/server`, unused) are untracked in the repo root. Delete them by hand.
 - Your dev database must run `alembic upgrade head` for 0009 if it isn't there already.
 

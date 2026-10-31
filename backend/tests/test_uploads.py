@@ -187,3 +187,79 @@ def test_an_error_page_is_refused(dns):
     with pytest.raises(UploadError) as e:
         fetch_page("https://me.dev/", client(lambda r: httpx.Response(404)))
     assert e.value.code == "fetch_failed"
+
+
+# ---- review findings (PR #49)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Mail: sara [at] example (dot) com",
+        "sara (at) gmail dot com",
+        "sara at gmail dot com",
+        "first.last＠gmail.com",  # full-width @
+    ],
+)
+def test_hidden_emails_are_removed(text):
+    cleaned, removed = strip_contacts(text)
+    assert "gmail" not in cleaned and "example" not in cleaned
+    assert removed == {"emails": 1}
+
+
+@pytest.mark.parametrize(
+    "text", ["Chat: wa.me/251911234567", "tel:+251911234567", "Call 5551234567x89 today"]
+)
+def test_phones_in_links_and_with_extensions_are_removed(text):
+    cleaned, removed = strip_contacts(text)
+    assert "1234567" not in cleaned and "x89" not in cleaned
+    assert removed == {"phones": 1}
+
+
+def test_lines_that_only_look_like_addresses_are_kept():
+    text = "Built 5 Drive integrations for Google\nShipped 3 Way handshake support"
+    assert strip_contacts(text) == (text, {})
+
+
+def test_a_long_line_loses_only_the_address():
+    line = "I led the backend team " * 6 + "at 221B Baker Street and shipped the payments service"
+    cleaned, removed = strip_contacts(line)
+    assert "Baker" not in cleaned and "shipped the payments service" in cleaned
+    assert removed == {"addresses": 1}
+
+
+@pytest.mark.parametrize("url", ["http://x.com:abc/", "http://me.dev:99999/", "http://[::1/"])
+def test_malformed_addresses_are_refused_not_crashed(dns, url):
+    with pytest.raises(UploadError) as e:
+        check_url(url)
+    assert e.value.code == "invalid_url"
+
+
+def test_the_fetch_connects_to_the_checked_address(dns):
+    seen = []
+
+    def handler(request):
+        seen.append((str(request.url), request.headers["host"], request.extensions))
+        return httpx.Response(200, text="hi", headers={"content-type": "text/plain"})
+
+    fetch_page("https://me.dev/about", client(handler))
+    url, host, extensions = seen[0]
+    assert url == "https://93.184.216.34/about" and host == "me.dev"
+    assert extensions["sni_hostname"] == "me.dev"  # the certificate is checked for me.dev
+
+
+def test_a_slow_page_stops_at_the_deadline(dns, monkeypatch):
+    monkeypatch.setattr(uploads, "FETCH_DEADLINE", -1)
+    with pytest.raises(UploadError) as e:
+        fetch_page(
+            "https://me.dev/",
+            client(lambda r: httpx.Response(200, text="x", headers={"content-type": "text/html"})),
+        )
+    assert "too long" in e.value.message
+
+
+def test_a_docx_that_unzips_huge_is_refused(monkeypatch):
+    monkeypatch.setattr(uploads, "MAX_UNZIPPED_BYTES", 1000)
+    with pytest.raises(UploadError) as e:
+        resume_text(make_docx("Backend developer"))
+    assert e.value.code == "invalid_file"
