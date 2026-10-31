@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   type Profile,
   type ProfileChange,
+  type Project,
   useProfile,
   useSaveProfile,
   useWriteSummary,
@@ -9,7 +10,7 @@ import {
 
 type TextField = Exclude<
   keyof Profile,
-  'language' | 'excluded_hashtags' | 'summary_card' | 'summary_updated_at'
+  'language' | 'excluded_hashtags' | 'summary_card' | 'summary_updated_at' | 'projects'
 >
 
 /** The About-you questions, grouped the way people think about themselves (FR-17, FR-33). */
@@ -18,9 +19,11 @@ const GROUPS: Array<{ title: string; fields: Array<[TextField, string, string]> 
     title: 'Your work',
     fields: [
       ['role', 'Role', 'Backend developer, student, founder…'],
+      ['seniority', 'Seniority', 'Student, junior, senior…'],
       ['stack', 'Stack and tools', 'Python, FastAPI, Postgres'],
       ['current_projects', 'Current projects', 'What you are building now'],
       ['focus', 'Focus', 'What you are getting better at'],
+      ['portfolio_url', 'Portfolio', 'https://you.dev'],
     ],
   },
   {
@@ -30,18 +33,30 @@ const GROUPS: Array<{ title: string; fields: Array<[TextField, string, string]> 
       ['topics', 'Topics', 'What you usually write about'],
       ['audience', 'Audience', 'Who reads you, and where'],
       ['usual_hours', 'When you usually post', 'Weekday evenings'],
+      ['facts', 'Facts drafts may use', 'Numbers, results, dates you are happy to share'],
     ],
   },
   {
     title: 'Your voice',
     fields: [
       ['voice_words', 'Three words for your voice', 'Honest, short, a bit funny'],
+      ['emoji_habit', 'Emoji', 'None, one at the end, lots…'],
+      ['hashtag_habit', 'Hashtags', 'Never, two at the end…'],
       ['avoid_list', 'Never say', 'Words, topics or claims to avoid'],
       ['links', 'Links', 'GitHub, portfolio, channel'],
       ['discipline', 'Field', 'Software, design, research…'],
     ],
   },
 ]
+
+const STATUSES: Array<[Project['status'], string]> = [
+  ['', 'No status'],
+  ['idea', 'Idea'],
+  ['building', 'Building'],
+  ['live', 'Live'],
+  ['paused', 'Paused'],
+]
+const NEW_PROJECT: Project = { name: '', line: '', link: '', status: '' }
 
 const LANGUAGES: Array<[string, string]> = [
   ['auto', 'Same as my posts'],
@@ -75,6 +90,9 @@ function AboutForm({ saved }: { saved: Profile }) {
   const answers = (): ProfileChange => {
     const change: ProfileChange = {}
     for (const g of GROUPS) for (const [name] of g.fields) change[name] = form[name]
+    change.projects = form.projects
+      .map((p) => ({ ...p, name: p.name.trim() }))
+      .filter((p) => p.name)
     change.language = form.language
     change.excluded_hashtags = tags
       .split(/[\s,]+/)
@@ -88,6 +106,12 @@ function AboutForm({ saved }: { saved: Profile }) {
     await save.mutateAsync(answers())
     summary.mutate()
   }
+
+  const setProject = (i: number, change: Partial<Project>) =>
+    setForm({
+      ...form,
+      projects: form.projects.map((p, j) => (j === i ? { ...p, ...change } : p)),
+    })
 
   const busy = save.isPending || summary.isPending
   const error = save.error ?? summary.error
@@ -118,6 +142,81 @@ function AboutForm({ saved }: { saved: Profile }) {
           </div>
         </fieldset>
       ))}
+
+      <fieldset>
+        <legend className="text-sm font-semibold text-muted">Projects</legend>
+        <p className="mt-1 text-sm text-muted">
+          When you have more than one, the chat asks which one you mean.
+        </p>
+        <ul className="mt-2 flex flex-col gap-3">
+          {form.projects.map((p, i) => (
+            <li
+              key={i}
+              className="grid gap-2 rounded-control border border-line p-3 sm:grid-cols-2"
+            >
+              <label className="text-sm">
+                Project name
+                <input
+                  value={p.name}
+                  onChange={(e) => setProject(i, { name: e.target.value })}
+                  placeholder="Voxlace"
+                  className={input}
+                />
+              </label>
+              <label className="text-sm">
+                Status
+                <select
+                  value={p.status}
+                  onChange={(e) => setProject(i, { status: e.target.value as Project['status'] })}
+                  className={input}
+                >
+                  {STATUSES.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm">
+                In one line
+                <input
+                  value={p.line}
+                  onChange={(e) => setProject(i, { line: e.target.value })}
+                  placeholder="What it does"
+                  className={input}
+                />
+              </label>
+              <label className="text-sm">
+                Link
+                <input
+                  value={p.link}
+                  onChange={(e) => setProject(i, { link: e.target.value })}
+                  placeholder="https://"
+                  className={input}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() =>
+                  setForm({ ...form, projects: form.projects.filter((_, j) => j !== i) })
+                }
+                className="justify-self-start text-sm text-muted underline"
+              >
+                Remove {p.name || 'this project'}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {form.projects.length < 20 && (
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, projects: [...form.projects, NEW_PROJECT] })}
+            className="mt-2 inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm"
+          >
+            Add a project
+          </button>
+        )}
+      </fieldset>
 
       <fieldset>
         <legend className="text-sm font-semibold text-muted">Language and privacy</legend>

@@ -1,6 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 
+/** One of the user's projects; only the name is required (FR-17, FR-40). */
+export type Project = {
+  name: string
+  line: string
+  link: string
+  status: '' | 'idea' | 'building' | 'live' | 'paused'
+}
+
 /** GET /profile (docs/API.md, Phase 3): everything the user told Voxlace. */
 export type Profile = {
   role: string
@@ -19,6 +27,12 @@ export type Profile = {
   excluded_hashtags: string[]
   summary_card: string
   summary_updated_at: string | null
+  seniority: string
+  facts: string
+  emoji_habit: string
+  hashtag_habit: string
+  portfolio_url: string
+  projects: Project[]
 }
 
 export type ProfileChange = Partial<Omit<Profile, 'summary_updated_at'>>
