@@ -26,6 +26,7 @@ def _out(p: Profile) -> ProfileOut:
         summary_updated_at=p.summary_updated_at,
         post_window_start=p.post_window_start,
         post_window_end=p.post_window_end,
+        projects=p.projects or [],
     )
 
 

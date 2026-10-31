@@ -130,6 +130,20 @@ class InviteIn(BaseModel):
     code: str = Field(min_length=1, max_length=64)
 
 
+class Project(BaseModel):
+    """One of the user's projects (FR-17, FR-40). Only the name is required."""
+
+    name: str = Field(min_length=1, max_length=120)
+    line: str = Field("", max_length=300)
+    link: str = Field("", max_length=500)
+    status: Literal["", "idea", "building", "live", "paused"] = ""
+
+    @field_validator("name", "line", "link", mode="before")
+    @classmethod
+    def _strip(cls, v: object) -> object:
+        return v.strip() if isinstance(v, str) else v
+
+
 class ProfileOut(BaseModel):
     """GET /profile: everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44)."""
 
@@ -151,6 +165,12 @@ class ProfileOut(BaseModel):
     summary_updated_at: datetime | None
     post_window_start: time = Field(description="The hours they can post, on their clock")
     post_window_end: time
+    seniority: str
+    facts: str
+    emoji_habit: str
+    hashtag_habit: str
+    portfolio_url: str
+    projects: list[Project]
 
 
 class ProfileIn(BaseModel):
@@ -173,6 +193,38 @@ class ProfileIn(BaseModel):
     summary_card: str | None = Field(None, max_length=3000)
     post_window_start: time | None = None
     post_window_end: time | None = None
+    seniority: str | None = Field(None, max_length=200)
+    facts: str | None = Field(None, max_length=3000)
+    emoji_habit: str | None = Field(None, max_length=300)
+    hashtag_habit: str | None = Field(None, max_length=300)
+    portfolio_url: str | None = Field(None, max_length=500)
+    projects: list[Project] | None = Field(None, max_length=20)
+
+
+class UploadOut(BaseModel):
+    """A resume or portfolio page as cleaned text (FR-20, FR-21)."""
+
+    id: uuid.UUID
+    kind: Literal["resume", "portfolio"]
+    source: str
+    text: str
+    removed: dict[str, int]
+    reviewed: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class UploadsOut(BaseModel):
+    items: list[UploadOut]
+
+
+class PortfolioIn(BaseModel):
+    url: str = Field(min_length=4, max_length=500)
+
+
+class UploadPatchIn(BaseModel):
+    text: str | None = Field(None, max_length=20_000)
+    reviewed: bool | None = None
 
 
 class RulesOut(BaseModel):
