@@ -22,6 +22,7 @@ from app.models import (
     ReminderSettings,
     SourcePost,
     Thread,
+    Upload,
     User,
     VoiceCard,
 )
@@ -83,10 +84,21 @@ def export_all(user_id: uuid.UUID) -> dict:
                     "language": profile.language,
                     "excluded_hashtags": profile.excluded_hashtags,
                     "summary_card": profile.summary_card,
+                    "projects": profile.projects,
                 }
                 if profile
                 else None
             ),
+            "uploads": [
+                {
+                    "kind": u.kind,
+                    "source": u.source,
+                    "text": u.cleaned_text,
+                    "reviewed": u.reviewed_at is not None,
+                    "created_at": _iso(u.created_at),
+                }
+                for u in mine(Upload)
+            ],
             "voice_cards": [{"platform": c.platform, "card": c.card} for c in mine(VoiceCard)],
             "platform_settings": [
                 {

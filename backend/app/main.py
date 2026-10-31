@@ -10,7 +10,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import checkins, drafts, health, imports, me, platforms, posts, profile, threads
+from app.api import (
+    checkins,
+    drafts,
+    health,
+    imports,
+    me,
+    platforms,
+    posts,
+    profile,
+    threads,
+    uploads,
+)
 from app.core import errors
 from app.core.config import get_settings
 from app.services.background import start_retry_loop
@@ -43,7 +54,18 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     errors.install(app)
-    for module in (health, me, profile, platforms, imports, posts, checkins, threads, drafts):
+    for module in (
+        health,
+        me,
+        profile,
+        uploads,
+        platforms,
+        imports,
+        posts,
+        checkins,
+        threads,
+        drafts,
+    ):
         app.include_router(module.router, prefix=API_PREFIX)
     return app
 
