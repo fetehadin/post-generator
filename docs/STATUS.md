@@ -6,6 +6,24 @@ A running log so anyone (Nezira especially) can catch up: what was done, where, 
 
 ---
 
+## 2026-10-31: Task 2, resume and portfolio import (`feat/profile-v2`)
+
+**Result: built, waiting for review.** FR-20, FR-21, NFR-11, NFR-12, plus the profile v2 fields (FR-17, FR-40).
+- `main` merged into the branch. The branch's own copies of #46 and #47 were the versions before review, so `main`'s fixed versions were kept.
+- Backend: `/uploads` (resume as PDF or DOCX, portfolio URL, list, edit or review, delete). Contacts are removed before saving and again after edits. Portfolio pages are fetched only from public addresses: every redirect is checked again, with a 10 s timeout and a 2 MB limit. Only **reviewed** text goes into the summary prompt. Uploads are part of export, and delete removes them by cascade. New profile fields: seniority, facts, emoji and hashtag habits, portfolio, and projects (a list).
+- Frontend: Profile has a "Resume and portfolio" section (upload, read a page, edit, "I checked it", delete), new About-you fields and a projects editor.
+- Checks: backend ruff passes and 320 tests pass on a throwaway database (`voxlace-check`, port 5435). Frontend lint passes, 98 tests pass and the build works.
+- `.env.example`: Groq set up as STATUS asked (model in `GENERATION_MODELS`, empty `GROQ_API_KEY`); the Telegram and worker variables were replaced by `EMBEDDING_RETRY_SECONDS`.
+
+**Follow-ups from this task**
+- The portfolio fetch checks DNS, then httpx looks the name up again. A DNS-rebinding server could answer differently the second time. Pinning the checked IP would close this. Low risk: we only read text, nothing is sent back to the caller except the cleaned page.
+- A stray root `package.json`, `package-lock.json` and `node_modules` (`@supabase/server`, unused) are untracked in the repo root. Delete them by hand.
+- Your dev database must run `alembic upgrade head` for 0009 if it isn't there already.
+
+**Next:** demos for Phases 3–5 on real data (step 3), then the first Contabo deploy.
+
+---
+
 ## 2026-10-29: Task 1, merge the open PRs (#43–#47)
 
 **Result: done.** All five PRs were merged with the protocol: CI green, a fresh-context review subagent, must-fixes fixed on the branch, a review comment on the PR, then a squash merge. Every one had must-fixes, and each was fixed on its branch before merging. Main is healthy at `448d38b`:
