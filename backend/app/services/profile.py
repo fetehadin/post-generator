@@ -17,6 +17,7 @@ from app.ai.client import AIClient, default_client
 from app.core.db import user_session
 from app.importers.common import DEFAULT_EXCLUDED_HASHTAGS
 from app.models import Profile, SourcePost
+from app.services.uploads import reviewed_texts
 
 TEMPLATE = Template((Path(__file__).parents[1] / "ai" / "prompts" / "summary.md").read_text())
 
@@ -34,7 +35,15 @@ FIELDS = {
     "links": "Links",
     "discipline": "Discipline",
     "usual_hours": "When they usually post",
+    "seniority": "Seniority",
+    "facts": "Facts they are happy to share",
+    "emoji_habit": "Emoji habits",
+    "hashtag_habit": "Hashtag habits",
+    "portfolio_url": "Portfolio",
 }
+PROJECT_STATUSES = ("idea", "building", "live", "paused")
+UPLOAD_CHARS = 4000  # per reviewed upload in the summary prompt
+UPLOAD_LABELS = {"resume": "Resume", "portfolio": "Portfolio page"}
 SAMPLE_POSTS = 5
 SAMPLE_CHARS = 300
 
@@ -67,15 +76,28 @@ def excluded_hashtags(user_id: uuid.UUID) -> list[str]:
     return list(DEFAULT_EXCLUDED_HASHTAGS) if tags is None else tags
 
 
-def summary_prompt(profile: Profile, posts: list[str]) -> str:
-    answers = "\n".join(
+def summary_prompt(
+    profile: Profile, posts: list[str], uploads: list[tuple[str, str]] | None = None
+) -> str:
+    lines = [
         f"- {label}: {getattr(profile, name).strip()}"
         for name, label in FIELDS.items()
         if getattr(profile, name).strip()
-    )
+    ]
+    for p in profile.projects or []:
+        details = ", ".join(x for x in (p.get("line"), p.get("status"), p.get("link")) if x)
+        lines.append(f"- Project: {p['name']}" + (f" ({details})" if details else ""))
     sample = "\n\n".join(p if len(p) <= SAMPLE_CHARS else p[:SAMPLE_CHARS] + "…" for p in posts)
+    # FR-20, FR-21: reviewed resume/portfolio text, contacts already removed. With none, the
+    # prompt is exactly as before.
+    extra = "".join(
+        f"\n\n## From their {UPLOAD_LABELS.get(kind, kind).lower()} "
+        f"(contact details removed, reviewed by them)\n{text[:UPLOAD_CHARS]}"
+        for kind, text in uploads or []
+    )
     return TEMPLATE.substitute(
-        answers=answers or "(nothing yet)", posts=sample or "(no posts imported yet)"
+        answers=("\n".join(lines) or "(nothing yet)") + extra,
+        posts=sample or "(no posts imported yet)",
     )
 
 
@@ -92,6 +114,6 @@ def write_summary(user_id: uuid.UUID, ai: AIClient | None = None) -> Profile:
             .limit(SAMPLE_POSTS)
         ).all()
     result = (ai or default_client()).generate(
-        summary_prompt(profile, list(posts)), purpose="summary"
+        summary_prompt(profile, list(posts), reviewed_texts(user_id)), purpose="summary"
     )
     return update_profile(user_id, {"summary_card": result.text.strip()})

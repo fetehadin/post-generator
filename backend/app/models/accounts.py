@@ -1,8 +1,19 @@
 import uuid
 from datetime import datetime, time
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, SmallInteger, String, Text, Time, func
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    SmallInteger,
+    String,
+    Text,
+    Time,
+    func,
+    text,
+)
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, CreatedAt
@@ -41,6 +52,13 @@ class Profile(CreatedAt, Base):
     usual_hours: Mapped[str] = mapped_column(Text, default="", server_default="")
     language: Mapped[str] = mapped_column(String(32), default="auto", server_default="auto")
     excluded_hashtags: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    seniority: Mapped[str] = mapped_column(Text, default="", server_default="")
+    facts: Mapped[str] = mapped_column(Text, default="", server_default="")  # FR-19
+    emoji_habit: Mapped[str] = mapped_column(Text, default="", server_default="")
+    hashtag_habit: Mapped[str] = mapped_column(Text, default="", server_default="")
+    portfolio_url: Mapped[str] = mapped_column(Text, default="", server_default="")
+    # [{"name", "line", "link", "status"}], so the chat can ask which project (FR-40)
+    projects: Mapped[list[dict]] = mapped_column(JSONB, default=list, server_default="[]")
     # The hours they can post on their own clock; every hand-off needs them awake (FR-45).
     post_window_start: Mapped[time] = mapped_column(Time, server_default="08:00")
     post_window_end: Mapped[time] = mapped_column(Time, server_default="22:00")
@@ -63,6 +81,29 @@ class ReminderSettings(CreatedAt, Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     days: Mapped[list[int]] = mapped_column(ARRAY(SmallInteger), server_default="{0,1,2,3,4}")
     local_time: Mapped[time] = mapped_column(Time, server_default="18:00")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class Upload(CreatedAt, Base):
+    """Text from a resume or portfolio page (FR-20, FR-21). The file is never kept; contact
+    details are removed before saving; only reviewed text reaches the AI."""
+
+    __tablename__ = "uploads"
+    __table_args__ = (CheckConstraint("kind IN ('resume', 'portfolio')", name="kind"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(16))
+    source: Mapped[str] = mapped_column(Text)  # the file name or the URL
+    cleaned_text: Mapped[str] = mapped_column(Text)
+    removed: Mapped[dict] = mapped_column(JSONB, server_default="{}")
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

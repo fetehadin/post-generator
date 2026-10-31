@@ -176,10 +176,15 @@ Everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44). Created wi
   "summary_card": "I build Voxlace…",
   "summary_updated_at": "2026-10-21T16:00:00Z",
   "post_window_start": "08:00:00",
-  "post_window_end": "22:00:00"
+  "post_window_end": "22:00:00",
+  "seniority": "Mid-level", "facts": "Voxlace has 40 beta users", "emoji_habit": "", "hashtag_habit": "",
+  "portfolio_url": "https://me.dev",
+  "projects": [{"name": "Voxlace", "line": "drafts posts in your voice", "link": "", "status": "building"}]
 }
 ```
 
+- `facts`: things the user is happy for drafts to state (numbers, results, dates). They go into the summary card like every other answer (FR-19).
+- `projects`: up to 20, each `{name, line, link, status}` (`status`: `idea`, `building`, `live` or `paused`; only `name` is required). A list, so the chat can ask which project (FR-40).
 - `language`: `"auto"` writes in the same language mix as the user's posts; any other value adds "Write the post in <language>." to the prompt.
 - `excluded_hashtags`: the user's list (lower-case, with `#`), used by every import. The default list until the user edits it.
 - `summary_card`: allowed facts for every draft, next to the day's topic (FR-19). Empty means the prompt is exactly as before.
@@ -190,7 +195,26 @@ Send only the fields that change (same names as above, except `summary_updated_a
 
 ### `POST /profile/summary`
 
-The AI writes a ~150-word first-person card **only from the user's answers** (and up to 5 of their own top posts, for topics and tone), saves it and returns `GET /profile`'s shape. The user can edit it with `PUT`. Error: `503 ai_unavailable` (answers are kept).
+The AI writes a ~150-word first-person card **only from the user's answers**, the resume and portfolio text they marked reviewed (see Uploads below), and up to 5 of their own top posts (for topics and tone). It saves the card and returns `GET /profile`'s shape. The user can edit it with `PUT`. Error: `503 ai_unavailable` (answers are kept).
+
+### Uploads: resume and portfolio (FR-20, FR-21, NFR-11, NFR-12)
+
+Text from a resume or a public portfolio page, used only for the summary card. The file or page itself is never kept. Emails, phone numbers and street-address lines are removed **before** anything is saved. Only text the user marked reviewed reaches the AI. Both uploads need the privacy notice accepted (`403 privacy_required`, FR-37).
+
+```json
+{
+  "id": "uuid", "kind": "resume", "source": "cv.pdf",
+  "text": "Backend developer…", "removed": {"emails": 1, "phones": 2},
+  "reviewed": false, "created_at": "2026-10-31T10:00:00Z", "updated_at": "2026-10-31T10:00:00Z"
+}
+```
+
+- `POST /uploads/resume`: multipart `file`, a PDF or DOCX up to 5 MB → `201` and the upload. Errors: `400 invalid_file` (wrong type, too large, unreadable or password-protected) and `400 no_text` (a scanned PDF, or no text left).
+- `POST /uploads/portfolio`: `{"url": "https://me.dev"}` → `201`. Only `http`/`https` on ports 80 and 443, where the name resolves to public addresses only. Every redirect is checked again (at most 3), with a 10-second timeout and a 2 MB limit. Errors: `400 invalid_url` (localhost, private networks or a bad address) and `400 fetch_failed` (unreachable, not a web page, too large, or a non-200 answer).
+- `GET /uploads` → `{"items": [upload, …]}`, newest first.
+- `PATCH /uploads/{id}`: `{"text"?: "…", "reviewed"?: true}`. Edited text is cleaned again, so a pasted phone number is still removed, and the counts in `removed` add up. Blank `text` → `400 missing_text`.
+- `DELETE /uploads/{id}` → `204`.
+- Someone else's upload → `404 not_found`.
 
 ---
 
@@ -360,11 +384,11 @@ Today's use against the daily limits (FR-30), per UTC day:
 
 ### `GET /me/export`
 
-Everything the user gave Voxlace or made with it, as one JSON download (FR-38): account email and time zone, reminder, profile and summary card, voice cards, platform settings, posts (no embeddings), check-ins, threads, and drafts with their versions and chat. `Content-Disposition: attachment`.
+Everything the user gave Voxlace or made with it, as one JSON download (FR-38): account email and time zone, reminder, profile and summary card, resume and portfolio text, voice cards, platform settings, posts (no embeddings), check-ins, threads, and drafts with their versions and chat. `Content-Disposition: attachment`.
 
 ### `DELETE /me`
 
-Body `{"confirm": "delete"}` (any case) → `204`. Deletes the user's row and, by cascade, every row they own: posts and embeddings, imports, profile, voice cards, check-ins, drafts, versions, chat and prompt logs (FR-38, NFR-10). Anything else in `confirm` → `400 confirm_required`. The Supabase login stays; without data or an invite it can't use the app.
+Body `{"confirm": "delete"}` (any case) → `204`. Deletes the user's row and, by cascade, every row they own: posts and embeddings, imports, profile, uploads, voice cards, check-ins, drafts, versions, chat and prompt logs (FR-38, NFR-10). Anything else in `confirm` → `400 confirm_required`. The Supabase login stays; without data or an invite it can't use the app.
 
 ### `GET /drafts/stats`
 
