@@ -306,7 +306,7 @@ erDiagram
 | `profiles` | user_id, role, seniority, stack, current_projects, projects (JSON), focus, goal, topics, facts, audience, avoid_list, voice_words, emoji_habit, hashtag_habit, links, portfolio_url, discipline, usual_hours, post_window_start, post_window_end, days_off, language, excluded_hashtags, summary_card | About-you form, summary card and import exclusions; editable any time from the Profile page. |
 | `platform_settings` | user_id, platform, x_premium, audience_places (JSON: time zone + share), audience_profession, goal, posts_per_week, channel | Who each audience is and where it lives; the Telegram channel name for hand-off. |
 | `posting_curves` | platform, audience, weekday, hours (24 scores), source | Study-based activity by local weekday and hour, per platform and audience profession (FR-16, FR-34). Shared seed data. |
-| `uploads` | id, user_id, kind (resume, portfolio), source, extracted_text, cleaned_text, reviewed_at, created_at | Extracted and cleaned text; only reviewed text reaches the AI (FR-21). |
+| `uploads` | id, user_id, kind (resume, portfolio), source, cleaned_text, removed (JSON counts), reviewed_at, created_at, updated_at | Cleaned text only; the raw text is never stored. Only reviewed text reaches the AI (FR-21). |
 | `platform_profiles` | platform, char_limit, counting_rule, tone_notes, structure_notes, updated_at | Shared, editable platform rules. |
 | `exemplar_posts` | id, platform, text, embedding | Shared, non-personal example pool for thin histories. |
 | `invites` | code, email, used_by, created_at | Who may sign up. |

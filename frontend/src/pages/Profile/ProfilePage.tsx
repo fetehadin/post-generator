@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { useMe } from '../../api/me'
 import { AboutYou } from './AboutYou'
 import { AccountSettings } from './AccountSettings'
+import { Uploads } from './Uploads'
 import { YourPosts } from './YourPosts'
 
 /**
@@ -23,6 +24,16 @@ export function ProfilePage() {
           What Voxlace knows about you. Drafts use the summary card, never guesses.
         </p>
         <AboutYou />
+      </section>
+
+      <section aria-labelledby="uploads" className="mt-10">
+        <h2 id="uploads" className="text-lg font-semibold">
+          Resume and portfolio
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          Optional. What you check here can go into your summary card, so drafts know your work.
+        </p>
+        <Uploads />
       </section>
 
       <section aria-labelledby="posts" className="mt-10">

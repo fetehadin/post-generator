@@ -28,6 +28,12 @@ const empty: Profile = {
   excluded_hashtags: ['#family', '#me'],
   summary_card: '',
   summary_updated_at: null,
+  seniority: '',
+  facts: '',
+  emoji_habit: '',
+  hashtag_habit: '',
+  portfolio_url: '',
+  projects: [],
 }
 
 let saved: Profile

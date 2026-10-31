@@ -3,6 +3,7 @@
  * Shapes match docs/API.md. Imports "learn" 120 posts per poll, so progress is visible.
  */
 import type { Profile } from '../profile'
+import type { Upload } from '../uploads'
 import type { Checkin, DraftDetail, ImportJob, Platform, Post } from '../types'
 
 const drafts: DraftDetail[] = []
@@ -37,8 +38,15 @@ const profile: Profile = {
   excluded_hashtags: ['#family', '#me'],
   summary_card: '',
   summary_updated_at: null,
+  seniority: '',
+  facts: '',
+  emoji_habit: '',
+  hashtag_habit: '',
+  portfolio_url: '',
+  projects: [],
 }
 
+const uploads: Upload[] = []
 const imports = new Map<string, ImportJob>()
 const posts: Post[] = [
   'Ship log: fixed the timezone bug. Everything is UTC in the database now and only converted at the edges.',
@@ -183,6 +191,40 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
     profile.summary_card = `I'm a ${profile.role || 'developer'} working on ${profile.current_projects || 'my projects'}. I write for ${profile.audience || 'people who build things'}.`
     profile.summary_updated_at = new Date().toISOString()
     return json(200, profile)
+  }
+
+  if (path === '/uploads') return json(200, { items: uploads })
+  if (path === '/uploads/resume' || path === '/uploads/portfolio') {
+    const now = new Date().toISOString()
+    const body = init?.body
+    const source =
+      body instanceof FormData
+        ? (body.get('file') as File).name
+        : (JSON.parse(String(body)) as { url: string }).url
+    const upload: Upload = {
+      id: crypto.randomUUID(),
+      kind: path === '/uploads/resume' ? 'resume' : 'portfolio',
+      source,
+      text: 'Backend developer at Gebeta since 2023.\nBuilt a delivery app used in Addis.',
+      removed: { emails: 1, phones: 1 },
+      reviewed: false,
+      created_at: now,
+      updated_at: now,
+    }
+    uploads.unshift(upload)
+    return json(201, upload)
+  }
+  const uploadMatch = path.match(/^\/uploads\/([\w-]+)$/)
+  if (uploadMatch) {
+    const i = uploads.findIndex((u) => u.id === uploadMatch[1])
+    if (i < 0) return json(404, { error: { code: 'not_found', message: 'Not found.' } })
+    if (init?.method === 'DELETE') {
+      uploads.splice(i, 1)
+      return new Response(null, { status: 204 })
+    }
+    const change = JSON.parse(String(init?.body)) as Partial<Upload>
+    uploads[i] = { ...uploads[i], ...change, updated_at: new Date().toISOString() }
+    return json(200, uploads[i])
   }
 
   const platformMatch = path.match(/^\/platforms\/(telegram|x|linkedin)(\/.*)?$/)
