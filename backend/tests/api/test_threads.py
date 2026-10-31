@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, text
 
+from app.ai.client import AIUnavailable
 from app.core.db import user_session
 from app.models import Draft, SourcePost
 from app.services import notifications
@@ -44,17 +45,33 @@ def test_save_opens_a_thread_with_todays_checkin(api):
     assert [c["id"] for c in checkins] == [t["checkin_id"]]
 
 
-def test_generate_adds_one_card_per_platform_and_reports_the_rest(api, ai):
-    upload(api)  # Telegram posts only: LinkedIn has nothing to learn from yet
+def test_generate_adds_one_card_per_platform(api, ai):
+    upload(api)  # Telegram posts only: LinkedIn drafts from the inspiration pool
     t = start(api)
     out = generate(api, t["id"], ["telegram", "linkedin"])
     cards = [m for m in out["messages"] if m["card"]]
-    assert len(cards) == 1 and cards[0]["card"]["number"] == 1
-    assert [d["platform"] for d in out["drafts"]] == ["telegram"]
+    assert [c["card"]["number"] for c in cards] == [1, 1]  # version 1 of each draft
+    assert [d["platform"] for d in out["drafts"]] == ["telegram", "linkedin"]
     assert out["drafts"][0]["thread_id"] == t["id"]
-    assert [(f["platform"], f["code"]) for f in out["failures"]] == [("linkedin", "no_posts")]
+    assert out["failures"] == []
     # The check-in is the topic of every draft in the thread.
     assert "Finished the Telegram importer" in ai.prompts[-1][1]
+
+
+def test_a_platform_that_fails_is_reported_and_the_others_arrive(api, monkeypatch):
+    upload(api)
+    t = start(api)
+    real = FakeAI.generate
+
+    def busy_on_linkedin(self, prompt, purpose="draft", temperature=0.9):
+        if "LinkedIn" in prompt:
+            raise AIUnavailable("all models failed")
+        return real(self, prompt, purpose, temperature)
+
+    monkeypatch.setattr(FakeAI, "generate", busy_on_linkedin)
+    out = generate(api, t["id"], ["telegram", "linkedin"])
+    assert [d["platform"] for d in out["drafts"]] == ["telegram"]
+    assert [(f["platform"], f["code"]) for f in out["failures"]] == [("linkedin", "ai_unavailable")]
 
 
 def test_each_revision_is_a_new_full_card_in_the_thread(api, ai):
@@ -127,8 +144,9 @@ def test_another_users_thread_is_not_found(api, ai, make_user):
     assert api.get(f"{API}/threads").json()["items"] == []
 
 
-def test_a_failed_conversion_leaves_no_request_in_the_thread(api, ai):
-    upload(api)  # Telegram posts only: there's nothing to learn an X voice from yet
+def test_a_failed_conversion_leaves_no_request_in_the_thread(api, ai, monkeypatch):
+    upload(api)  # Telegram posts only, and no inspiration pool: nothing to learn X from
+    monkeypatch.setattr("app.services.drafting.inspiration", lambda *_: [])
     t = start(api)
     source = generate(api, t["id"], ["telegram"])["drafts"][0]
     before = api.get(f"{API}/threads/{t['id']}").json()["messages"]
