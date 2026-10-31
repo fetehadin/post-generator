@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     # Longest one AI call may take before it counts as a network drop and is retried.
     ai_timeout_seconds: int = 60
+    # The most one draft may spend across retries and fallback models before the user is told
+    # the AI is busy (NFR-3, NFR-4). Each call's timeout is cut to what is left.
+    generation_deadline_seconds: int = 40
     # FR-30: per user per UTC day. Drafts count every AI writing call (new drafts and chat
     # revisions); posts count what an import adds, since each new post is embedded once.
     daily_draft_limit: int = 40
