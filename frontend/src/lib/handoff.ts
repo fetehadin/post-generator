@@ -34,7 +34,7 @@ export function opensTo(platform: 'x' | 'linkedin' | 'telegram', channel?: strin
 export function handOffLabel(platform: 'x' | 'linkedin' | 'telegram', channel?: string | null) {
   if (platform === 'x') return 'Open in X'
   if (platform === 'linkedin') return 'Copy and open LinkedIn'
-  return channel ? 'Copy and open Telegram' : 'Copy text'
+  return channel ? 'Copy and open Telegram' : 'Copy text for Telegram'
 }
 
 /**

@@ -92,7 +92,7 @@ The suggestions follow the calm layout agreed on 19 Oct 2026:
 | Filter by status and platform | FR-11 | Must | Show (two small filters) | **Show** |
 | Search drafts | — | — | Later | **Later** |
 | Discard / restore several at once | DESIGN §4.4 | — | Menu (select mode) | **Menu** |
-| Check-ins tab | FR-6 | Must | Show (tab) | **Cut** (owner, 2 Nov 2026): check-ins live in the sidebar's thread history |
+| Check-ins tab | FR-6 | Must | Show (tab) | **Cut** (owner, 2 Nov 2026): each chat opens with its check-in (edit, delete there); `/checkins` ("Past check-ins", linked from a new chat) also reaches check-ins saved before chats existed |
 | Weekly publish rate | FR-15 | Should | Later | **Later** |
 
 ## Calendar

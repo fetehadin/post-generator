@@ -179,3 +179,23 @@ test('a retry after a failure offers only the platform that failed', async () =>
   await userEvent.click(retry)
   expect(sent('POST /threads/t1/generate').at(-1)).toEqual({ platforms: ['linkedin'] })
 })
+
+test('the check-in that opens a chat can be edited there (FR-6)', async () => {
+  routeApi({
+    'GET /threads/:id': () => thread,
+    'GET /me': () => ({ id: 'u1', email: 'fete@example.com' }),
+    'GET /platforms/telegram': () => ({ channel: null }),
+    'PATCH /checkins/:id': (b) => {
+      thread = { ...thread, checkin_text: (b as { text: string }).text }
+      return { id: 'c1', ...(b as object) }
+    },
+  })
+  renderThread()
+  await userEvent.click(await screen.findByRole('button', { name: 'Edit check-in' }))
+  const box = screen.getByLabelText('Check-in text')
+  await userEvent.clear(box)
+  await userEvent.type(box, 'Finished the importer and its tests')
+  await userEvent.click(screen.getByRole('button', { name: 'Save check-in' }))
+  expect(sent('PATCH /checkins/c1')).toEqual([{ text: 'Finished the importer and its tests' }])
+  expect(await screen.findByText('Finished the importer and its tests')).toBeInTheDocument()
+})

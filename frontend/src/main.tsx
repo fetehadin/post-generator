@@ -16,6 +16,7 @@ import '@fontsource/source-serif-4/600.css'
 import './index.css'
 import { applyTheme, savedTheme } from './lib/theme'
 import { CalendarPage } from './pages/Calendar/CalendarPage'
+import { CheckinsPage } from './pages/Checkins/CheckinsPage'
 import { DraftRedirect } from './pages/Chat/DraftRedirect'
 import { NewChatPage } from './pages/Chat/NewChatPage'
 import { ThreadPage } from './pages/Chat/ThreadPage'
@@ -41,6 +42,7 @@ const router = createBrowserRouter([
       { path: '/', element: <NewChatPage /> },
       { path: '/import', element: <UploadPage /> },
       { path: '/chat/:id', element: <ThreadPage /> },
+      { path: '/checkins', element: <CheckinsPage /> },
       { path: '/drafts', element: <Navigate to="/drafts/x" replace /> },
       { path: '/drafts/x', element: <DraftsPage platform="x" /> },
       { path: '/drafts/linkedin', element: <DraftsPage platform="linkedin" /> },

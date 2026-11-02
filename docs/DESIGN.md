@@ -59,7 +59,7 @@ On mobile, Chat · Drafts · Calendar · Profile become a bottom tab bar.
 | Place | Purpose | Requirements |
 |---|---|---|
 | **Chat board** (home, `/` and `/chat/:id`) | "What did you do today?" → Save or Generate → pick platforms → a draft card per platform in the thread → talk to it until it's right → Approve → pick a day → it's on the calendar | FR-6, FR-7, FR-8, FR-10, FR-40, FR-45, FR-46 |
-| **Drafts** (`/drafts/:platform`) | One platform's drafts by status; each card has Reschedule, Delete and, once approved, Copy now; Edit opens its thread | FR-10, FR-11, FR-12 |
+| **Drafts** (`/drafts/:platform`) | One platform's drafts by status; each card has Reschedule, Discard and, once approved, Copy now; Edit opens its thread | FR-10, FR-11, FR-12 |
 | **Calendar** | Month, week and day views; drag to reschedule; Edit opens the thread | FR-13, FR-16 |
 | **Profile** (avatar) | Everything about you, all editable: about you, work and facts, resume and portfolio, audience per platform (profession and places), when you can post, voice and posts per platform, reminders, Telegram channel name, usage, export and delete | FR-1, FR-5, FR-17, FR-18, FR-20–FR-26, FR-30, FR-33, FR-38, FR-42 |
 
@@ -143,7 +143,7 @@ The home screen is a ChatGPT-style thread with one question at the top.
 
 - The sidebar's Drafts opens to X · LinkedIn · Telegram; each opens `/drafts/:platform`.
 - Status tabs: Drafts · Approved · Posted · Discarded.
-- Each card: first lines, status, scheduled time. Icons along the bottom: **Reschedule** (pick a day; the hour is picked for you), **Copy now** on approved posts only (copies the text and opens X / LinkedIn / your Telegram channel, then asks "Did you post it?" → Posted; a draft shows Approve in its place), **Delete** (moves it to Discarded with Undo; Discarded has "Delete forever"). **Edit** opens the thread.
+- Each card: first lines, status, scheduled time. Icons along the bottom: **Reschedule** (pick a day; the hour is picked for you), **Copy now** on approved posts only (copies the text and opens X / LinkedIn / your Telegram channel, then asks "Did you post it?" → Posted; a draft shows Approve in its place), **Discard** (moves it to Discarded with Undo; the same verb as the chat's ⋯ menu, §8; Discarded has Restore and "Delete forever"). **Edit** opens the thread.
 
 ### 4.3 Calendar
 

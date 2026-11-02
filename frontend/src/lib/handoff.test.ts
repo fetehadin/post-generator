@@ -32,7 +32,7 @@ test('handOff copies Telegram text and opens the saved channel', async () => {
 
 test('a posted draft is not handed off again, and Telegram without a channel only copies', async () => {
   await expect(handOff({ platform: 'x', status: 'published', text: 'hi' })).rejects.toThrow()
-  expect(handOffLabel('telegram', null)).toBe('Copy text')
+  expect(handOffLabel('telegram', null)).toBe('Copy text for Telegram')
   expect(handOffLabel('telegram', 'fetescript')).toBe('Copy and open Telegram')
   expect(handOffLabel('linkedin')).toBe('Copy and open LinkedIn')
 })

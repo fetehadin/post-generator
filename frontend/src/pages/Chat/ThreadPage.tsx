@@ -1,8 +1,10 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { useDeleteCheckin, usePatchCheckin } from '../../api/checkins'
 import { useReviseDraft } from '../../api/drafts'
 import { useGenerateInThread, useThread } from '../../api/threads'
 import type { DraftRow, GenerateFailure, Platform, Thread, ThreadMessage } from '../../api/types'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Icon } from '../../components/Icon'
 import { PlatformMark } from '../../components/PlatformMark'
 import { savedPlatforms, savePlatforms } from '../../lib/platformChoice'
@@ -100,6 +102,8 @@ function ThreadView({ thread }: { thread: Thread }) {
   }, [])
 
   const byId = new Map(thread.drafts.map((d) => [d.id, d]))
+  // The chat opens with the day's check-in; it can be edited or deleted there (FR-6).
+  const checkinMessage = thread.messages.find((m) => m.role === 'user' && !m.draft_id)
   const newest = new Map<string, string>()
   for (const m of thread.messages) if (m.card && m.draft_id) newest.set(m.draft_id, m.id)
 
@@ -132,6 +136,12 @@ function ThreadView({ thread }: { thread: Thread }) {
                   />
                 ) : (
                   <FoldedCard card={m.card} draft={draft} />
+                )
+              ) : m === checkinMessage ? (
+                thread.checkin_id ? (
+                  <CheckinMessage checkinId={thread.checkin_id} text={thread.checkin_text} />
+                ) : (
+                  <p className="ml-auto text-sm text-muted">You deleted this check-in.</p>
                 )
               ) : (
                 <Plain message={m} />
@@ -193,6 +203,93 @@ function ThreadView({ thread }: { thread: Thread }) {
           </p>
         )}
       </div>
+    </div>
+  )
+}
+
+/**
+ * The day's check-in (FR-6): edit it, or delete it. Drafts already made from it stay; new
+ * drafts use the edited text.
+ */
+function CheckinMessage({ checkinId, text }: { checkinId: string; text: string }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(text)
+  const patch = usePatchCheckin()
+  const remove = useDeleteCheckin()
+  const boxId = useId()
+  const error = patch.error
+  return (
+    <div className="ml-auto max-w-[85%]">
+      {editing ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (value.trim())
+              patch.mutate({ id: checkinId, text: value }, { onSuccess: () => setEditing(false) })
+          }}
+        >
+          <label htmlFor={boxId} className="mb-1 block text-right text-sm font-semibold">
+            Check-in text
+          </label>
+          <textarea
+            id={boxId}
+            value={value}
+            maxLength={4000}
+            onChange={(e) => setValue(e.target.value)}
+            className="block w-full rounded-panel border border-edge bg-surface px-4 py-3 font-serif text-lg leading-writing [field-sizing:content]"
+          />
+          <div className="mt-2 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="min-h-9 rounded-control border border-edge px-3 text-sm hover:bg-sunken"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={patch.isPending || !value.trim()}
+              className="min-h-9 rounded-control bg-primary px-3 text-sm font-semibold text-on-primary disabled:opacity-50"
+            >
+              Save check-in
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          <p className="rounded-panel bg-sunken px-4 py-3 font-serif text-lg leading-writing whitespace-pre-wrap">
+            <span className="sr-only">Your check-in: </span>
+            {text}
+          </p>
+          <p className="mt-1 flex justify-end gap-1 text-sm">
+            <button
+              type="button"
+              onClick={() => {
+                setValue(text)
+                setEditing(true)
+              }}
+              className="min-h-9 px-2 text-muted hover:text-ink"
+            >
+              Edit check-in
+            </button>
+            <ConfirmDialog
+              trigger="Delete check-in"
+              triggerClassName="min-h-9 rounded-control px-2 text-muted hover:bg-sunken hover:text-danger"
+              title="Delete this check-in?"
+              description="The drafts made from it stay in this chat. This can't be undone."
+              confirm="Delete check-in"
+              busy={remove.isPending}
+              error={remove.error?.message}
+              onConfirm={() => remove.mutate(checkinId)}
+            />
+          </p>
+        </>
+      )}
+      {error && (
+        <p role="alert" className="mt-1 text-right text-sm text-danger">
+          {error.message}
+        </p>
+      )}
     </div>
   )
 }
