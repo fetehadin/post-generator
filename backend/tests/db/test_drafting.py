@@ -25,7 +25,10 @@ class FakeAI:
         self.reply = reply
         self.prompts: list[str] = []
 
+    embedded = 0
+
     def embed_query(self, text):
+        self.embedded += 1
         return vec(1)
 
     def generate(self, prompt, purpose="draft", temperature=0.9):
@@ -133,9 +136,84 @@ def test_empty_topic_without_a_summary_card_is_refused(make_user):
         generate_draft(make_user(), "telegram", "   ", ai=FakeAI())
 
 
-def test_no_posts_yet_gives_a_clear_message(make_user):
+@pytest.mark.parametrize("platform", ["telegram", "x", "linkedin"])
+def test_with_no_posts_yet_the_inspiration_pool_shapes_the_draft(make_user, platform):
+    ai = FakeAI()
+    result = generate_draft(make_user(), platform, "Shipped the importer", ai=ai)
+    prompt = ai.prompts[0]
+    assert "## Inspiration (not their voice)" in prompt and "[A]" in prompt and "[H]" in prompt
+    assert "no voice to match" in prompt and "Below are 0" not in prompt
+    assert result.examples == [] and ai.embedded == 0  # nothing to search, no embedding call
+
+
+def test_inspiration_is_only_for_this_platform(make_user):
+    ai = FakeAI()
+    generate_draft(make_user(), "x", "topic", ai=ai)
+    assert "Update on [project]" not in ai.prompts[0]  # a Telegram exemplar
+    assert "Unpopular opinion: [your opinion]" in ai.prompts[0]  # an X exemplar
+
+
+def test_nineteen_posts_use_their_own_posts_and_the_pool(make_user):
+    user = make_user()
+    for i in range(19):
+        add_post(user, str(i), f"my own post number {i}", v=vec(1, i / 10))
+    ai = FakeAI()
+    result = generate_draft(user, "telegram", "topic", ai=ai)
+    assert result.examples and "my own post number" in ai.prompts[0]
+    assert "## Inspiration (not their voice)" in ai.prompts[0]
+
+
+def test_twenty_posts_turn_the_inspiration_off(make_user):
+    user = make_user()
+    for i in range(20):
+        add_post(user, str(i), f"my own post number {i}", v=vec(1, i / 10))
+    ai = FakeAI()
+    generate_draft(user, "telegram", "topic", ai=ai)
+    assert "Inspiration" not in ai.prompts[0]
+
+
+def test_posts_still_being_learned_say_so_instead_of_drafting_without_them(make_user):
+    user = make_user()
+    with user_session(user) as s:
+        save_posts(
+            s, user, "telegram", [ParsedPost("1", "a post", datetime(2026, 1, 1, tzinfo=UTC))]
+        )
+    with pytest.raises(DraftError) as e:
+        generate_draft(user, "telegram", "topic", ai=FakeAI())
+    assert (e.value.code, e.value.status) == ("posts_learning", 409)
+
+
+def test_no_posts_and_no_pool_gives_a_clear_message(make_user, monkeypatch):
+    monkeypatch.setattr("app.services.drafting.inspiration", lambda *_: [])
     with pytest.raises(DraftError, match="Import your export first"):
         generate_draft(make_user(), "telegram", "topic", ai=FakeAI())
+
+
+def test_a_draft_that_copies_the_pool_is_rewritten(make_user):
+    copied = "The most expensive mistake I made on project wasn't in the code."
+    ai = ScriptedAI([copied, "Tests first."])
+    result = generate_draft(make_user(), "linkedin", "I write tests first", ai=ai)
+    assert result.text == "Tests first." and len(ai.prompts) == 2
+
+
+def test_without_a_pool_the_prompt_is_byte_for_byte_the_old_one(monkeypatch):
+    from string import Template
+
+    import app.services.drafting as drafting
+
+    profile = PlatformProfile(
+        platform="x",
+        char_limit=280,
+        counting_rule="x_weighted",
+        tone_notes="t",
+        structure_notes="s",
+    )
+    ex = [Example(None, "a post", 0.9, False)]
+    now = build_prompt(profile, ex, "topic", about="card", voice="notes")
+    # The template before the pool existed had "$examples" where it now has "$examples$inspiration".
+    old = Template(drafting.TEMPLATE.template.replace("$examples$inspiration", "$examples"))
+    monkeypatch.setattr(drafting, "TEMPLATE", old)
+    assert now == build_prompt(profile, ex, "topic", about="card", voice="notes")
 
 
 COPIED = "Ship log fixed the timezone bug everything is UTC in the database now"
