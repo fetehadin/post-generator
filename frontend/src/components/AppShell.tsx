@@ -11,8 +11,8 @@ const PLACES: Array<{ to: string; label: string; icon: IconName }> = [
   { to: '/drafts', label: 'Drafts', icon: 'drafts' },
 ]
 
-const THEME_ICON: Record<Theme, IconName> = { light: 'sun', dark: 'moon', mixed: 'mixed' }
-const NEXT: Record<Theme, Theme> = { light: 'dark', dark: 'mixed', mixed: 'light' }
+const THEME_ICON: Record<Theme, IconName> = { light: 'sun', dark: 'moon' }
+const NEXT: Record<Theme, Theme> = { light: 'dark', dark: 'light' }
 const COLLAPSED_KEY = 'voxlace-sidebar-collapsed'
 
 function savedCollapsed(): boolean {
@@ -69,7 +69,7 @@ export function AppShell() {
       }`}
     >
       <aside className="sticky top-0 hidden h-screen p-3 md:block">
-        <div className="flex h-full flex-col rounded-panel border border-line bg-paper shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+        <div className="flex h-full flex-col rounded-panel border border-line bg-paper">
           <div
             className={`flex items-center border-b border-line p-4 ${
               collapsed ? 'flex-col gap-3' : 'justify-between'
@@ -112,13 +112,13 @@ export function AppShell() {
               title={collapsed ? 'Profile' : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-full ${collapsed ? 'justify-center' : 'bg-sunken p-2 pr-4'} ${
-                  isActive ? 'ring-1 ring-thread' : 'hover:ring-1 hover:ring-edge'
+                  isActive ? 'ring-1 ring-primary' : 'hover:ring-1 hover:ring-edge'
                 }`
               }
             >
               <span
                 aria-hidden="true"
-                className="grid size-10 flex-none place-items-center rounded-full bg-thread text-md font-semibold text-on-thread"
+                className="grid size-10 flex-none place-items-center rounded-full bg-primary text-md font-semibold text-on-primary"
               >
                 {name.charAt(0).toUpperCase()}
               </span>
@@ -131,7 +131,7 @@ export function AppShell() {
         </div>
       </aside>
 
-      <main id="main" className="page relative min-w-0 bg-surface pb-16 md:pb-0">
+      <main id="main" className="relative min-w-0 bg-paper pb-16 md:pb-0">
         <button
           type="button"
           onClick={toggleCollapsed}
@@ -156,7 +156,7 @@ export function AppShell() {
             end={p.to === '/'}
             className={({ isActive }) =>
               `flex min-h-14 flex-col items-center justify-center gap-1 text-xs ${
-                isActive ? 'font-semibold text-thread' : 'text-muted'
+                isActive ? 'font-semibold text-ink' : 'text-muted'
               }`
             }
           >
@@ -180,7 +180,8 @@ function DueBell({ count }: { count: number }) {
       className="relative ml-auto mr-1 grid size-9 place-items-center rounded-control text-signal hover:bg-sunken"
     >
       <Icon name="bell" />
-      <span className="absolute top-1 right-1 grid min-w-4 place-items-center rounded-full bg-signal px-1 text-[10px] leading-4 font-semibold text-on-thread">
+      {/* The signal fill with --on-primary text: 5.8:1 light, 8.3:1 dark (DESIGN.md §5). */}
+      <span className="absolute top-1 right-1 grid min-w-4 place-items-center rounded-full bg-signal px-1 text-xs leading-4 font-semibold text-on-primary">
         {count}
       </span>
     </NavLink>

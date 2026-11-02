@@ -79,7 +79,7 @@ export function TodayPage() {
       <h1 className="mt-1 text-2xl font-semibold tracking-tight">What did you do today?</h1>
 
       <form
-        className="mt-8 rounded-ask border border-edge bg-surface py-3 pr-3 pl-4 focus-within:border-thread focus-within:ring-1 focus-within:ring-thread md:pl-6"
+        className="mt-8 rounded-panel border border-edge bg-surface py-3 pr-3 pl-4 focus-within:border-thread focus-within:ring-1 focus-within:ring-thread md:pl-6"
         onSubmit={(e) => {
           e.preventDefault()
           if (n && (!empty || hasCard)) void run().catch(() => {})
@@ -114,7 +114,7 @@ export function TodayPage() {
                   aria-pressed={on}
                   onClick={() => toggle(p)}
                   className={`inline-flex size-10 items-center justify-center rounded-full border ${
-                    on ? 'border-thread bg-thread-soft text-ink' : 'border-edge text-muted'
+                    on ? 'border-primary bg-primary text-on-primary' : 'border-edge text-muted'
                   }`}
                   title={LABEL[p]}
                 >
@@ -135,7 +135,7 @@ export function TodayPage() {
           <button
             type="submit"
             disabled={!n || busy || (empty && !hasCard)}
-            className="inline-flex min-h-10 items-center rounded-control bg-thread px-4 text-sm font-semibold text-on-thread disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
+            className="inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
           >
             {generate.isPending ? 'Writing…' : label}
           </button>

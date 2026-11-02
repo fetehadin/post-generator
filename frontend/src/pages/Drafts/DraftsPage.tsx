@@ -25,7 +25,7 @@ export function DraftsPage() {
             aria-selected={tab === t}
             onClick={() => setTab(t)}
             className={`-mb-px min-h-10 border-b-2 px-3 text-sm ${
-              tab === t ? 'border-thread font-semibold' : 'border-transparent text-muted'
+              tab === t ? 'border-primary font-semibold' : 'border-transparent text-muted'
             }`}
           >
             {t === 'drafts' ? 'Drafts' : 'Check-ins'}
@@ -155,7 +155,7 @@ function CheckinRow({ checkin }: { checkin: Checkin }) {
             <button
               type="submit"
               disabled={patch.isPending || !text.trim()}
-              className="min-h-9 rounded-control bg-thread px-3 text-sm font-semibold text-on-thread"
+              className="min-h-9 rounded-control bg-primary px-3 text-sm font-semibold text-on-primary"
             >
               Save
             </button>

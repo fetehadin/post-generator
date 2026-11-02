@@ -1,5 +1,8 @@
-/** Light → dark → mixed (DESIGN.md §5). Saved per browser; the system preference is the default. */
-export const THEMES = ['light', 'dark', 'mixed'] as const
+/**
+ * Light ⇄ dark (DESIGN.md §5 v3). Saved per browser; the system preference is the default.
+ * A saved value from an older version ("mixed") is ignored, so the system preference wins.
+ */
+export const THEMES = ['light', 'dark'] as const
 export type Theme = (typeof THEMES)[number]
 
 const KEY = 'voxlace-theme'

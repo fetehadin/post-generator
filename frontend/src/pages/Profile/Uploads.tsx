@@ -170,7 +170,7 @@ function UploadCard({ upload, onTakenOut }: { upload: Upload; onTakenOut: () => 
           className={
             upload.reviewed
               ? button
-              : 'inline-flex min-h-10 items-center rounded-control bg-thread px-4 text-sm font-semibold text-on-thread disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
+              : 'inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
           }
         >
           {upload.reviewed ? 'Stop using it' : 'I checked it: use in my summary card'}

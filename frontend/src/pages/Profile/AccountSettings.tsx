@@ -107,7 +107,7 @@ function DeleteAccount() {
           <button
             type="submit"
             disabled={typed.trim().toLowerCase() !== 'delete' || remove.isPending}
-            className="inline-flex min-h-10 items-center rounded-control bg-danger px-4 text-sm font-semibold text-on-thread disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
+            className="inline-flex min-h-10 items-center rounded-control bg-danger px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
           >
             {remove.isPending ? 'Deleting…' : 'Delete everything'}
           </button>
