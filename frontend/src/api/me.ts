@@ -15,6 +15,9 @@ export function useMe(enabled = true) {
   return useQuery({ queryKey: ['me'], queryFn: () => api<Me>('/me'), enabled, retry: false })
 }
 
+/** The user's saved zone for showing times (rule 6); the browser's until /me has loaded. */
+export const useZone = (): string | undefined => useMe().data?.timezone
+
 function useMeMutation<I>(fn: (input: I) => Promise<Me>) {
   const client = useQueryClient()
   return useMutation({ mutationFn: fn, onSuccess: (me) => client.setQueryData(['me'], me) })
