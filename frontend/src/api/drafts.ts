@@ -1,12 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from './client'
+import { api, json } from './client'
 import type { Draft, DraftDetail, DraftRow, DraftStatus, Platform } from './types'
-
-const json = (method: string, body: unknown): RequestInit => ({
-  method,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-})
 
 export type DraftOutcome =
   { platform: Platform; ok: true; draft: Draft } | { platform: Platform; ok: false; error: Error }
@@ -79,6 +73,9 @@ function useDraftMutation<I>(id: string, fn: (input: I) => Promise<DraftDetail>)
     onSuccess: (draft) => {
       client.setQueryData(['drafts', 'one', id], draft)
       void client.invalidateQueries({ queryKey: ['drafts', 'list'] })
+      // A revision, hand edit or restore adds a card to the draft's thread (docs/API.md).
+      void client.invalidateQueries({ queryKey: ['threads'] })
+      void client.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }
@@ -111,6 +108,8 @@ export function usePatchAnyDraft() {
     onSuccess: (draft) => {
       client.setQueryData(['drafts', 'one', draft.id], draft)
       void client.invalidateQueries({ queryKey: ['drafts', 'list'] })
+      void client.invalidateQueries({ queryKey: ['threads'] })
+      void client.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }
@@ -128,20 +127,5 @@ export function useDraftPrompt(id: string, enabled: boolean) {
     queryKey: ['draft-prompt', id],
     queryFn: () => api<PromptLog>(`/drafts/${id}/prompt`),
     enabled,
-  })
-}
-
-/**
- * Approved posts whose time has come and that aren't marked posted yet (FR-35, in the app).
- * Checked once a minute; the bell and the calendar's "Due now" both read it.
- */
-export function useDuePosts() {
-  return useQuery({
-    queryKey: ['drafts', 'list', 'due'],
-    queryFn: () =>
-      api<{ items: DraftRow[] }>(
-        `/drafts?status=approved&scheduled_to=${encodeURIComponent(new Date().toISOString())}`,
-      ),
-    refetchInterval: 60_000,
   })
 }

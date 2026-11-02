@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils'
+
 /** A small set of line icons drawn for Voxlace (no icon library). 20px, currentColor. */
 const PATHS = {
   home: 'M4 11l8-7 8 7v9h-5v-6H9v6H4z',
@@ -10,6 +12,10 @@ const PATHS = {
   collapse: 'M4 4h16v16H4zM9 4v16M15 9l-3 3 3 3',
   expand: 'M4 4h16v16H4zM9 4v16M13 9l3 3-3 3',
   bell: 'M6 16V11a6 6 0 1 1 12 0v5l2 2H4zM10 21h4',
+  x: 'M6 6l12 12M18 6L6 18',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+  'chevron-right': 'M10 6l6 6-6 6',
+  dot: 'M12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 1 0 0-3z',
 } as const
 
 export type IconName = keyof typeof PATHS
@@ -19,7 +25,7 @@ export function Icon({ name, className = '' }: { name: IconName; className?: str
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className={`size-5 flex-none fill-none stroke-current ${className}`}
+      className={cn('size-5 flex-none fill-none stroke-current', className)}
       strokeWidth={1.75}
       strokeLinecap="round"
       strokeLinejoin="round"

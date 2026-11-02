@@ -40,3 +40,10 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   }
   return body as T
 }
+
+/** A JSON request body: `api(path, json('POST', {...}))`. */
+export const json = (method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+})

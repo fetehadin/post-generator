@@ -1,6 +1,6 @@
 # Frontend (React)
 
-React + Vite + TypeScript · React Router · TanStack Query · Tailwind CSS · FullCalendar · Supabase JS (login only) · Vitest + Testing Library · oxlint + Prettier.
+React + Vite + TypeScript · React Router · TanStack Query · Tailwind CSS · shadcn/ui (Radix) · FullCalendar · Supabase JS (login only) · Vitest + Testing Library · oxlint + Prettier.
 
 ## Design
 
@@ -23,6 +23,7 @@ frontend/src/
 │   └── *.ts            One file per resource: imports.ts, drafts.ts … (TanStack Query hooks)
 ├── pages/              One folder per screen: Upload, Generate, Onboarding, Settings, ChatBoard, Drafts, Calendar
 ├── components/         Shared UI: DraftCard, LengthCounter, PlatformBadge, AiLabel …
+│   └── ui/             shadcn/ui parts (dialog, dropdown-menu, tabs, popover, sheet), adapted
 ├── lib/                auth.ts, time.ts (UTC ↔ local), handoff.ts (X link, LinkedIn copy)
 └── test/               Test setup
 ```
@@ -46,6 +47,12 @@ VITE_USE_MOCKS=true npm run dev   # build screens before the endpoint exists
 - **Errors:** show `error.message` from the API error shape. On 429 or 503 keep the user's input in the form.
 - **Styling:** Tailwind utility classes. No inline style objects except for dynamic values.
 - **Accessibility:** real `<button>`s and `<label>`s, visible focus, keyboard-usable calendar actions.
+
+## shadcn/ui (agreed 2 Nov 2026)
+
+- Menus, dialogs, tabs, popovers and sheets come from `src/components/ui/`, imported as `@/components/ui/<name>`. They're Radix primitives, so roles, focus and keyboard work out of the box.
+- To add one, copy `apps/v4/registry/new-york-v4/ui/<name>.tsx` from the shadcn-ui/ui repo into `src/components/ui/` (don't run the shadcn CLI: it installs `lucide-react`, an icon library we don't use). Install any `radix-ui` primitive it needs with an exact version. Then adapt it the same way as the others: our tokens instead of shadcn's colour names (`bg-surface`, `text-muted`, `ring-thread`…), `Icon` instead of lucide, no open/close animations, weights 400 and 600 only. Add a test for its keyboard behaviour.
+- `cn()` in `src/lib/utils.ts` joins class names; a later Tailwind class overrides an earlier one.
 
 ## Product rules the UI must enforce
 

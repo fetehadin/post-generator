@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { useDrafts, useDuePosts, usePatchAnyDraft } from '../../api/drafts'
+import { useDrafts, usePatchAnyDraft } from '../../api/drafts'
+import { useNotifications } from '../../api/me'
 import type { DraftRow } from '../../api/types'
 import { addDays, monthWeeks, moveTo, sameDay, startOfWeek, weekDays } from '../../lib/calendar'
 import { formatWhen } from '../../lib/time'
@@ -35,7 +36,7 @@ export function CalendarPage() {
     scheduled_to: to.toISOString(),
   })
   const upNext = useDrafts({ status: 'approved', scheduled_from: now.toISOString() })
-  const due = useDuePosts().data?.items ?? []
+  const due = useNotifications().data?.due ?? []
   const items = drafts.data?.items ?? []
 
   const step = (n: number) =>
