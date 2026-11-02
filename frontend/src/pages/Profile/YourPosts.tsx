@@ -42,7 +42,7 @@ export function YourPosts() {
             aria-selected={platform === t.id}
             onClick={() => setPlatform(t.id)}
             className={`-mb-px min-h-10 border-b-2 px-3 text-sm ${
-              platform === t.id ? 'border-thread font-semibold' : 'border-transparent text-muted'
+              platform === t.id ? 'border-primary font-semibold' : 'border-transparent text-muted'
             }`}
           >
             {t.label}
@@ -72,7 +72,7 @@ export function YourPosts() {
               aria-pressed={show === s.id}
               onClick={() => setShow(s.id)}
               className={`min-h-10 rounded-full border px-3 text-sm ${
-                show === s.id ? 'border-thread bg-thread-soft' : 'border-edge'
+                show === s.id ? 'border-primary bg-primary text-on-primary' : 'border-edge'
               }`}
             >
               {s.label}
@@ -148,7 +148,7 @@ function PostRow({ post }: { post: Post }) {
           aria-pressed={post.pinned}
           aria-label={`${post.pinned ? 'Unpin' : 'Pin'}: ${start}`}
           onClick={() => patch.mutate({ id: post.id, pinned: !post.pinned })}
-          className="min-h-8 rounded-control px-2 text-sm text-thread hover:bg-sunken"
+          className="min-h-8 rounded-control px-2 text-sm text-ink hover:bg-sunken"
         >
           {post.pinned ? 'Unpin' : 'Pin'}
         </button>

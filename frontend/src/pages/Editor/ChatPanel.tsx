@@ -69,7 +69,7 @@ export function ChatPanel({ draft, selection, clearSelection, beforeRevise }: Pr
       </div>
 
       <form
-        className="mt-3 rounded-ask border border-edge bg-surface p-2 pl-4 focus-within:border-thread"
+        className="mt-3 rounded-panel border border-edge bg-surface p-2 pl-4 focus-within:border-thread"
         onSubmit={(e) => {
           e.preventDefault()
           void send(message).catch(() => {})
@@ -109,7 +109,7 @@ export function ChatPanel({ draft, selection, clearSelection, beforeRevise }: Pr
           <button
             type="submit"
             disabled={!message.trim() || revise.isPending}
-            className="inline-flex min-h-10 items-center rounded-control bg-thread px-4 text-sm font-semibold text-on-thread disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
+            className="inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
           >
             Revise
           </button>

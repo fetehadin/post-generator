@@ -205,7 +205,7 @@ function WeekGrid({ days, items, now, onDrop, patch }: GridProps & { days: Date[
       <ol className="mt-6 flex flex-col gap-4 md:hidden">
         {days.map((day) => (
           <li key={day.toISOString()}>
-            <h3 className={`text-sm font-semibold ${sameDay(day, now) ? 'text-thread' : ''}`}>
+            <h3 className={`text-sm font-semibold ${sameDay(day, now) ? 'text-ink' : ''}`}>
               {dayName.format(day)} {day.getDate()}
             </h3>
             <div className="mt-1 flex flex-col gap-2">
@@ -224,7 +224,7 @@ function WeekGrid({ days, items, now, onDrop, patch }: GridProps & { days: Date[
           {days.map((day) => (
             <div
               key={day.toISOString()}
-              className={`border-l border-line px-2 py-2 text-center text-sm ${sameDay(day, now) ? 'font-semibold text-thread' : ''}`}
+              className={`border-l border-line px-2 py-2 text-center text-sm ${sameDay(day, now) ? 'bg-sunken font-semibold text-ink' : ''}`}
             >
               {dayName.format(day)} <span className="tabular-nums">{day.getDate()}</span>
             </div>
@@ -294,7 +294,7 @@ function MonthGrid({
               className={`flex min-h-28 flex-col gap-1 border-t border-l border-line p-1 ${day.getMonth() !== month ? 'bg-sunken/50' : ''}`}
             >
               <span
-                className={`text-xs tabular-nums ${sameDay(day, now) ? 'font-semibold text-thread' : 'text-muted'}`}
+                className={`text-xs tabular-nums ${sameDay(day, now) ? 'rounded-full bg-sunken px-1 font-semibold text-ink' : 'text-muted'}`}
               >
                 {day.getDate()}
               </span>

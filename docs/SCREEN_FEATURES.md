@@ -55,7 +55,7 @@ The suggestions follow the calm layout agreed on 19 Oct 2026:
 | Save the check-in without generating | FR-6 | Must | Menu (⋯ in the box), or autosave | **Menu** |
 | Starter ideas | DESIGN §4.1 | — | Show while the box is empty | **Show** while the box is empty |
 | Today's drafts (rows: platform, first line, status) | FR-11 | Must | Show | **Show** |
-| Past check-ins (view, edit, delete) | FR-6 | Must | Move → Drafts (a "Check-ins" tab) | **Move** → Drafts |
+| Past check-ins (view, edit, delete) | FR-6 | Must | Move → Drafts (a "Check-ins" tab) | **Move** → the chat threads (owner, 2 Nov 2026): each check-in is the first message of its thread in the sidebar |
 | GitHub items for today (commits, PR titles) | FR-14 | Should | Later (Phase 5+), then Menu (a "+ GitHub" chip in the box) | **Later** |
 | Suggested time to post | FR-16 | Should | Move → the approve dialog | **Move** → the approve dialog |
 | Reminder settings | FR-42 | Must | Move → Settings | **Move** → Settings |
@@ -92,7 +92,7 @@ The suggestions follow the calm layout agreed on 19 Oct 2026:
 | Filter by status and platform | FR-11 | Must | Show (two small filters) | **Show** |
 | Search drafts | — | — | Later | **Later** |
 | Discard / restore several at once | DESIGN §4.4 | — | Menu (select mode) | **Menu** |
-| Check-ins tab | FR-6 | Must | Show (tab) | **Show** |
+| Check-ins tab | FR-6 | Must | Show (tab) | **Cut** (owner, 2 Nov 2026): check-ins live in the sidebar's thread history |
 | Weekly publish rate | FR-15 | Should | Later | **Later** |
 
 ## Calendar

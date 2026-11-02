@@ -37,7 +37,7 @@ export function ApprovePanel({ draft, mode, onSave, onCancel, pending }: Props) 
     <section
       role="group"
       aria-label={mode === 'approve' ? 'Approve and schedule' : 'Change the time'}
-      className="mt-6 rounded-panel border border-thread bg-paper p-4"
+      className="mt-6 rounded-panel border border-primary bg-paper p-4"
     >
       <label htmlFor="when" className="block text-sm font-semibold">
         When (your time)
@@ -56,7 +56,7 @@ export function ApprovePanel({ draft, mode, onSave, onCancel, pending }: Props) 
           type="button"
           disabled={!when || pending}
           onClick={() => onSave({ ...approve, scheduled_for: fromLocalInput(when) })}
-          className="inline-flex min-h-10 items-center rounded-control bg-thread px-4 text-sm font-semibold text-on-thread disabled:bg-sunken disabled:text-muted"
+          className="inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:bg-sunken disabled:text-muted"
         >
           {mode === 'approve' ? 'Approve and schedule' : 'Save the new time'}
         </button>
