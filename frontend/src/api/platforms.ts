@@ -41,10 +41,11 @@ export type PlatformSettings = Partial<{
   channel: string | null
 }>
 
-export function usePlatform(platform: Platform) {
+export function usePlatform(platform: Platform, enabled = true) {
   return useQuery({
     queryKey: ['platform', platform],
     queryFn: () => api<PlatformInfo>(`/platforms/${platform}`),
+    enabled,
   })
 }
 
