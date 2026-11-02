@@ -2,9 +2,8 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useMe, useNotifications, useSetTimezone } from '../api/me'
 import { useThreads } from '../api/threads'
-import type { Platform } from '../api/types'
 import { cn } from '../lib/utils'
-import { LABEL } from '../lib/platforms'
+import { LABEL, PLATFORMS } from '../lib/platforms'
 import { applyTheme, nextTheme, savedTheme, type Theme } from '../lib/theme'
 import { Icon, type IconName } from './Icon'
 import { needsAction, NotificationsPanel } from './NotificationsPanel'
@@ -16,7 +15,6 @@ const NEXT: Record<Theme, Theme> = { light: 'dark', dark: 'light' }
 const COLLAPSED_KEY = 'voxlace-sidebar-collapsed'
 const DRAFTS_OPEN_KEY = 'voxlace-drafts-open'
 const TZ_SENT_KEY = 'voxlace-timezone-sent'
-const PLATFORMS: Platform[] = ['x', 'linkedin', 'telegram']
 
 function remembered(key: string, fallback: boolean): boolean {
   try {

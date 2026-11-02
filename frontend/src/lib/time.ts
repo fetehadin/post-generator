@@ -82,3 +82,42 @@ export function nextDays(count: number, timeZone?: string, now = new Date()): Da
     return { date, label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : weekday.format(noon) }
   })
 }
+
+/** Minutes the zone is ahead of UTC at an instant (from Intl's parts, not locale strings). */
+function offsetMinutes(at: Date, timeZone: string): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+      .formatToParts(at)
+      .map((p) => [p.type, p.value]),
+  )
+  const wall = Date.UTC(
+    +parts.year,
+    +parts.month - 1,
+    +parts.day,
+    +parts.hour,
+    +parts.minute,
+    +parts.second,
+  )
+  return Math.round((wall - at.getTime()) / 60_000)
+}
+
+/**
+ * "2026-11-04" + "18:30" on the user's clock → UTC ISO (rule 6). The zone's offset is taken
+ * at the local time itself, checked twice, so times next to a daylight-saving change are right.
+ */
+export function localToUtc(day: string, time: string, timeZone?: string): string {
+  if (!timeZone) return new Date(`${day}T${time}:00`).toISOString()
+  const naive = Date.parse(`${day}T${time}:00Z`)
+  let at = naive - offsetMinutes(new Date(naive), timeZone) * 60_000
+  at = naive - offsetMinutes(new Date(at), timeZone) * 60_000
+  return new Date(at).toISOString()
+}
