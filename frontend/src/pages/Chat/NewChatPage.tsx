@@ -105,6 +105,11 @@ export function NewChatPage() {
         </div>
       )}
       <RecentChats />
+      <p className="mt-12 text-sm">
+        <Link to="/checkins" className="text-thread underline underline-offset-4">
+          Past check-ins
+        </Link>
+      </p>
     </div>
   )
 }

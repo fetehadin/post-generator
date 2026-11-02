@@ -14,7 +14,11 @@ function useCheckinMutation<I, O>(fn: (input: I) => Promise<O>) {
   const client = useQueryClient()
   return useMutation({
     mutationFn: fn,
-    onSuccess: () => client.invalidateQueries({ queryKey: ['checkins'] }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['checkins'] })
+      // A chat opens with its check-in, so the chats show the change too.
+      void client.invalidateQueries({ queryKey: ['threads'] })
+    },
   })
 }
 

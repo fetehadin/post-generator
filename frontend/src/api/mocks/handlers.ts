@@ -581,13 +581,18 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
   if (checkinMatch) {
     const i = checkins.findIndex((c) => c.id === checkinMatch[1])
     if (i < 0) return json(404, { error: { code: 'not_found', message: 'Not found.' } })
+    // A thread reads its check-in live (threads.py): keep the two in step.
+    const linked = threads.filter((t) => t.checkin_id === checkins[i].id)
     if (init?.method === 'DELETE') {
       checkins.splice(i, 1)
+      for (const t of linked) Object.assign(t, { checkin_id: null, checkin_text: t.title })
       return new Response(null, { status: 204 })
     }
     Object.assign(checkins[i], JSON.parse(String(init?.body)), {
       updated_at: new Date().toISOString(),
     })
+    // Like the backend: the thread's checkin_text follows; its first message keeps its text.
+    for (const t of linked) t.checkin_text = checkins[i].text
     return json(200, checkins[i])
   }
 
