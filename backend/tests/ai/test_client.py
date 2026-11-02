@@ -424,9 +424,10 @@ def make_timed(models, deadline=40, chain="google:first,google:second"):
 
 
 def test_retries_stop_at_the_deadline_and_the_next_model_is_tried():
-    # first: 429 forever. Waits 2+4+8 = 14 s; the next 16 s wait would pass 20 s, so move on.
+    # first: 429 forever, with 60% of 40 s = 24 s. Waits 2+4+8 = 14 s; the next 16 s would
+    # pass 24 s, so move on; second (the last model) has the 26 s that are left.
     models = FakeModels(gen_failures={"first": [429] * 10})
-    client, clock = make_timed(models, deadline=20)
+    client, clock = make_timed(models, deadline=40)
     assert client.generate("prompt").model == "second"
     assert models.gen_calls == ["first"] * 4 + ["second"]
     assert clock.now == 14
@@ -448,16 +449,34 @@ def test_past_the_deadline_the_rest_of_the_chain_is_not_tried():
     assert "second not tried, out of time" in str(e.value)
 
 
-def test_each_call_gets_only_the_time_that_is_left():
+def test_a_slow_first_model_leaves_time_for_the_backup():
     seen = []
     models = FakeModels()
+    client, clock = make_timed(models, deadline=40)
 
     def record(model, contents, config):
         seen.append(config.http_options.timeout)
+        if model == "first":
+            clock.now += 24  # hangs until its share runs out
+            raise api_error(504)
         return SimpleNamespace(text="draft", model_version="v")
 
     models.generate_content = record
+    assert client.generate("prompt").model == "second"
+    assert seen == [24_000, 16_000]  # 60% of 40 s while a backup remains; the rest for it
+
+
+def test_gemini_is_skipped_rather_than_given_under_10_seconds():
+    models = FakeModels()
     client, clock = make_timed(models, deadline=40)
-    clock.now = 0
-    client.generate("prompt")
-    assert seen == [40_000]  # under ai_timeout_seconds (60), so the deadline wins
+
+    def slow(model, contents, config):
+        models.gen_calls.append(model)
+        clock.now += 35
+        raise api_error(504)
+
+    models.generate_content = slow
+    with pytest.raises(AIUnavailable) as e:
+        client.generate("prompt")
+    assert models.gen_calls == ["first"]  # second had 5 s left: not asked (Gemini needs 10)
+    assert "under 10 s left" in str(e.value)
