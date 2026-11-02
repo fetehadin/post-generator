@@ -272,7 +272,7 @@ Send only what changes; returns `GET`'s shape.
 | `audience_profession` | `general`, `developers`, `business`, `students` or `creatives`; `null` → `general`. |
 | `goal` | Free text, up to 500 characters. |
 | `posts_per_week` | 0–50. |
-| `channel` | Telegram only: the channel's public name (`@fetescript`, `fetescript` or `https://t.me/fetescript` → saved as `fetescript`); used for the hand-off (FR-12). Bad name → `400 invalid_channel`; `""` clears it. |
+| `channel` | Telegram only: the channel's public name (`@fetescript`, `fetescript`, `t.me/fetescript`, `https://t.me/fetescript`, also `http://`, `telegram.me/`, the `t.me/s/` preview and a `?start=…` tail → saved as `fetescript`; 5–32 characters, a letter first, then letters, digits or `_`, not ending in `_`); used for the hand-off (FR-12). Bad name → `400 invalid_channel`; `""` clears it. |
 
 ### `GET /platforms/{platform}/best-hours?start=2026-10-26&days=7`
 
@@ -286,7 +286,7 @@ Each day's hours scored for this platform's audience (FR-16, FR-34). `days` 1–
 ```
 
 - A score is how active the audience is at that hour of the user's day, 1.0 = the day's best. Each audience place is looked up on its own clock (study curves per platform and weekday, reshaped by the audience's profession), then weighed by share.
-- `best`: the top three hours inside the user's posting window (`post_window_start`/`end` in `GET /profile`), best first.
+- `best`: the top three hours inside the user's posting window (`post_window_start`/`end` in `GET /profile`), best first. Hours that have passed (or start within 15 minutes) are left out, so a day in the past has `[]`. They're ranked the way approving with a day ranks them, but posts already scheduled aren't counted here: approving a second post that day can pick a later hour to keep the gap. `scores` always cover all 24 hours.
 - `source` is `your_posts` once the user has 50+ posts with reactions on this platform: their own results are blended in per hour, weighted by how many posts back each hour.
 
 ---
