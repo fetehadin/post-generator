@@ -2,7 +2,26 @@
 
 A running log so anyone (Nezira especially) can catch up: what was done, where, the result, and what's next. Newest first. Claude updates it at the end of every task.
 
-**Where we are:** Phase 3 officially (CLAUDE.md). Code for Phases 3–6 is mostly built, but no demo after Phase 2 has run yet. The task queue is set by Fetehadin. Nezira is away, so each PR is reviewed by a fresh-context review subagent plus Fetehadin's reading of the summary, and tagged `@Nezira_Worku please post-review` so she reads it when she's back.
+**Where we are:** Phase 3 officially (CLAUDE.md). Code for Phases 3–6 is mostly built (the inspiration pool, #51, closed the last Phase 3 build item), but no demo after Phase 2 has run yet. The task queue is set by Fetehadin. Nezira is away, so each PR is reviewed by a fresh-context review subagent plus Fetehadin's reading of the summary, and tagged `@Nezira_Worku please post-review` so she reads it when she's back.
+
+---
+
+## 2026-11-02: Task 3, merge #50–#52 and small follow-ups (`ccr-dcb4a37a-rurkna`)
+
+**Result: #51 and #52 merged; follow-ups pushed on the branch, PR not opened yet.**
+- #50 (one deadline for a whole draft, NFR-3) was already merged on 1 Nov.
+- [#52](https://github.com/fetehadin/post-generator/pull/52) `323d518`: while backups remain, one model gets 60% of the time left, and Gemini is skipped rather than given under 10 s. Review: no must-fix; two nits are in the PR comment.
+- [#51](https://github.com/fetehadin/post-generator/pull/51) `612013f`: inspiration pool per platform (`exemplar_posts`, migration 0010, FR-5). Updated from main by merge, CI green, second review: no must-fix.
+- Before merging, the two together were checked on a fresh pgvector database: 0010 upgrades, downgrades and upgrades again; 349 backend tests pass. Frontend: 98 tests pass and the build works.
+- On the branch:
+  - `CLAUDE.md`: commits never carry `Co-Authored-By` or any other attribution trailer (the owner's rule).
+  - `best-hours` leaves out hours that have passed (the same hours approving with a day can pick).
+  - Telegram channel names are 5–32 characters; `t.me/`, `http://` and `telegram.me/` links are accepted. `docs/API.md` is updated.
+- Checks on the branch after merging main: ruff passes, 351 backend tests pass; frontend lint passes, 98 tests pass and the build works.
+- Tests now use their own database (`voxlace_test`, created by the first `pytest` run), never the dev database.
+- **Your dev database:** run `alembic upgrade head` for 0009 and 0010.
+
+**Next:** open the PR for this branch, then the Phase 3 demo (it needs a LinkedIn export), then the first Contabo deploy.
 
 ---
 
@@ -68,15 +87,12 @@ Each is small. They're listed here instead of being fixed, to keep every PR to i
 - `REVOKE INSERT, UPDATE, DELETE` from `voxlace_app` on the shared seed tables `posting_curves` and `platform_profiles` (grants, #47).
 - `deploy/README.md` still mentions the Telegram worker (SRS 1.3).
 - `Caddyfile.internal`: `trusted_proxies`, so Caddy keeps real client IPs. Not needed until the app reads client IPs (#43).
-- `.env.example` can only be edited by Fetehadin (Q23): replace `FALLBACK_API_KEY` with `GROQ_API_KEY`, set the model to `groq:openai/gpt-oss-120b`, and drop `TELEGRAM_BOT_TOKEN` and `WORKER_INTERVAL_SECONDS`.
 
 **Code**
-- `ai/client.py` `generate()`: no overall deadline, so with every model struggling one request can run for minutes (NFR-3). The `openai/gpt-oss` options and `GROQ_URL` could move to settings (#45).
+- `ai/client.py`: the overall deadline is done (#50, #52). The `openai/gpt-oss` options and `GROQ_URL` could still move to settings (#45).
 - Scheduling (#47):
   - A posting window over midnight takes its early hours from the start of `day`.
   - Two parallel `/schedule` calls can pick the same hour.
-  - Telegram channel names are 5–32 characters, so the pattern needs `{4,31}` after the first letter; `t.me/` and `http://` forms should be accepted too.
-  - On today's date, `best-hours` lists hours that have passed.
 - Threads (#46):
   - `available_timezones()` is uncached; consider the `tzdata` package (a dependency) so time zone names don't depend on the server's operating system.
   - Missed posts have no lower age bound.
@@ -87,4 +103,4 @@ Each is small. They're listed here instead of being fixed, to keep every PR to i
 - NFR-14 kept its id but changed meaning. FR-41 still mentions "the editor". FR-45 doesn't state its gap numbers.
 
 **Local setup**
-- Backend tests run against the **dev database** (`MIGRATIONS_DATABASE_URL`), which holds real imported posts and is currently at the unmerged migration `0009`. For this task, Claude ran them against a throwaway container (`voxlace-check`, port 5435), the same way CI does. A separate `voxlace_test` database in `docker-compose.yml` would make this the default. That's a small `chore` PR.
+- Done on 2 Nov (#53): backend tests now always use `<your database>_test` on the same server, created on the first run. Your dev database and its real posts are never touched.

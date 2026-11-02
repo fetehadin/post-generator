@@ -134,6 +134,25 @@ def _exists(t: datetime) -> bool:
     return t.astimezone(UTC).astimezone(t.tzinfo).replace(tzinfo=None) == t.replace(tzinfo=None)
 
 
+def open_hours(
+    day: date, user_tz: ZoneInfo, window: tuple[time, time], now: datetime
+) -> list[datetime]:
+    """The hours of `day` that can still be used: inside the window, on the clock (not skipped
+    by daylight saving) and at least LEAD from now. Aware local datetimes, earliest first."""
+    return [
+        t
+        for h in range(24)
+        if in_window(h, *window)
+        and _exists(t := datetime.combine(day, time(h), user_tz))
+        and t > now + LEAD
+    ]
+
+
+def rank_hours(hours: Sequence[datetime], scores: list[float]) -> list[datetime]:
+    """Best score first; on a tie, the earlier hour. One order for best-hours and picking."""
+    return sorted(hours, key=lambda t: (-scores[t.hour], t.hour))
+
+
 def pick_hour(
     day: date,
     scores: list[float],
@@ -145,16 +164,10 @@ def pick_hour(
 ) -> tuple[datetime, bool] | None:
     """The best free hour of `day`, as an aware local datetime, and whether the gap had to be
     given up because the day is full. None when no hour of the window is left."""
-    open_hours = [
-        t
-        for h in range(24)
-        if in_window(h, *window)
-        and _exists(t := datetime.combine(day, time(h), user_tz))
-        and t > now + LEAD
-    ]
-    if not open_hours:
+    hours = open_hours(day, user_tz, window, now)
+    if not hours:
         return None
-    by_score = sorted(open_hours, key=lambda t: (-scores[t.hour], t.hour))
+    by_score = rank_hours(hours, scores)
     for t in by_score:
         if all(abs(t - other) >= gap for other in taken):
             return t, False
@@ -241,18 +254,25 @@ def _scores(ctx: Context, day: date) -> list[float]:
 
 
 def best_hours(
-    user_id: uuid.UUID, platform: str, start: date, days: int = 7
+    user_id: uuid.UUID,
+    platform: str,
+    start: date,
+    days: int = 7,
+    now: datetime | None = None,
 ) -> tuple[list[DayScores], str, str]:
-    """Each day's 24 scores and its top hours inside the window. Also the source of the
+    """Each day's 24 scores and its top hours inside the window that haven't passed, ranked
+    the way approving with a day ranks them. Posts already scheduled aren't counted here, so
+    approving a second post can pick a later hour to keep the gap. Also the source of the
     numbers ("studies" or "your_posts") and the user's time zone name."""
+    now = now or datetime.now(UTC)
     with user_session(user_id) as s:
         ctx = _context(s, user_id, platform)
     out = []
     for i in range(days):
         day = start + timedelta(days=i)
         scores = _scores(ctx, day)
-        hours = [h for h in range(24) if in_window(h, *ctx.window)]
-        out.append(DayScores(day, scores, sorted(hours, key=lambda h: (-scores[h], h))[:3]))
+        ranked = rank_hours(open_hours(day, ctx.user_tz, ctx.window, now), scores)
+        out.append(DayScores(day, scores, [t.hour for t in ranked[:3]]))
     return out, ("your_posts" if ctx.own else "studies"), ctx.user_tz.key
 
 
