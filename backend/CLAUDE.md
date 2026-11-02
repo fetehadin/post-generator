@@ -85,6 +85,7 @@ ruff check . --fix && ruff format .
 
 ## Tests
 
-- `conftest.py` provides a test database (migrated once per session, each test in a rolled-back transaction), two users `user_a` and `user_b`, and an authenticated client for each.
+- Tests never touch the dev database. `tests/conftest.py` points them at the same server with `_test` added to the database name (`voxlace` → `voxlace_test`), creates it on the first run (pgvector plus the app role's grants) and migrates it once per session. CI's database is already called `voxlace_test`.
+- `conftest.py` provides two users `user_a` and `user_b`, and an authenticated client for each.
 - Every endpoint that returns user data gets a test proving `user_b` can't see `user_a`'s rows (FR-29).
 - Name tests by behaviour: `test_reimport_creates_no_duplicates`.

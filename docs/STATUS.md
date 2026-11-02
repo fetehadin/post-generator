@@ -18,6 +18,7 @@ A running log so anyone (Nezira especially) can catch up: what was done, where, 
   - `best-hours` leaves out hours that have passed (the same hours approving with a day can pick).
   - Telegram channel names are 5–32 characters; `t.me/`, `http://` and `telegram.me/` links are accepted. `docs/API.md` is updated.
 - Checks on the branch after merging main: ruff passes, 351 backend tests pass; frontend lint passes, 98 tests pass and the build works.
+- Tests now use their own database (`voxlace_test`, created by the first `pytest` run), never the dev database.
 - **Your dev database:** run `alembic upgrade head` for 0009 and 0010.
 
 **Next:** open the PR for this branch, then the Phase 3 demo (it needs a LinkedIn export), then the first Contabo deploy.
@@ -102,4 +103,4 @@ Each is small. They're listed here instead of being fixed, to keep every PR to i
 - NFR-14 kept its id but changed meaning. FR-41 still mentions "the editor". FR-45 doesn't state its gap numbers.
 
 **Local setup**
-- Backend tests run against the **dev database** (`MIGRATIONS_DATABASE_URL`), which holds real imported posts and is currently at the unmerged migration `0009`. For this task, Claude ran them against a throwaway container (`voxlace-check`, port 5435), the same way CI does. A separate `voxlace_test` database in `docker-compose.yml` would make this the default. That's a small `chore` PR.
+- Done on 2 Nov (#53): backend tests now always use `<your database>_test` on the same server, created on the first run. Your dev database and its real posts are never touched.
