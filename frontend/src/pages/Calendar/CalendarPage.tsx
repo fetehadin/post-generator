@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useDrafts, usePatchAnyDraft } from '../../api/drafts'
-import { useNotifications } from '../../api/me'
+import { useNotifications, useZone } from '../../api/me'
 import type { DraftRow } from '../../api/types'
 import { addDays, monthWeeks, moveTo, sameDay, startOfWeek, weekDays } from '../../lib/calendar'
 import { formatWhen } from '../../lib/time'
@@ -158,6 +158,7 @@ export function CalendarPage() {
 }
 
 function UpNext({ items }: { items: DraftRow[] }) {
+  const zone = useZone()
   if (!items.length) return null
   return (
     <section aria-labelledby="up-next" className="mt-6">
@@ -171,7 +172,7 @@ function UpNext({ items }: { items: DraftRow[] }) {
               to={`/drafts/${d.id}`}
               className="block rounded-control border border-line bg-surface px-3 py-2 text-sm hover:border-edge"
             >
-              <span className="font-semibold">{formatWhen(d.scheduled_for!)}</span>{' '}
+              <span className="font-semibold">{formatWhen(d.scheduled_for!, zone)}</span>{' '}
               <span className="text-muted">{d.text.split('\n')[0].slice(0, 40)}</span>
             </Link>
           </li>

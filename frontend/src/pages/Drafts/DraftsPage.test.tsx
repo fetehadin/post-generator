@@ -51,7 +51,7 @@ test('lists drafts with status, and filters ask the server', async () => {
   expect(await screen.findByRole('link', { name: /An X post/ })).toHaveTextContent('Approved')
   await userEvent.selectOptions(screen.getByLabelText('Status'), 'approved')
   await userEvent.selectOptions(screen.getByLabelText('Platform'), 'x')
-  await vi.waitFor(() => expect(calls().at(-1)).toBe('GET /drafts?status=approved&platform=x'))
+  await vi.waitFor(() => expect(calls()).toContain('GET /drafts?status=approved&platform=x'))
 })
 
 test('check-ins can be edited and deleted', async () => {

@@ -230,6 +230,30 @@ let me = {
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
+/**
+ * Something to look at on first load: yesterday's chat with an X and a LinkedIn draft, a
+ * LinkedIn post due now and a Telegram post missed two days ago (both approved).
+ */
+function seed() {
+  const back = (ms: number) => new Date(Date.now() - ms).toISOString()
+  const t = newThread(
+    'Finished the Telegram importer and wrote tests for formatted messages',
+    localDay(back(86_400_000)),
+  )
+  t.created_at = t.updated_at = back(86_400_000)
+  for (const platform of ['x', 'linkedin'] as Platform[]) {
+    const d = newDraft(platform, t.checkin_text, t.id)
+    say(d, 'assistant', '', true)
+  }
+  const due = drafts.find((d) => d.platform === 'linkedin')!
+  Object.assign(due, { status: 'approved', scheduled_for: back(5 * 60_000) })
+  const missed = newDraft('telegram', t.checkin_text, t.id)
+  say(missed, 'assistant', '', true)
+  Object.assign(missed, { status: 'approved', scheduled_for: back(2 * 86_400_000) })
+  t.updated_at = back(86_400_000)
+}
+seed()
+
 export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input), 'http://mock')
   const path = url.pathname.replace('/api/v1', '')
