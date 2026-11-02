@@ -1,43 +1,41 @@
 @import 'tailwindcss';
 
 /*
- * Design tokens v2.1 (docs/DESIGN.md §5, design/prototypes/tokens.css).
- * Components use these names only, never raw hex. Themes: <html data-theme="light|dark|mixed">;
- * with no attribute the system preference decides. In "mixed", anything marked .page is light.
+ * Design tokens v3 (docs/DESIGN.md §5, decided 22 Oct 2026): ScholarXIV's zinc palette, light
+ * and dark only. Components use these names only, never raw hex. <html data-theme="light|dark">;
+ * with no attribute the system preference decides. Teal (--thread) is only the AI mark: the
+ * "AI draft" label, the focus ring and links. Primary buttons and selected chips use --primary.
  */
 :root,
-[data-theme='light'],
-[data-theme='mixed'] .page {
-  --paper: #f7f6f3;
+[data-theme='light'] {
+  --paper: #ffffff;
   --surface: #ffffff;
-  --sunken: #efede8;
-  --line: #e2dfd8;
-  --edge: #8a8478;
-  --ink: #1f1d1a;
-  --ink-2: #5c574e;
-  --on-ink: #faf9f6;
+  --sunken: #f4f4f5;
+  --line: #e4e4e7;
+  --edge: #8a8a93;
+  --ink: #09090b;
+  --ink-2: #52525b;
+  --primary: #18181b;
+  --on-primary: #fafafa;
   --thread: #2b6b5b;
-  --thread-soft: #e2eee9;
-  --on-thread: #ffffff;
   --signal: #8f5508;
   --danger: #b42318;
-  --shadow-float: 0 8px 24px rgb(31 29 26 / 0.12), 0 1px 2px rgb(31 29 26 / 0.08);
+  --shadow-float: 0 8px 24px rgb(9 9 11 / 0.12), 0 1px 2px rgb(9 9 11 / 0.08);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --paper: #161513;
-    --surface: #1e1c19;
-    --sunken: #282622;
-    --line: #34312c;
-    --edge: #7a7469;
-    --ink: #edeae4;
-    --ink-2: #a9a399;
-    --on-ink: #1f1d1a;
+    --paper: #171717;
+    --surface: #1c1c1c;
+    --sunken: #262626;
+    --line: #2e2e2e;
+    --edge: #7a7a82;
+    --ink: #fafafa;
+    --ink-2: #a1a1aa;
+    --primary: #fafafa;
+    --on-primary: #18181b;
     --thread: #72c4ae;
-    --thread-soft: #1f3530;
-    --on-thread: #161513;
     --signal: #e3a64c;
     --danger: #f2806f;
     --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
@@ -45,40 +43,21 @@
   }
 }
 
-[data-theme='dark'],
-[data-theme='mixed'] {
-  --paper: #161513;
-  --surface: #1e1c19;
-  --sunken: #282622;
-  --line: #34312c;
-  --edge: #7a7469;
-  --ink: #edeae4;
-  --ink-2: #a9a399;
-  --on-ink: #1f1d1a;
+[data-theme='dark'] {
+  --paper: #171717;
+  --surface: #1c1c1c;
+  --sunken: #262626;
+  --line: #2e2e2e;
+  --edge: #7a7a82;
+  --ink: #fafafa;
+  --ink-2: #a1a1aa;
+  --primary: #fafafa;
+  --on-primary: #18181b;
   --thread: #72c4ae;
-  --thread-soft: #1f3530;
-  --on-thread: #161513;
   --signal: #e3a64c;
   --danger: #f2806f;
   --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
   color-scheme: dark;
-}
-
-/* Mixed again, after the dark block, so the page wins. */
-[data-theme='mixed'] .page {
-  --paper: #f7f6f3;
-  --surface: #ffffff;
-  --sunken: #efede8;
-  --line: #e2dfd8;
-  --edge: #8a8478;
-  --ink: #1f1d1a;
-  --ink-2: #5c574e;
-  --thread: #2b6b5b;
-  --thread-soft: #e2eee9;
-  --on-thread: #ffffff;
-  --signal: #8f5508;
-  --danger: #b42318;
-  color-scheme: light;
 }
 
 @theme inline {
@@ -89,15 +68,13 @@
   --color-edge: var(--edge);
   --color-ink: var(--ink);
   --color-muted: var(--ink-2);
-  --color-on-ink: var(--on-ink);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
   --color-thread: var(--thread);
-  --color-thread-soft: var(--thread-soft);
-  --color-on-thread: var(--on-thread);
   --color-signal: var(--signal);
   --color-danger: var(--danger);
   --radius-control: 8px;
   --radius-panel: 12px;
-  --radius-ask: 24px;
   --shadow-float: var(--shadow-float);
   /* Self-hosted via @fontsource (imported in main.tsx). */
   --font-sans: 'Archivo', 'Noto Sans Ethiopic', system-ui, sans-serif;
@@ -110,9 +87,14 @@
   --text-2xl: 1.875rem;
 }
 
+html {
+  /* Bars never hide focus (WCAG 2.4.11): leave room for the mobile tab bar. */
+  scroll-padding-bottom: 5rem;
+}
+
 html,
 body {
-  background: var(--surface);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -123,7 +105,16 @@ body {
   outline-offset: 2px;
 }
 
+:root {
+  --duration: 150ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration: 0ms;
+  }
+
   * {
     transition-duration: 0ms !important;
     animation-duration: 0ms !important;

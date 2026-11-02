@@ -100,7 +100,7 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={busy}
-          className="mt-2 min-h-10 rounded-control bg-thread px-4 text-sm font-semibold text-on-thread disabled:bg-sunken disabled:text-muted"
+          className="mt-2 min-h-10 rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:bg-sunken disabled:text-muted"
         >
           {busy ? 'One moment…' : signup ? 'Create account' : 'Log in'}
         </button>

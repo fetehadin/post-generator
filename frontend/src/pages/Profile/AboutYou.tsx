@@ -285,7 +285,7 @@ function AboutForm({ saved }: { saved: Profile }) {
         <button
           type="submit"
           disabled={busy}
-          className="inline-flex min-h-10 items-center rounded-control bg-thread px-4 text-sm font-semibold text-on-thread disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
+          className="inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
         >
           {save.isPending ? 'Saving…' : 'Save profile'}
         </button>
