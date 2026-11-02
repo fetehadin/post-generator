@@ -31,7 +31,7 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 | # | Principle | What it means on screen | Grounded in |
 |---|---|---|---|
 | 1 | **You're the author** | Nothing leaves the app without an explicit Approve or Publish click. The button says exactly what happens: "Copy and open Telegram", not "Submit". | G16 (convey consequences), FR-12, NFR-6 |
-| 2 | **Just the draft** | The editor shows the draft and nothing about how it was made: no sources, no model names, no scores. The user judges the words and gives feedback. Pinning and excluding past posts (FR-25) lives in Voice. *(Changed 19 Oct 2026 at the product owner's request; replaces "Show your sources".)* | Calm by default; FR-11 still labels it "AI draft" |
+| 2 | **Just the draft** | The editor shows the draft and nothing about how it was made: no sources, no model names, no scores. The user judges the words and gives feedback. Pinning and excluding past posts (FR-25) lives in Voice. *(Changed 19 Oct 2026 at the product owner's request; replaces "Show your sources".)* The exact prompt (NFR-15) shows only in development builds (owner, 2 Nov 2026). | Calm by default; FR-11 still labels it "AI draft" |
 | 3 | **Be honest about quality** | Show voice strength per platform from post count ("12 posts: voice is still learning"). Never promise a perfect match. | G1–G2 (what it can do, how well), FR-5 |
 | 4 | **Fix in one click** | Quick revisions (Shorter, Punchier, More casual) sit next to a free-text "Tell it what to change" box. People use both. | G9 (efficient correction); toolbar + free-prompt study |
 | 5 | **Preview the real thing** | Drafts render the way each platform shows them: X's limit and line breaks, LinkedIn's "see more" fold at about 210 characters. | Platform rules, FR-9 |
@@ -276,7 +276,7 @@ Headings 22px and up use `--tracking-tight` (−0.02em). Interface line-height i
 
 ## 6. Components
 
-**Recommendation: [shadcn/ui](https://ui.shadcn.com/docs).** It copies accessible component source into your repo (built on headless primitives and Tailwind), so you own and restyle the code instead of fighting a library's look. *This is a new dependency, so agree on it together before Phase 2 (CLAUDE.md "Ask before you").*
+**Recommendation: [shadcn/ui](https://ui.shadcn.com/docs).** It copies accessible component source into your repo (built on headless primitives and Tailwind), so you own and restyle the code instead of fighting a library's look. **Agreed by the product owner, 2 Nov 2026:** used for menus, dialogs and tabs, restyled with the tokens in §5.
 
 Product components to build on top:
 

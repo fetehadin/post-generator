@@ -89,7 +89,9 @@ export function UploadPage() {
               create.reset()
             }}
             className={`inline-flex min-h-9 items-center gap-1 rounded-full border px-4 text-sm ${
-              platform === p ? 'border-thread bg-thread-soft font-semibold' : 'border-edge'
+              platform === p
+                ? 'border-primary bg-primary font-semibold text-on-primary'
+                : 'border-edge'
             }`}
           >
             {platform === p && <span aria-hidden="true">✓</span>}
@@ -149,7 +151,7 @@ export function UploadPage() {
         <button
           type="submit"
           disabled={!file || tooBig || create.isPending}
-          className="mt-6 inline-flex min-h-10 items-center rounded-control bg-thread px-4 text-sm font-semibold text-on-thread disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
+          className="mt-6 inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
         >
           {create.isPending ? 'Reading your posts…' : 'Import posts'}
         </button>
@@ -204,7 +206,7 @@ function Result({ job, premiumHint }: { job: ImportJob; premiumHint: boolean | n
             <p className="font-semibold">Your voice is ready.</p>
             <Link
               to="/"
-              className="mt-4 inline-flex min-h-10 items-center rounded-control bg-thread px-4 text-sm font-semibold text-on-thread"
+              className="mt-4 inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary"
             >
               Write your first post
             </Link>
@@ -219,7 +221,7 @@ function Result({ job, premiumHint }: { job: ImportJob; premiumHint: boolean | n
               id="learning"
               max={Math.max(job.parsed, 1)}
               value={job.embedded}
-              className="mt-2 block h-2 w-full overflow-hidden rounded-full [&::-moz-progress-bar]:bg-thread [&::-webkit-progress-bar]:bg-sunken [&::-webkit-progress-value]:bg-thread"
+              className="mt-2 block h-2 w-full overflow-hidden rounded-full [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-sunken [&::-webkit-progress-value]:bg-primary"
             />
             <p className="mt-2 text-xs text-muted">
               About 100 posts a minute. You can leave this page; it keeps going.

@@ -31,7 +31,7 @@ export function CalendarItem({ draft, patch, compact = false }: Props) {
         e.dataTransfer.effectAllowed = 'move'
       }}
       aria-label={`${LABEL[draft.platform]} at ${time}`}
-      className="cursor-grab rounded-control border border-line border-l-2 border-l-thread bg-surface p-2 text-xs shadow-[0_1px_2px_rgb(0_0_0/0.04)] active:cursor-grabbing"
+      className="cursor-grab rounded-control border border-line border-l-2 border-l-primary bg-surface p-2 text-xs active:cursor-grabbing"
     >
       <Link to={`/drafts/${draft.id}`} className="flex items-center gap-1.5 hover:underline">
         <PlatformMark platform={draft.platform} />
@@ -63,7 +63,7 @@ export function CalendarItem({ draft, patch, compact = false }: Props) {
           />
           <button
             type="submit"
-            className="min-h-8 rounded-control bg-thread px-2 font-semibold text-on-thread"
+            className="min-h-8 rounded-control bg-primary px-2 font-semibold text-on-primary"
           >
             Move
           </button>

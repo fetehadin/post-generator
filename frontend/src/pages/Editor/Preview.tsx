@@ -21,14 +21,14 @@ export function Preview({
     <figure
       aria-label={`${LABEL[platform]} preview`}
       className={`rounded-panel border border-line bg-surface p-4 font-sans ${
-        platform === 'telegram' ? 'max-w-[480px] rounded-bl-none bg-thread-soft' : ''
+        platform === 'telegram' ? 'max-w-[480px] rounded-bl-none bg-sunken' : ''
       }`}
     >
       {platform !== 'telegram' && (
         <figcaption className="mb-2 flex items-center gap-2 text-sm">
           <span
             aria-hidden="true"
-            className="grid size-9 place-items-center rounded-full bg-thread font-semibold text-on-thread"
+            className="grid size-9 place-items-center rounded-full bg-primary font-semibold text-on-primary"
           >
             {name.charAt(0).toUpperCase()}
           </span>

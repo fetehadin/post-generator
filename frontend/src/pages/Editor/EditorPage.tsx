@@ -40,10 +40,11 @@ export function EditorPage() {
 }
 
 const tag = 'rounded-full border border-line px-2 text-xs text-muted'
+const aiTag = 'rounded-full border border-thread px-2 text-xs text-thread'
 const secondary =
   'inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm disabled:text-muted'
 const primary =
-  'inline-flex min-h-10 items-center rounded-control bg-thread px-4 text-sm font-semibold text-on-thread disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
+  'inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
 
 function Editor({ draft }: { draft: DraftDetail }) {
   const [text, setText] = useState(draft.text)
@@ -149,7 +150,7 @@ function Editor({ draft }: { draft: DraftDetail }) {
         <span className="text-xs text-muted" role="status">
           {patch.isPending ? 'Saving…' : dirty && editable ? 'Unsaved' : ''}
         </span>
-        <span className={tag}>AI draft</span>
+        <span className={aiTag}>AI draft</span>
       </div>
 
       {patch.isError && (

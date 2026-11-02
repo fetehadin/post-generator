@@ -5,7 +5,7 @@ function Part({ name, value }: { name: string; value: string | undefined }) {
   return (
     <li className="flex items-center justify-between gap-4 py-3">
       <span>{name}</span>
-      <span className={ok ? 'font-semibold text-thread' : 'font-semibold text-danger'}>
+      <span className={ok ? 'font-semibold text-ink' : 'font-semibold text-danger'}>
         {value ?? 'unknown'}
       </span>
     </li>

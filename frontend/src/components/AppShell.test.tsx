@@ -51,14 +51,14 @@ test('the sidebar has Home, Calendar, Drafts and the profile card (DESIGN.md §2
   expect(side.getByRole('link', { name: /Profile & settings/ })).toHaveAttribute('href', '/profile')
 })
 
-test('the theme icon in the header cycles light → dark → mixed → light', async () => {
+test('the theme icon in the header switches light ⇄ dark (no mixed theme in v3)', async () => {
   renderShell()
   const seen = []
   for (let i = 0; i < 3; i++) {
     await userEvent.click(within(sidebar()).getByRole('button', { name: /^Theme:/ }))
     seen.push(document.documentElement.dataset.theme)
   }
-  expect(seen).toEqual(['dark', 'mixed', 'light'])
+  expect(seen).toEqual(['dark', 'light', 'dark'])
 })
 
 test('the collapse button sits outside the sidebar, keeps labels and is remembered', async () => {
