@@ -78,6 +78,9 @@
   --color-danger: var(--danger);
   /* Behind dialogs and sheets. */
   --color-scrim: var(--scrim);
+  /* The one centred column (DESIGN.md §5) and the writing line-height. */
+  --container-column: 720px;
+  --leading-writing: 1.7;
   --radius-control: 8px;
   --radius-panel: 12px;
   --shadow-float: var(--shadow-float);

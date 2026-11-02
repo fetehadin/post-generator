@@ -11,7 +11,7 @@ import { useMe } from '../../api/me'
 import type { DraftDetail } from '../../api/types'
 import { LengthCounter } from '../../components/LengthCounter'
 import { PlatformMark } from '../../components/PlatformMark'
-import { copyText, LINKEDIN_COMPOSER, xIntentUrl } from '../../lib/handoff'
+import { handOff as handOffDraft } from '../../lib/handoff'
 import { LABEL, RULES, STATUS_LABEL } from '../../lib/platforms'
 import { formatWhen } from '../../lib/time'
 import { ApprovePanel } from './ApprovePanel'
@@ -68,14 +68,14 @@ function Editor({ draft }: { draft: DraftDetail }) {
     patch.mutate(c, { onSuccess: () => setPanel('none') })
   }
 
+  // The shared hand-off: approved drafts only (rule 4), the tab opens before the copy.
   async function handOff() {
-    if (draft.platform === 'x') {
-      window.open(xIntentUrl(draft.text), '_blank', 'noopener')
-      return
+    try {
+      const { copied } = await handOffDraft(draft)
+      if (copied !== null) setCopied(copied ? 'yes' : 'no')
+    } catch {
+      setCopied('no')
     }
-    const ok = await copyText(draft.text)
-    setCopied(ok ? 'yes' : 'no')
-    if (draft.platform === 'linkedin') window.open(LINKEDIN_COMPOSER, '_blank', 'noopener')
   }
 
   return (
