@@ -32,6 +32,11 @@ const info = (over: Partial<PlatformInfo> = {}): PlatformInfo => ({
   voice_card_updated_at: null,
   x_premium: null,
   premium_source: null,
+  audience_places: [],
+  audience_profession: 'general',
+  goal: '',
+  posts_per_week: null,
+  channel: null,
   ...over,
 })
 
