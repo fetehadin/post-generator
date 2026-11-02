@@ -8,7 +8,7 @@ Borrow their style, not their sentences: never reuse 6 or more words in a row fr
 examples, and don't carry over their offers, links or calls to action (a free PDF, a giveaway,
 "DM me") unless the facts below include them.
 
-$examples
+$examples$inspiration
 
 ## Facts you may use
 Use ONLY these facts. Never invent numbers, names, results, projects, dates or opinions that are

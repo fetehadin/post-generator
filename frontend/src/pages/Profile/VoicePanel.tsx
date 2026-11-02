@@ -42,8 +42,8 @@ function VoiceBody({ info, label }: { info: PlatformInfo; label: string }) {
       {s.thin && (
         <p role="status" className="mt-2 rounded-control bg-sunken px-3 py-2 text-sm">
           {s.post_count === 0
-            ? `No ${label} posts yet. Import some so drafts sound like you.`
-            : `Only ${s.post_count} ${label} posts. With fewer than 20, drafts may not sound quite like you.`}
+            ? `No ${label} posts yet. Until you import some, drafts follow Voxlace's example posts for their shape, not your voice.`
+            : `Only ${s.post_count} ${label} posts. With fewer than 20, drafts also follow Voxlace's example posts for their shape.`}
         </p>
       )}
 
