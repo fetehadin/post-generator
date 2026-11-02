@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { loadEnv } from 'vite'
@@ -30,6 +31,7 @@ function publicLoginSettings(mode: string): Record<string, string> {
 
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   define: publicLoginSettings(mode),
   server: {
     port: 5173,

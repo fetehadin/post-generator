@@ -24,7 +24,7 @@ beforeEach(() => {
       admitted: true,
       privacy_accepted: true,
     }),
-    'GET /drafts': () => ({ items: due }),
+    'GET /me/notifications': () => ({ due, missed: [], checkin_reminder: false }),
   })
 })
 

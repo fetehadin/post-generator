@@ -1,12 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from './client'
+import { api, json } from './client'
 import type { Checkin } from './types'
-
-const json = (method: string, body: unknown): RequestInit => ({
-  method,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-})
 
 /** GET /checkins (FR-6), newest day first. */
 export function useCheckins() {
