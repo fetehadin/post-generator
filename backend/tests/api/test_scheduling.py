@@ -3,6 +3,7 @@
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from app.services import scheduling
 from tests.api.test_api import upload, x_archive
 
 API = "/api/v1"
@@ -64,6 +65,35 @@ def test_bad_settings_are_refused_with_a_reason(api):
         {"timezone": z, "share": 25} for z in ("UTC", "Europe/Berlin", "Asia/Tokyo", "Asia/Dubai")
     ]
     assert api.put(url, json={"audience_places": four}).status_code == 422
+
+
+def test_channel_links_and_names_are_read_the_way_telegram_allows(api):
+    url = f"{API}/platforms/telegram/settings"
+    for given in ("t.me/fetescript", "http://t.me/fetescript/", "https://telegram.me/fetescript"):
+        r = api.put(url, json={"channel": given})
+        assert r.status_code == 200, (given, r.text)
+        assert r.json()["channel"] == "fetescript"
+    # Public names are 5–32 characters: 4 is too short, 32 fits, 33 is too long.
+    assert api.put(url, json={"channel": "abcd"}).json()["error"]["code"] == "invalid_channel"
+    assert api.put(url, json={"channel": "a" * 32}).status_code == 200
+    assert api.put(url, json={"channel": "a" * 33}).status_code == 400
+
+
+def test_best_hours_today_leave_out_hours_that_have_passed(api):
+    setup_user(api)
+    user_a = api.state["user"]
+    day = in_three_days()
+    # Pretend it's 15:00 on that day in Addis Ababa: only hours from 16:00 can still be used.
+    now = datetime.combine(day, datetime.min.time(), ADDIS).replace(hour=15)
+    (today,), _, _ = scheduling.best_hours(user_a, "telegram", day, 1, now=now)
+    assert today.best and all(h >= 16 for h in today.best)
+    assert len(today.scores) == 24  # the scores still cover the whole day
+    (tomorrow,), _, _ = scheduling.best_hours(
+        user_a, "telegram", day + timedelta(days=1), 1, now=now
+    )
+    assert len(tomorrow.best) == 3
+    (past,), _, _ = scheduling.best_hours(user_a, "telegram", day - timedelta(days=1), 1, now=now)
+    assert past.best == []
 
 
 def test_best_hours_follow_the_audience_and_stay_inside_the_posting_window(api):
