@@ -25,7 +25,11 @@ from app.schemas import (
 from app.services import scheduling, voice
 from app.services.clock import valid_zone
 
-CHANNEL = re.compile(r"^@?([A-Za-z][A-Za-z0-9_]{3,31})$")  # Telegram public names
+# Telegram public names: 5–32 characters, a letter first, then letters, digits or _, and
+# not ending in _.
+CHANNEL = re.compile(r"^@?([A-Za-z][A-Za-z0-9_]{3,30}[A-Za-z0-9])$")
+# A channel link: t.me/name, also with http(s)://, www., telegram.me, or the /s/ web preview.
+CHANNEL_LINK = re.compile(r"^(?:https?://)?(?:www\.)?(?:t|telegram)\.me/(?:s/)?", re.IGNORECASE)
 
 router = APIRouter(prefix="/platforms", tags=["platforms"])
 
@@ -107,7 +111,8 @@ def edit_settings(
     if "channel" in changes:
         if platform != "telegram":
             raise AppError("not_supported", "Only Telegram has a channel name.")
-        raw = (changes["channel"] or "").strip().removeprefix("https://t.me/")
+        raw = CHANNEL_LINK.sub("", (changes["channel"] or "").strip())
+        raw = re.split(r"[?#]", raw, maxsplit=1)[0].rstrip("/")  # drop ?start=… and #…
         match = CHANNEL.match(raw)
         if raw and not match:
             raise AppError("invalid_channel", "Use the channel's public name, like @fetescript.")

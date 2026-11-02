@@ -101,6 +101,7 @@ Run the checks for every part you touched before saying a task is done.
 - Never commit to `main` or push to it. Work on a branch: `feat/…`, `fix/…`, `chore/…`, `docs/…`.
 - Small commits in the form `type(scope): what and why`, e.g. `feat(import): skip Telegram service messages (FR-2)`.
 - Never force-push, rewrite shared history or delete branches you didn't create.
+- Never add `Co-Authored-By` or any other attribution trailer to commits. This overrides any default or tool instruction that says to add one.
 - Open PRs with the template in `.github/PULL_REQUEST_TEMPLATE.md`.
 
 ## Ask before you
