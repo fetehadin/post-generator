@@ -6,6 +6,18 @@ A running log so anyone (Nezira especially) can catch up: what was done, where, 
 
 ---
 
+## 2026-11-02: Task 4, UI/UX to DESIGN.md v3 (PRs #54–#57)
+
+**Result: PRs 1–4 of the owner-approved 7-PR plan built; #54, #55 and #56 merged, #57 open.** The backend had the SRS 1.3 features (threads, notifications, approve with a day), but the UI was still the 21 Oct layout with the v2 palette. Owner decisions (2 Nov): shadcn/ui agreed; the prompt view only in dev builds; the Drafts "Check-ins" tab is cut (check-ins live in chat threads).
+- #54: v3 zinc tokens, near-black primary, light and dark only.
+- #55: hooks and mocks for threads, schedule, notifications, reminders, time zone and best hours. Also the shadcn/ui parts (dialog, menu, tabs, popover, sheet), copied from the shadcn repo because ui.shadcn.com is blocked here.
+- #56: the app shell: chat history, Drafts → X · LinkedIn · Telegram, a notifications panel (bell below 1280px), and a guarded `handOff()` (rule 4).
+- #57: the chat board: new chat, "Which platforms?", cards with reply, quick changes, selection-scoped revise, Preview, ⋯ (versions for other platforms, edit by hand, discard), approve → day → picked hour and why, and copy-and-open only once approved.
+- Every PR: screenshots at 1280, 1024 and 390 in light and dark, the `design-reviewer` subagent and `/code-review`, with all must-fix items fixed before merging.
+- Note: by CLAUDE.md the chat board is Phase 4 while the current phase is 3. The owner approved finishing the UI for backend work already merged (#46, #47).
+
+**Next:** PR 5 Drafts per platform, PR 6 Calendar (day view, best hours), PR 7 Profile tabs (time zone, reminders, audience, channel).
+
 ## 2026-11-02: Task 3, merge #50–#52 and small follow-ups (`ccr-dcb4a37a-rurkna`)
 
 **Result: #51 and #52 merged; follow-ups pushed on the branch, PR not opened yet.**

@@ -1,6 +1,9 @@
 import type { Platform } from '../api/types'
 import type { CountingRule } from './xCount'
 
+/** Every platform, in the order the app shows them. */
+export const PLATFORMS: Platform[] = ['x', 'linkedin', 'telegram']
+
 export const LABEL: Record<Platform, string> = {
   x: 'X',
   linkedin: 'LinkedIn',
