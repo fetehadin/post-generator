@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from './client'
-import type { Platform } from './types'
+import { api, json } from './client'
+import type { AudiencePlace, AudienceProfession, BestHours, Platform } from './types'
 
 /** GET /platforms/{platform} (docs/API.md, Phase 3): one Profile tab's rules, voice and settings. */
 export type PlatformInfo = {
@@ -23,7 +23,23 @@ export type PlatformInfo = {
   voice_card_updated_at: string | null
   x_premium: boolean | null
   premium_source: 'user' | 'export' | null
+  /** FR-33: who the audience is and where it lives; FR-12: the Telegram channel name. */
+  audience_places: AudiencePlace[]
+  audience_profession: AudienceProfession
+  goal: string
+  posts_per_week: number | null
+  channel: string | null
 }
+
+/** PUT /platforms/{platform}/settings: only the fields sent change; null resets a field. */
+export type PlatformSettings = Partial<{
+  x_premium: boolean | null
+  audience_places: AudiencePlace[] | null
+  audience_profession: AudienceProfession | null
+  goal: string | null
+  posts_per_week: number | null
+  channel: string | null
+}>
 
 export function usePlatform(platform: Platform) {
   return useQuery({
@@ -39,12 +55,6 @@ function usePlatformMutation<I>(platform: Platform, fn: (input: I) => Promise<Pl
     onSuccess: (info) => client.setQueryData(['platform', platform], info),
   })
 }
-
-const json = (method: string, body: unknown): RequestInit => ({
-  method,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-})
 
 /** PUT: the user's own edit of the voice card. */
 export const useSaveVoiceCard = (platform: Platform) =>
@@ -63,3 +73,19 @@ export const useSetPremium = () =>
   usePlatformMutation('x', (x_premium: boolean) =>
     api<PlatformInfo>('/platforms/x/settings', json('PUT', { x_premium })),
   )
+
+export const useSavePlatformSettings = (platform: Platform) =>
+  usePlatformMutation(platform, (settings: PlatformSettings) =>
+    api<PlatformInfo>(`/platforms/${platform}/settings`, json('PUT', settings)),
+  )
+
+/**
+ * GET /platforms/{platform}/best-hours (FR-16, FR-34): each day's hours scored for this
+ * platform's audience, in the user's own time; `best` leaves out hours that have passed.
+ */
+export function useBestHours(platform: Platform, start: string, days = 7) {
+  return useQuery({
+    queryKey: ['best-hours', platform, start, days],
+    queryFn: () => api<BestHours>(`/platforms/${platform}/best-hours?start=${start}&days=${days}`),
+  })
+}

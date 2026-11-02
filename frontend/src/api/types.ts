@@ -67,6 +67,8 @@ export type DraftRow = {
   published_at: string | null
   created_at: string
   updated_at: string
+  /** The chat thread the draft lives in (SRS 1.3); null for drafts from before threads. */
+  thread_id?: string | null
 }
 
 export type DraftVersion = {
@@ -100,3 +102,67 @@ export type Checkin = {
   created_at: string
   updated_at: string
 }
+
+// ---- Chat board, notifications and time zone (docs/API.md, SRS 1.3) ----
+
+export type Length = { count: number; limit: number; over: boolean }
+
+/** A row of GET /threads: the sidebar's chat history, last touched first. */
+export type ThreadRow = { id: string; title: string; platforms: Platform[]; updated_at: string }
+
+/** A draft version shown as a card in the thread. */
+export type ThreadCard = { version_id: string; number: number; text: string; length: Length }
+
+export type ThreadMessage = {
+  id: string
+  role: 'user' | 'assistant'
+  text: string
+  draft_id: string | null
+  /** Set when this message is a draft version; every change that alters the text adds one. */
+  card: ThreadCard | null
+  created_at: string
+}
+
+/** A platform that couldn't be written; the others still arrive (POST /threads/{id}/generate). */
+export type GenerateFailure = { platform: Platform; code: string; message: string }
+
+export type Thread = {
+  id: string
+  title: string
+  checkin_id: string | null
+  checkin_text: string
+  created_at: string
+  updated_at: string
+  messages: ThreadMessage[]
+  drafts: DraftRow[]
+  failures?: GenerateFailure[]
+}
+
+/** POST /drafts/{id}/schedule: approved and on the calendar at the picked (or given) time. */
+export type ScheduleResult = {
+  draft: DraftRow
+  scheduled_for: string
+  /** Its place in that day's order for the platform: 1 = first. */
+  rank: number
+  reason: string
+  warning: string | null
+}
+
+/** GET /me/notifications, asked every minute. Nothing is ever sent by the server. */
+export type Notifications = { due: DraftRow[]; missed: DraftRow[]; checkin_reminder: boolean }
+
+/** GET/PUT /me/reminders: days 0 (Monday) to 6; local_time on the user's own clock. */
+export type Reminders = { enabled: boolean; days: number[]; local_time: string }
+
+/** GET /platforms/{platform}/best-hours: each day's 24 scores, best = 1.0. */
+export type BestHours = {
+  platform: Platform
+  timezone: string
+  source: 'studies' | 'your_posts'
+  days: Array<{ date: string; scores: number[]; best: number[] }>
+}
+
+export type AudienceProfession = 'general' | 'developers' | 'business' | 'students' | 'creatives'
+
+/** One place the audience lives: an IANA time zone and a share (1–100, weighed together). */
+export type AudiencePlace = { timezone: string; share: number }

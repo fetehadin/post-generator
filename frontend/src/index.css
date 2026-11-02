@@ -20,6 +20,7 @@
   --thread: #2b6b5b;
   --signal: #8f5508;
   --danger: #b42318;
+  --scrim: rgb(9 9 11 / 0.5);
   --shadow-float: 0 8px 24px rgb(9 9 11 / 0.12), 0 1px 2px rgb(9 9 11 / 0.08);
   color-scheme: light;
 }
@@ -38,6 +39,7 @@
     --thread: #72c4ae;
     --signal: #e3a64c;
     --danger: #f2806f;
+    --scrim: rgb(0 0 0 / 0.6);
     --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
     color-scheme: dark;
   }
@@ -56,6 +58,7 @@
   --thread: #72c4ae;
   --signal: #e3a64c;
   --danger: #f2806f;
+  --scrim: rgb(0 0 0 / 0.6);
   --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
   color-scheme: dark;
 }
@@ -73,6 +76,8 @@
   --color-thread: var(--thread);
   --color-signal: var(--signal);
   --color-danger: var(--danger);
+  /* Behind dialogs and sheets. */
+  --color-scrim: var(--scrim);
   --radius-control: 8px;
   --radius-panel: 12px;
   --shadow-float: var(--shadow-float);

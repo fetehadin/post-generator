@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router'
-import { useDuePosts } from '../api/drafts'
-import { useMe } from '../api/me'
+import { useMe, useNotifications } from '../api/me'
 import { applyTheme, nextTheme, savedTheme, type Theme } from '../lib/theme'
 import { Icon, type IconName } from './Icon'
 
@@ -32,7 +31,7 @@ export function AppShell() {
   const [theme, setTheme] = useState<Theme | null>(savedTheme)
   const [collapsed, setCollapsed] = useState(savedCollapsed)
   const me = useMe()
-  const due = useDuePosts().data?.items.length ?? 0
+  const due = useNotifications().data?.due.length ?? 0
 
   const current: Theme =
     theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
