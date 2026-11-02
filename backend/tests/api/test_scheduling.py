@@ -69,7 +69,14 @@ def test_bad_settings_are_refused_with_a_reason(api):
 
 def test_channel_links_and_names_are_read_the_way_telegram_allows(api):
     url = f"{API}/platforms/telegram/settings"
-    for given in ("t.me/fetescript", "http://t.me/fetescript/", "https://telegram.me/fetescript"):
+    links = (
+        "t.me/fetescript",
+        "http://t.me/fetescript/",
+        "https://telegram.me/fetescript",
+        "https://t.me/s/fetescript",
+        "https://t.me/fetescript?start=1",
+    )
+    for given in links:
         r = api.put(url, json={"channel": given})
         assert r.status_code == 200, (given, r.text)
         assert r.json()["channel"] == "fetescript"
@@ -77,6 +84,7 @@ def test_channel_links_and_names_are_read_the_way_telegram_allows(api):
     assert api.put(url, json={"channel": "abcd"}).json()["error"]["code"] == "invalid_channel"
     assert api.put(url, json={"channel": "a" * 32}).status_code == 200
     assert api.put(url, json={"channel": "a" * 33}).status_code == 400
+    assert api.put(url, json={"channel": "fetescript_"}).status_code == 400  # can't end in _
 
 
 def test_best_hours_today_leave_out_hours_that_have_passed(api):

@@ -15,7 +15,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import URL, Engine, create_engine, make_url, text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.core.config import get_settings
 
@@ -31,57 +31,69 @@ def as_test_url(url: str) -> URL:
 
 
 # Before any engine exists, point the app and Alembic at the test database. Settings are read
-# again after cache_clear(), and environment variables win over the settings file.
-_CONFIGURED_OWNER = make_url(get_settings().migrations_database_url)
-_APP_URL = as_test_url(get_settings().database_url)
+# again after cache_clear(), and environment variables win over the settings file. Both URLs
+# get the owner's test database name, so the app and Alembic can never end up on different
+# databases.
 _OWNER_URL = as_test_url(get_settings().migrations_database_url)
+_APP_URL = make_url(get_settings().database_url).set(database=_OWNER_URL.database)
 os.environ["DATABASE_URL"] = _APP_URL.render_as_string(hide_password=False)
 os.environ["MIGRATIONS_DATABASE_URL"] = _OWNER_URL.render_as_string(hide_password=False)
 get_settings.cache_clear()
 
+GRANTS = ("SELECT, INSERT, UPDATE, DELETE ON {} TABLES", "USAGE, SELECT ON {} SEQUENCES")
+
 
 def _create_test_database() -> None:
-    """Create the test database next to the configured one if it's missing: pgvector, and the
-    grants db/init/002_app_role.sh gives the app role, so RLS tests run as the limited role."""
-    name, owner, app = _OWNER_URL.database, _OWNER_URL.username, _APP_URL.username
-    admin = create_engine(_CONFIGURED_OWNER, isolation_level="AUTOCOMMIT")
+    """Create the test database if it's missing, from the server's `postgres` database (the
+    configured dev database may not exist). Skip only when the server itself can't be reached;
+    any other problem is a real failure, not a skip."""
+    name = _OWNER_URL.database
+    admin = create_engine(_OWNER_URL.set(database="postgres"), isolation_level="AUTOCOMMIT")
     try:
-        with admin.connect() as conn:
-            found = conn.scalar(text("SELECT 1 FROM pg_database WHERE datname = :n"), {"n": name})
-            if not found:
-                conn.execute(text(f'CREATE DATABASE "{name}"'))
-    finally:
+        conn = admin.connect()
+    except OperationalError:
         admin.dispose()
-    setup = create_engine(_OWNER_URL, isolation_level="AUTOCOMMIT")
+        pytest.skip("Postgres is not reachable: run `docker compose up -d` first")
     try:
-        with setup.connect() as conn:
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            conn.execute(text(f'GRANT CONNECT ON DATABASE "{name}" TO "{app}"'))
-            conn.execute(text(f'GRANT USAGE ON SCHEMA public TO "{app}"'))
-            for grant in (
-                "SELECT, INSERT, UPDATE, DELETE ON TABLES",
-                "USAGE, SELECT ON SEQUENCES",
-            ):
-                conn.execute(
-                    text(
-                        f'ALTER DEFAULT PRIVILEGES FOR ROLE "{owner}" IN SCHEMA public '
-                        f'GRANT {grant} TO "{app}"'
-                    )
-                )
+        found = conn.scalar(text("SELECT 1 FROM pg_database WHERE datname = :n"), {"n": name})
+        if not found:
+            try:
+                conn.execute(text(f'CREATE DATABASE "{name}"'))
+            except ProgrammingError as e:  # another pytest run created it first
+                if "already exists" not in str(e):
+                    raise
     finally:
-        setup.dispose()
+        conn.close()
+        admin.dispose()
+
+
+def _grant_app_role(engine: Engine) -> None:
+    """pgvector, and the grants db/init/002_app_role.sh gives the app role, so RLS tests run as
+    the limited role. Grants cover tables that exist now and tables that migrations add."""
+    owner, app = _OWNER_URL.username, _APP_URL.username
+    with engine.begin() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        conn.execute(text(f'GRANT CONNECT ON DATABASE "{_OWNER_URL.database}" TO "{app}"'))
+        conn.execute(text(f'GRANT USAGE ON SCHEMA public TO "{app}"'))
+        for grant in GRANTS:
+            conn.execute(text(f'GRANT {grant.format("ALL")} IN SCHEMA public TO "{app}"'))
+            conn.execute(
+                text(
+                    f'ALTER DEFAULT PRIVILEGES FOR ROLE "{owner}" IN SCHEMA public '
+                    f'GRANT {grant.format("")} TO "{app}"'
+                )
+            )
 
 
 @pytest.fixture(scope="session")
 def owner_engine() -> Engine:
     """The table owner: runs migrations and creates test users. Bypasses RLS."""
-    assert _OWNER_URL.database.endswith(TEST_SUFFIX), "tests must never use the dev database"
-    try:
-        _create_test_database()
-    except OperationalError:
-        pytest.skip("Postgres is not reachable: run `docker compose up -d` first")
+    _create_test_database()
+    engine = create_engine(get_settings().migrations_database_url)
+    _grant_app_role(engine)
     command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
-    return create_engine(get_settings().migrations_database_url)
+    _grant_app_role(engine)  # again, for tables an older test database got without grants
+    return engine
 
 
 @pytest.fixture

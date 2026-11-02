@@ -148,6 +148,11 @@ def open_hours(
     ]
 
 
+def rank_hours(hours: Sequence[datetime], scores: list[float]) -> list[datetime]:
+    """Best score first; on a tie, the earlier hour. One order for best-hours and picking."""
+    return sorted(hours, key=lambda t: (-scores[t.hour], t.hour))
+
+
 def pick_hour(
     day: date,
     scores: list[float],
@@ -162,7 +167,7 @@ def pick_hour(
     hours = open_hours(day, user_tz, window, now)
     if not hours:
         return None
-    by_score = sorted(hours, key=lambda t: (-scores[t.hour], t.hour))
+    by_score = rank_hours(hours, scores)
     for t in by_score:
         if all(abs(t - other) >= gap for other in taken):
             return t, False
@@ -255,9 +260,10 @@ def best_hours(
     days: int = 7,
     now: datetime | None = None,
 ) -> tuple[list[DayScores], str, str]:
-    """Each day's 24 scores and its top hours inside the window that haven't passed (the same
-    hours approving with a day can pick). Also the source of the numbers ("studies" or
-    "your_posts") and the user's time zone name."""
+    """Each day's 24 scores and its top hours inside the window that haven't passed, ranked
+    the way approving with a day ranks them. Posts already scheduled aren't counted here, so
+    approving a second post can pick a later hour to keep the gap. Also the source of the
+    numbers ("studies" or "your_posts") and the user's time zone name."""
     now = now or datetime.now(UTC)
     with user_session(user_id) as s:
         ctx = _context(s, user_id, platform)
@@ -265,8 +271,8 @@ def best_hours(
     for i in range(days):
         day = start + timedelta(days=i)
         scores = _scores(ctx, day)
-        hours = [t.hour for t in open_hours(day, ctx.user_tz, ctx.window, now)]
-        out.append(DayScores(day, scores, sorted(hours, key=lambda h: (-scores[h], h))[:3]))
+        ranked = rank_hours(open_hours(day, ctx.user_tz, ctx.window, now), scores)
+        out.append(DayScores(day, scores, [t.hour for t in ranked[:3]]))
     return out, ("your_posts" if ctx.own else "studies"), ctx.user_tz.key
 
 
