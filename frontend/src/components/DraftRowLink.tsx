@@ -1,17 +1,19 @@
 import { Link } from 'react-router'
 import type { DraftRow } from '../api/types'
 import { LABEL, STATUS_LABEL } from '../lib/platforms'
+import { useZone } from '../api/me'
 import { formatWhen } from '../lib/time'
 import { PlatformMark } from './PlatformMark'
 
 /** One quiet row: platform, first line, status (DESIGN.md §4.1, §4.4). Opens the editor. */
 export function DraftRowLink({ draft }: { draft: DraftRow }) {
+  const zone = useZone()
   const firstLine = draft.text.split('\n').find((l) => l.trim()) ?? ''
   const when =
     draft.status === 'published' && draft.published_at
-      ? `Posted ${formatWhen(draft.published_at)}`
+      ? `Posted ${formatWhen(draft.published_at, zone)}`
       : draft.scheduled_for
-        ? formatWhen(draft.scheduled_for)
+        ? formatWhen(draft.scheduled_for, zone)
         : ''
   return (
     <Link

@@ -10,7 +10,7 @@ const STATUSES: Array<DraftStatus | 'all'> = ['all', 'draft', 'approved', 'publi
 const PLATFORMS: Array<Platform | 'all'> = ['all', 'x', 'linkedin', 'telegram']
 
 /** Drafts (DESIGN.md §4.4): every draft by status and platform, plus the check-ins (FR-6, FR-11). */
-export function DraftsPage() {
+export function DraftsPage({ platform }: { platform?: Platform }) {
   const [tab, setTab] = useState<'drafts' | 'checkins'>('drafts')
   return (
     <div className="mx-auto max-w-[720px] px-4 py-12 md:px-6 md:py-16">
@@ -32,16 +32,16 @@ export function DraftsPage() {
           </button>
         ))}
       </div>
-      {tab === 'drafts' ? <Library /> : <Checkins />}
+      {tab === 'drafts' ? <Library key={platform} initial={platform} /> : <Checkins />}
     </div>
   )
 }
 
 const select = 'min-h-10 rounded-control border border-edge bg-surface px-2 text-sm'
 
-function Library() {
+function Library({ initial }: { initial?: Platform }) {
   const [status, setStatus] = useState<DraftStatus | 'all'>('all')
-  const [platform, setPlatform] = useState<Platform | 'all'>('all')
+  const [platform, setPlatform] = useState<Platform | 'all'>(initial ?? 'all')
   const drafts = useDrafts({
     ...(status !== 'all' && { status }),
     ...(platform !== 'all' && { platform }),
@@ -63,20 +63,22 @@ function Library() {
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm">
-          Platform
-          <select
-            value={platform}
-            onChange={(e) => setPlatform(e.target.value as Platform | 'all')}
-            className={select}
-          >
-            {PLATFORMS.map((p) => (
-              <option key={p} value={p}>
-                {p === 'all' ? 'All' : LABEL[p]}
-              </option>
-            ))}
-          </select>
-        </label>
+        {!initial && (
+          <label className="flex items-center gap-2 text-sm">
+            Platform
+            <select
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value as Platform | 'all')}
+              className={select}
+            >
+              {PLATFORMS.map((p) => (
+                <option key={p} value={p}>
+                  {p === 'all' ? 'All' : LABEL[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       {drafts.isError && (
         <p role="alert" className="mt-6 text-danger">
