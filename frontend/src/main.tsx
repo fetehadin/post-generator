@@ -25,6 +25,7 @@ import { LoginPage } from './pages/Login/LoginPage'
 import { ProfilePage } from './pages/Profile/ProfilePage'
 import { StatusPage } from './pages/Status/StatusPage'
 import { UploadPage } from './pages/Upload/UploadPage'
+import { WelcomePage } from './pages/Welcome/WelcomePage'
 
 applyTheme(savedTheme())
 
@@ -32,6 +33,15 @@ const queryClient = new QueryClient()
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  // First run: full screen, no sidebar, but behind the same login, invite and privacy steps.
+  {
+    path: '/welcome',
+    element: (
+      <AuthGate>
+        <WelcomePage />
+      </AuthGate>
+    ),
+  },
   {
     element: (
       <AuthGate>
