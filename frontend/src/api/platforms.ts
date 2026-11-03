@@ -49,11 +49,18 @@ export function usePlatform(platform: Platform, enabled = true) {
   })
 }
 
-function usePlatformMutation<I>(platform: Platform, fn: (input: I) => Promise<PlatformInfo>) {
+function usePlatformMutation<I>(
+  platform: Platform,
+  fn: (input: I) => Promise<PlatformInfo>,
+  stale?: unknown[],
+) {
   const client = useQueryClient()
   return useMutation({
     mutationFn: fn,
-    onSuccess: (info) => client.setQueryData(['platform', platform], info),
+    onSuccess: (info) => {
+      client.setQueryData(['platform', platform], info)
+      if (stale) void client.invalidateQueries({ queryKey: stale })
+    },
   })
 }
 
@@ -75,9 +82,13 @@ export const useSetPremium = () =>
     api<PlatformInfo>('/platforms/x/settings', json('PUT', { x_premium })),
   )
 
+/** The audience decides the best hours, so they're worked out again after a save. */
 export const useSavePlatformSettings = (platform: Platform) =>
-  usePlatformMutation(platform, (settings: PlatformSettings) =>
-    api<PlatformInfo>(`/platforms/${platform}/settings`, json('PUT', settings)),
+  usePlatformMutation(
+    platform,
+    (settings: PlatformSettings) =>
+      api<PlatformInfo>(`/platforms/${platform}/settings`, json('PUT', settings)),
+    ['best-hours', platform],
   )
 
 /**
