@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useMe } from '../../api/me'
-import { useSavePlatformSettings } from '../../api/platforms'
+import { api, json } from '../../api/client'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSaveProfile } from '../../api/profile'
 import type { AudienceProfession, Platform } from '../../api/types'
 import { LABEL, PLATFORMS } from '../../lib/platforms'
 import { cn } from '../../lib/utils'
 import { markWelcomed } from '../../lib/welcome'
+import { isZone } from '../../lib/zones'
 
 const PROFESSIONS: Array<[AudienceProfession, string]> = [
   ['developers', 'Developers'],
@@ -37,16 +39,17 @@ export function WelcomePage() {
   const [role, setRole] = useState('')
   const [focus, setFocus] = useState('')
   const [profession, setProfession] = useState<AudienceProfession>('developers')
-  const [zone, setZone] = useState(() =>
+  // The account's zone (sent on first use), else this device's. Read at render, not
+  // copied once, so it's right even if /me arrives after this page mounts.
+  const ownZone =
     me?.timezone && me.timezone !== 'UTC'
       ? me.timezone
-      : Intl.DateTimeFormat().resolvedOptions().timeZone,
-  )
+      : Intl.DateTimeFormat().resolvedOptions().timeZone
+  const [typedZone, setZone] = useState<string | null>(null)
+  const zone = typedZone ?? ownZone
+  const zoneOk = isZone(zone)
   const profile = useSaveProfile()
-  const x = useSavePlatformSettings('x')
-  const linkedin = useSavePlatformSettings('linkedin')
-  const telegram = useSavePlatformSettings('telegram')
-  const savers = { x, linkedin, telegram }
+  const client = useQueryClient()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -59,14 +62,17 @@ export function WelcomePage() {
     setSaving(true)
     setError('')
     try {
+      // The user's own zone is sent as [] ("where I live"), so it follows them if they
+      // change their zone later (docs/API.md). PUT is idempotent: a retry resends all.
+      const settings = {
+        audience_profession: profession,
+        audience_places: zone === ownZone ? [] : [{ timezone: zone, share: 100 }],
+      }
       await Promise.all(
-        platforms.map((p) =>
-          savers[p].mutateAsync({
-            audience_profession: profession,
-            audience_places: [{ timezone: zone, share: 100 }],
-          }),
-        ),
+        platforms.map((p) => api(`/platforms/${p}/settings`, json('PUT', settings))),
       )
+      void client.invalidateQueries({ queryKey: ['platform'] })
+      void client.invalidateQueries({ queryKey: ['best-hours'] })
       setStep(3)
     } catch (e) {
       setError((e as Error).message)
@@ -138,8 +144,9 @@ export function WelcomePage() {
           className="mt-8"
           onSubmit={(e) => {
             e.preventDefault()
+            // Only what was typed, so an empty field never erases a saved focus.
             profile.mutate(
-              { role: role.trim(), focus: focus.trim() },
+              { role: role.trim(), ...(focus.trim() && { focus: focus.trim() }) },
               { onSuccess: () => setStep(2) },
             )
           }}
@@ -220,14 +227,18 @@ export function WelcomePage() {
               onChange={(e) => setZone(e.target.value)}
             />
           </label>
-          <p className="mt-1 text-sm text-muted">Yours, to start with. Like Africa/Addis_Ababa.</p>
+          <p className="mt-1 text-sm text-muted">
+            {zoneOk
+              ? 'Yours, to start with. Like Africa/Addis_Ababa.'
+              : "That isn't a time zone. Write it like Africa/Addis_Ababa or Europe/Berlin."}
+          </p>
           {error && (
             <p role="alert" className="mt-4 text-sm text-danger">
               {error}
             </p>
           )}
           <div className="mt-8 flex gap-3">
-            <button type="submit" className={primary} disabled={!zone.trim() || saving}>
+            <button type="submit" className={primary} disabled={!zoneOk || saving}>
               {saving ? 'Saving…' : 'Continue'}
             </button>
             <button type="button" className={secondary} onClick={() => setStep(1)}>

@@ -55,15 +55,36 @@ test('a new account (no role yet) is sent from the new chat to the welcome', asy
   expect(await screen.findByText('Where do you post?')).toBeTruthy()
 })
 
-test('an account with a role, or one that finished the welcome here, stays on the new chat', async () => {
+test('an account with a role stays on the new chat, and this browser remembers it', async () => {
   role = 'Backend developer'
   renderAt('/')
   expect(await screen.findByText('What did you do today?')).toBeTruthy()
-  role = ''
-  localStorage.setItem('voxlace-welcomed:u1', '1')
+  await vi.waitFor(() => expect(localStorage.getItem('voxlace-welcomed:u1')).toBe('1'))
+})
+
+test('an account that already has chats never sees the welcome', async () => {
+  routeApi({
+    'GET /me': () => ({ id: 'u1', email: 'a@b.c', timezone: 'UTC' }),
+    'GET /profile': () => ({ role: '' }),
+    'GET /threads': () => ({ items: [{ id: 't1', title: 'Old chat' }] }),
+  })
   renderAt('/')
-  expect((await screen.findAllByText('What did you do today?')).length).toBe(2)
+  expect(await screen.findByText('What did you do today?')).toBeTruthy()
   expect(screen.queryByText('Where do you post?')).toBeNull()
+})
+
+test('a zone that does not exist is caught before saving', async () => {
+  renderAt('/welcome')
+  await userEvent.click(await screen.findByRole('button', { name: 'X' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  await userEvent.type(screen.getByLabelText('What you do'), 'Dev')
+  await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+  const zone = await screen.findByLabelText('Mostly living in the time zone')
+  await userEvent.clear(zone)
+  await userEvent.type(zone, 'Addis Ababa')
+  expect(screen.getByText(/isn't a time zone/)).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+  expect(sent('PUT /profile')).toEqual([{ role: 'Dev' }]) // an empty focus isn't sent
 })
 
 test('platforms → about you → audience from your zone → import', async () => {
@@ -83,7 +104,7 @@ test('platforms → about you → audience from your zone → import', async () 
   await screen.findByText('Teach it your voice')
   const audience = {
     audience_profession: 'developers',
-    audience_places: [{ timezone: 'Africa/Addis_Ababa', share: 100 }],
+    audience_places: [], // their own zone: "where I live", so it follows them (docs/API.md)
   }
   expect(sent('PUT /platforms/x/settings')).toEqual([audience])
   expect(sent('PUT /platforms/telegram/settings')).toEqual([audience])

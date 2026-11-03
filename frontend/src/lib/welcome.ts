@@ -1,33 +1,49 @@
+import { useEffect } from 'react'
 import { useMe } from '../api/me'
 import { useProfile } from '../api/profile'
+import { useThreads } from '../api/threads'
+import { remember, remembered } from './storage'
 
 /**
- * First run (DESIGN.md §4.5, FR-33): a new account is sent to /welcome once. "New" means the
- * profile has no role yet; finishing or skipping the welcome is remembered in this browser,
- * so the profile is only fetched for this check until then.
+ * First run (DESIGN.md §4.5, FR-33): a new account is sent to /welcome once. "New" means no
+ * role in the profile and no chats yet, so accounts that already use Voxlace never see it.
+ * The answer is kept in this browser, so the check runs only until it's known.
  */
 const key = (userId: string) => `voxlace-welcomed:${userId}`
 
-function remembered(userId: string): boolean {
-  try {
-    return localStorage.getItem(key(userId)) === '1'
-  } catch {
-    return true // private mode: never trap anyone in the welcome
-  }
-}
+export const markWelcomed = (userId: string) => remember(key(userId), true)
 
-export function markWelcomed(userId: string) {
-  try {
-    localStorage.setItem(key(userId), '1')
-  } catch {
-    // Private mode: the role saved in the welcome is enough to skip it next time.
-  }
-}
-
-/** True once we know this user still needs the welcome; false while loading. */
-export function useNeedsWelcome(): boolean {
+/** 'loading' until known; then whether this user still needs the welcome. */
+export function useNeedsWelcome(): boolean | 'loading' {
   const id = useMe().data?.id
-  const check = Boolean(id) && !remembered(id!)
+  // Private mode can't remember: treat it as welcomed rather than trap anyone in the welcome.
+  const check = Boolean(id) && !remembered(key(id ?? ''), false) && storageWorks()
   const profile = useProfile(check)
-  return check && profile.isSuccess && !profile.data.role.trim()
+  const threads = useThreads()
+  const known = !check || (profile.isFetched && threads.isFetched)
+  const needs =
+    check &&
+    known &&
+    profile.isSuccess &&
+    !profile.data.role.trim() &&
+    threads.isSuccess &&
+    !threads.data.items.length
+
+  useEffect(() => {
+    // An account in use: remember it, so this browser doesn't ask the server again.
+    if (id && check && known && !needs) markWelcomed(id)
+  }, [id, check, known, needs])
+
+  if (!id) return false // AuthGate loads /me before any page, so this is only a test render
+  return known ? needs : 'loading'
+}
+
+function storageWorks(): boolean {
+  try {
+    localStorage.setItem('voxlace-probe', '1')
+    localStorage.removeItem('voxlace-probe')
+    return true
+  } catch {
+    return false
+  }
 }
