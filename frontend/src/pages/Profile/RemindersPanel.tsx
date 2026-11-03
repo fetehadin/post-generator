@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useReminders, useSaveReminders } from '../../api/me'
 import type { Reminders } from '../../api/types'
+import { Chip } from './Chip'
 import { input, primaryButton } from './fields'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] // 0 = Monday (docs/API.md)
@@ -53,23 +54,18 @@ function RemindersForm({ initial }: { initial: Reminders }) {
           {DAYS.map((d, i) => {
             const on = r.days.includes(i)
             return (
-              <button
+              <Chip
                 key={d}
-                type="button"
-                aria-pressed={on}
+                on={on}
+                className="min-w-12 px-3"
                 onClick={() =>
                   change({
                     days: on ? r.days.filter((x) => x !== i) : [...r.days, i].sort((a, b) => a - b),
                   })
                 }
-                className={
-                  on
-                    ? 'min-h-10 min-w-12 rounded-full border border-primary bg-primary px-3 text-sm font-semibold text-on-primary'
-                    : 'min-h-10 min-w-12 rounded-full border border-line px-3 text-sm text-muted hover:border-edge hover:text-ink'
-                }
               >
                 {d}
-              </button>
+              </Chip>
             )
           })}
         </div>

@@ -148,3 +148,20 @@ test('time zone: a new zone is saved; an unknown one is not', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Save time zone' }))
   await vi.waitFor(() => expect(sent('PATCH /me')).toEqual([{ timezone: 'Europe/Berlin' }]))
 })
+
+test('audience: a zone alias the browser reports is accepted; an empty share is caught', async () => {
+  renderAt('/profile?tab=audience')
+  const zone = await screen.findByLabelText('Time zone 1')
+  fireEvent.change(zone, { target: { value: 'Asia/Calcutta' } })
+  expect(screen.queryByRole('alert')).toBeNull()
+  fireEvent.change(screen.getByLabelText('Share (%)'), { target: { value: '' } })
+  expect(screen.getByRole('alert')).toHaveTextContent('Each share is a number from 1 to 100.')
+})
+
+test('audience: switching platforms keeps unsaved edits', async () => {
+  renderAt('/profile?tab=audience')
+  fireEvent.change(await screen.findByLabelText('Your goal on X'), { target: { value: 'Ship' } })
+  await userEvent.click(screen.getByRole('button', { name: 'LinkedIn' }))
+  await userEvent.click(screen.getByRole('button', { name: 'X' }))
+  expect(screen.getByLabelText('Your goal on X')).toHaveValue('Ship')
+})

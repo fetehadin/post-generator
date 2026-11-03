@@ -4,10 +4,10 @@ import { useMe } from '../../api/me'
 import type { Platform } from '../../api/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { LABEL, PLATFORMS } from '../../lib/platforms'
-import { cn } from '../../lib/utils'
 import { AboutYou } from './AboutYou'
 import { AccountSettings } from './AccountSettings'
 import { AudiencePanel } from './AudiencePanel'
+import { Chip } from './Chip'
 import { RemindersPanel } from './RemindersPanel'
 import { TimeZoneField } from './TimeZoneField'
 import { Uploads } from './Uploads'
@@ -38,7 +38,6 @@ export function ProfilePage() {
     <div className="mx-auto max-w-[720px] px-4 py-12 md:px-6 md:py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
       {me.data && <p className="mt-1 text-muted">{me.data.email}</p>}
-      <ZoneList />
 
       <Tabs
         value={tab}
@@ -59,6 +58,7 @@ export function ProfilePage() {
 
         <TabsContent value="about">
           <Intro>What Voxlace knows about you. Drafts use the summary card, never guesses.</Intro>
+          <ZoneList />
           <TimeZoneField />
           <AboutYou />
         </TabsContent>
@@ -75,6 +75,7 @@ export function ProfilePage() {
             Who reads you on each platform and where they live. When you approve a draft with a day,
             Voxlace picks the hour from this.
           </Intro>
+          <ZoneList />
           <PlatformSwitch>{(p) => <AudiencePanel platform={p} label={LABEL[p]} />}</PlatformSwitch>
         </TabsContent>
 
@@ -113,30 +114,34 @@ function Intro({ children }: { children: React.ReactNode }) {
   return <p className="mt-4 text-sm text-muted">{children}</p>
 }
 
-/** X · LinkedIn · Telegram buttons above one platform's panel. */
+/**
+ * X · LinkedIn · Telegram above one platform's panel. A panel stays mounted (hidden) once
+ * opened, so switching platforms to compare doesn't throw away unsaved edits.
+ */
 function PlatformSwitch({ children }: { children: (p: Platform) => React.ReactNode }) {
   const [platform, setPlatform] = useState<Platform>('x')
+  const [opened, setOpened] = useState<Platform[]>(['x'])
   return (
     <div className="mt-4">
       <div role="group" aria-label="Platform" className="flex flex-wrap gap-2">
         {PLATFORMS.map((p) => (
-          <button
+          <Chip
             key={p}
-            type="button"
-            aria-pressed={platform === p}
-            onClick={() => setPlatform(p)}
-            className={cn(
-              'min-h-10 rounded-full border px-4 text-sm',
-              platform === p
-                ? 'border-primary bg-primary font-semibold text-on-primary'
-                : 'border-line text-muted hover:border-edge hover:text-ink',
-            )}
+            on={platform === p}
+            onClick={() => {
+              setPlatform(p)
+              if (!opened.includes(p)) setOpened([...opened, p])
+            }}
           >
             {LABEL[p]}
-          </button>
+          </Chip>
         ))}
       </div>
-      {children(platform)}
+      {opened.map((p) => (
+        <div key={p} hidden={p !== platform}>
+          {children(p)}
+        </div>
+      ))}
     </div>
   )
 }

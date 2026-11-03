@@ -6,7 +6,9 @@ import {
   useSavePlatformSettings,
 } from '../../api/platforms'
 import type { AudiencePlace, AudienceProfession, Platform } from '../../api/types'
-import { input, primaryButton, ZONE_LIST_ID, ZONES } from './fields'
+import { useZone } from '../../api/me'
+import { dateIn } from '../../lib/time'
+import { input, isZone, primaryButton, ZONE_LIST_ID } from './fields'
 
 const PROFESSIONS: Array<[AudienceProfession, string]> = [
   ['general', 'Everyone'],
@@ -43,15 +45,16 @@ function AudienceForm({ info, label }: { info: PlatformInfo; label: string }) {
   const [perWeek, setPerWeek] = useState(info.posts_per_week?.toString() ?? '')
   const [saved, setSaved] = useState(false)
 
-  const unknown = places.find(
-    (p) => ZONES.length && !ZONES.includes(p.timezone) && p.timezone !== 'UTC',
-  )
+  const unknown = places.find((p) => !isZone(p.timezone))
+  const badShare = places.find((p) => !(p.share >= 1 && p.share <= 100))
   const twice = places.find((p, i) => places.findIndex((q) => q.timezone === p.timezone) !== i)
   const problem = unknown
     ? `"${unknown.timezone || 'An empty zone'}" isn't a time zone. Pick one from the list.`
     : twice
       ? `${twice.timezone} is listed twice.`
-      : null
+      : badShare
+        ? 'Each share is a number from 1 to 100.'
+        : null
 
   const edit = (i: number, change: Partial<AudiencePlace>) => {
     setSaved(false)
@@ -137,8 +140,8 @@ function AudienceForm({ info, label }: { info: PlatformInfo; label: string }) {
                   min={1}
                   max={100}
                   inputMode="numeric"
-                  value={p.share}
-                  onChange={(e) => edit(i, { share: Number(e.target.value) || 1 })}
+                  value={p.share || ''}
+                  onChange={(e) => edit(i, { share: Number(e.target.value) })}
                 />
               </label>
               <button
@@ -208,9 +211,8 @@ function AudienceForm({ info, label }: { info: PlatformInfo; label: string }) {
 
 /** Today's best hours left (or tomorrow's, late in the day), in the user's own time. */
 function BestHoursPreview({ platform, label }: { platform: Platform; label: string }) {
-  const now = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  // "Today" on the user's saved clock, the one best hours are worked out on.
+  const today = dateIn(new Date(), useZone())
   const hours = useBestHours(platform, today, 2)
   const day = hours.data?.days.find((d) => d.best.length)
   if (!day) return null

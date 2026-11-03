@@ -4,6 +4,21 @@ export const input =
 export const primaryButton =
   'inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
 
+/**
+ * Whether the browser can use this zone. Aliases such as Asia/Calcutta count: the browser
+ * may report one as its own zone, and the server accepts them, though the list below
+ * only names the canonical ones.
+ */
+export function isZone(value: string): boolean {
+  if (!value.trim()) return false
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone: value })
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Every IANA zone the browser knows, for the time-zone search (a datalist). */
 export const ZONES: string[] = (() => {
   try {

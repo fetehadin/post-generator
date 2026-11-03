@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMe, useSetTimezone } from '../../api/me'
-import { input, primaryButton, ZONE_LIST_ID, ZONES } from './fields'
+import { input, isZone, primaryButton, ZONE_LIST_ID } from './fields'
 
 /**
  * Profile → About you → your time zone (FR-33, rule 6). Times stay UTC on the server; this
@@ -14,7 +14,7 @@ export function TimeZoneField() {
   const browser = Intl.DateTimeFormat().resolvedOptions().timeZone
   const [zone, setZone] = useState<string | null>(null)
   const value = zone ?? saved
-  const known = !ZONES.length || ZONES.includes(value) || value === 'UTC'
+  const known = isZone(value)
 
   return (
     <form
@@ -36,13 +36,18 @@ export function TimeZoneField() {
           spellCheck={false}
         />
       </label>
-      <button type="submit" className={primaryButton} disabled={!known || value === saved}>
+      <button
+        type="submit"
+        className={primaryButton}
+        disabled={!known || value === saved || set.isPending}
+      >
         {set.isPending ? 'Saving…' : 'Save time zone'}
       </button>
       {browser !== saved && (
         <button
           type="button"
-          className="min-h-10 text-sm text-muted underline underline-offset-4"
+          className="min-h-10 text-sm text-muted underline underline-offset-4 disabled:no-underline"
+          disabled={set.isPending}
           onClick={() => set.mutate(browser, { onSuccess: () => setZone(null) })}
         >
           Use this device's zone ({browser})
