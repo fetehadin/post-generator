@@ -253,7 +253,7 @@ function seed() {
   // Two planned ones ahead, so the calendar shows every state.
   for (const [platform, ahead] of [
     ['x', 2 * 3_600_000],
-    ['telegram', 26 * 3_600_000],
+    ['telegram', 50 * 3_600_000], // never tomorrow, so a test's "approve for tomorrow" ranks first
   ] as [Platform, number][]) {
     const planned = newDraft(platform, t.checkin_text, t.id)
     say(planned, 'assistant', '', true)
