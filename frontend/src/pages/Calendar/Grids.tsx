@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { usePatchAnyDraft } from '../../api/drafts'
 import type { DraftRow } from '../../api/types'
 import { dayKey, isDue, isMissed, sameDay } from '../../lib/calendar'
@@ -7,7 +7,7 @@ import { Icon } from '../../components/Icon'
 import { cn } from '../../lib/utils'
 import { CalendarItem, type ItemState } from './CalendarItem'
 
-export const ROW = 56 // px per hour in the time grids
+export const ROW = 56 // px per hour in the time grids: the rows are min-h-14 (3.5rem)
 const OPEN_AT = 7 // the time grids open scrolled to 07:00 (DESIGN.md §4.3)
 const MONTH_CHIPS = 3 // more than this in a month cell becomes "+N more"
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
@@ -17,8 +17,8 @@ const dayName = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
   month: 'short',
 })
-const hourLabel = (h: number) =>
-  new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).format(new Date(2000, 0, 1, h))
+const hourFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric' })
+const HOUR_LABELS = HOURS.map((h) => hourFormat.format(new Date(2000, 0, 1, h)))
 
 type Shared = {
   items: DraftRow[]
@@ -32,14 +32,26 @@ export function itemState(d: DraftRow, now: Date): ItemState {
   return isDue(d.scheduled_for!, now) ? 'due' : 'planned'
 }
 
-function postsAt(items: DraftRow[], day: Date, hour?: number) {
-  return items
-    .filter((d) => {
-      const t = new Date(d.scheduled_for!)
-      return sameDay(t, day) && (hour === undefined || t.getHours() === hour)
-    })
-    .sort((a, b) => a.scheduled_for!.localeCompare(b.scheduled_for!))
+/**
+ * The posts of each day ("2026-10-22") and each hour ("2026-10-22@18"), sorted by time:
+ * grouped once per render, so a cell looks its posts up instead of scanning every post.
+ */
+function byDayAndHour(items: DraftRow[]): Map<string, DraftRow[]> {
+  const groups = new Map<string, DraftRow[]>()
+  const add = (key: string, d: DraftRow) => {
+    const list = groups.get(key)
+    if (list) list.push(d)
+    else groups.set(key, [d])
+  }
+  const sorted = [...items].sort((a, b) => a.scheduled_for!.localeCompare(b.scheduled_for!))
+  for (const d of sorted) {
+    const t = new Date(d.scheduled_for!)
+    add(dayKey(t), d)
+    add(`${dayKey(t)}@${t.getHours()}`, d)
+  }
+  return groups
 }
+const NONE: DraftRow[] = []
 
 function Item({ d, now, patch, move }: Shared & { d: DraftRow }) {
   return (
@@ -70,6 +82,7 @@ export function TimeGrid({
     if (scroller.current) scroller.current.scrollTop = ROW * OPEN_AT - 12
   }, [])
   const { now, move } = shared
+  const posts = useMemo(() => byDayAndHour(shared.items), [shared.items])
   const cols =
     days.length === 1
       ? 'grid-cols-[64px_minmax(0,1fr)]'
@@ -101,14 +114,14 @@ export function TimeGrid({
       </div>
       <div ref={scroller} className="max-h-[68vh] overflow-y-auto overscroll-contain">
         {HOURS.map((h) => (
-          <div key={h} className={cn('grid', cols)} style={{ minHeight: ROW }}>
+          <div key={h} className={cn('grid min-h-14', cols)}>
             <span className="-mt-2 pr-2 text-right text-xs text-muted tabular-nums">
-              {h > 0 && hourLabel(h)}
+              {h > 0 && HOUR_LABELS[h]}
             </span>
             {days.map((day) => {
               const key = dayKey(day)
               const isBest = best[key]?.includes(h)
-              const here = postsAt(shared.items, day, h)
+              const here = posts.get(`${key}@${h}`) ?? NONE
               const nowHere = sameDay(day, now) && now.getHours() === h
               return (
                 <div
@@ -152,6 +165,7 @@ export function MonthGrid({
   ...shared
 }: Shared & { weeks: Date[][]; month: number; onOpenDay: (day: Date) => void }) {
   const { now, move } = shared
+  const posts = useMemo(() => byDayAndHour(shared.items), [shared.items])
   return (
     <div className="overflow-hidden rounded-panel border border-line bg-surface">
       <div className="grid grid-cols-7 border-b border-line text-center text-sm text-muted">
@@ -165,7 +179,7 @@ export function MonthGrid({
         <div key={week[0].toISOString()} className="grid grid-cols-7">
           {week.map((day) => {
             const key = dayKey(day)
-            const here = postsAt(shared.items, day)
+            const here = posts.get(key) ?? NONE
             const extra = here.length - MONTH_CHIPS
             return (
               <div
@@ -253,12 +267,21 @@ function dotsLabel(day: Date, here: DraftRow[], now: Date) {
 
 /** Phones, week view: one list per day; the same chips, menus and Move to…. */
 export function WeekList({ days, ...shared }: Shared & { days: Date[] }) {
+  const posts = useMemo(() => byDayAndHour(shared.items), [shared.items])
   return (
     <ol className="flex flex-col gap-4">
       {days.map((day) => {
-        const here = postsAt(shared.items, day)
+        const key = dayKey(day)
+        const here = posts.get(key) ?? NONE
         return (
-          <li key={day.toISOString()}>
+          <li
+            key={key}
+            data-drop-day={key}
+            className={cn(
+              'rounded-control p-1 transition-colors duration-(--duration) ease-(--ease)',
+              shared.move.over === key && 'bg-sunken ring-1 ring-edge ring-inset',
+            )}
+          >
             <h3
               className={cn(
                 'text-sm',

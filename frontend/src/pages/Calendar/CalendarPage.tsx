@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useDrafts, usePatchAnyDraft } from '../../api/drafts'
-import { useZone } from '../../api/me'
+import { useNotifications, useZone } from '../../api/me'
 import { useBestHours } from '../../api/platforms'
 import type { DraftRow, Platform } from '../../api/types'
 import {
@@ -15,8 +15,10 @@ import {
 } from '../../lib/calendar'
 import { LABEL, PLATFORMS } from '../../lib/platforms'
 import { formatWhen } from '../../lib/time'
+import { useMedia } from '../../lib/useMedia'
 import { useMoveDrag, type DropTarget } from '../../lib/useMoveDrag'
 import { cn } from '../../lib/utils'
+import { CalendarItem } from './CalendarItem'
 import { MonthGrid, TimeGrid, WeekList } from './Grids'
 
 type View = 'month' | 'week' | 'day'
@@ -50,8 +52,17 @@ export function CalendarPage() {
   const view: View = VIEWS.includes(params.get('view') as View)
     ? (params.get('view') as View)
     : 'week'
-  const cursor = params.get('date') ? fromDayKey(params.get('date')!) : new Date()
+  const cursor = parseDate(params.get('date'))
   const now = useNow()
+  // Fixed for the page's life: a key that changed each minute would refetch and blink.
+  const [since] = useState(() => new Date().toISOString())
+  const wide = useMedia('(min-width: 768px)')
+  const due = useNotifications().data?.due ?? []
+  // The grid draws in the browser's zone. Best hours come in the account's zone, so when the
+  // two differ (travelling, or a zone set by hand) they'd land on the wrong rows: say so instead.
+  const zone = useZone()
+  const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const otherZone = zone && zone !== 'UTC' && zone !== browserZone ? zone : null
   const [shade, setShade] = useState(savedShade)
   const [dropNote, setDropNote] = useState('')
   const patch = usePatchAnyDraft()
@@ -70,14 +81,15 @@ export function CalendarPage() {
     scheduled_from: from.toISOString(),
     scheduled_to: to.toISOString(),
   })
-  const upNext = useDrafts({ status: 'approved', scheduled_from: now.toISOString() })
+  const upNext = useDrafts({ status: 'approved', scheduled_from: since })
   const items = drafts.data?.items ?? []
 
   const bestHours = useBestHours(
     shade === 'off' ? 'x' : shade,
     dayKey(from),
     view === 'day' ? 1 : 7,
-    shade !== 'off' && view !== 'month',
+    // Phones show the week as a list with no shading, so they skip it there.
+    !otherZone && shade !== 'off' && (view === 'day' || (view === 'week' && wide)),
   )
   const best: Record<string, number[]> = Object.fromEntries(
     (bestHours.data?.days ?? []).map((d) => [d.date, d.best]),
@@ -178,7 +190,13 @@ export function CalendarPage() {
         </div>
       </header>
 
-      {view !== 'month' && (
+      {otherZone && (
+        <p className="mt-4 text-sm text-muted">
+          Times here are in this device's zone ({browserZone}). Your account uses {otherZone};
+          change it in Profile to see your best hours.
+        </p>
+      )}
+      {view !== 'month' && !otherZone && (
         <div
           role="group"
           aria-label="Shade the best hours for"
@@ -214,7 +232,27 @@ export function CalendarPage() {
         </div>
       )}
 
-      <UpNext items={upNext.data?.items.slice(0, 3) ?? []} />
+      {due.length > 0 && (
+        <section aria-labelledby="due-now" className="mt-6 rounded-panel border border-signal p-4">
+          <h2 id="due-now" className="text-sm font-semibold text-signal">
+            Due now
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Post these, then press Posted. Voxlace never posts for you.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {due.map((d) => (
+              <CalendarItem key={d.id} draft={d} state="due" patch={patch} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <UpNext
+        items={(upNext.data?.items ?? [])
+          .filter((d) => new Date(d.scheduled_for!) > now)
+          .slice(0, 3)}
+      />
 
       {(patch.error ?? drafts.error) && (
         <p role="alert" className="mt-4 text-sm text-danger">
@@ -275,6 +313,13 @@ export function CalendarPage() {
       </div>
     </div>
   )
+}
+
+/** The `date` in the address, or today when it's missing or not a real day. */
+function parseDate(raw: string | null): Date {
+  if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return new Date()
+  const d = fromDayKey(raw)
+  return Number.isNaN(d.getTime()) || dayKey(d) !== raw ? new Date() : d
 }
 
 /** The current time, updated each minute, so a post turns due, then missed, while you watch. */

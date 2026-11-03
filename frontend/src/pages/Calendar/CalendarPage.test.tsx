@@ -19,14 +19,17 @@ const thu1830 = new Date(2026, 9, 22, 18, 30).toISOString()
 const tue0900 = new Date(2026, 9, 20, 9, 0).toISOString() // passed yesterday: missed
 
 let items: DraftRow[]
+let due: DraftRow[]
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], now: NOW })
   vi.clearAllMocks()
   localStorage.clear()
+  due = []
   items = [row({ id: 'd1', status: 'approved', scheduled_for: thu1830, text: 'Ship log' })]
   routeApi({
     'GET /drafts': () => ({ items }),
     'GET /me': () => ({ id: 'u', email: 'a@b', admitted: true, privacy_accepted: true }),
+    'GET /me/notifications': () => ({ due, missed: [], checkin_reminder: false }),
     'GET /platforms/:p': () => ({ channel: null }),
     'GET /platforms/:p/best-hours': () => ({
       platform: 'x',
@@ -41,7 +44,12 @@ beforeEach(() => {
     },
   })
 })
-afterEach(() => vi.useRealTimers())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
+
+const matchMediaStub = window.matchMedia.bind(window)
 
 function renderPage(path = '/calendar') {
   const client = new QueryClient({
@@ -171,6 +179,11 @@ test('a missed post is marked, and its hand-off copies it then asks if it was po
 })
 
 test('the best hours of the chosen platform are shaded, and can be turned off', async () => {
+  // A desktop width: phones show the week as a list without shading, and don't fetch it.
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+    ...matchMediaStub(query),
+    matches: query === '(min-width: 768px)',
+  }))
   const { container } = renderPage()
   await chip(container)
   await vi.waitFor(() =>
@@ -231,4 +244,18 @@ test('on phones a month day names its posts and their state, not colour alone', 
   ]
   renderPage('/calendar?view=month&date=2026-10-21')
   expect(await screen.findByRole('button', { name: /: 2 posts, 2 missed$/ })).toBeInTheDocument()
+})
+
+test('a date in the address that is not a real day opens today instead of crashing', async () => {
+  renderPage('/calendar?view=week&date=2026-13-40')
+  expect(await screen.findByText(/19 Oct|Oct 19/)).toBeTruthy()
+})
+
+test('posts due now stay at the top, whatever range is on screen', async () => {
+  due = [
+    row({ id: 'due1', status: 'approved', scheduled_for: NOW.toISOString(), text: 'Due post' }),
+  ]
+  renderPage('/calendar?view=month&date=2026-12-01')
+  const section = await screen.findByRole('region', { name: 'Due now' })
+  expect(within(section).getByText(/Due post/)).toBeTruthy()
 })

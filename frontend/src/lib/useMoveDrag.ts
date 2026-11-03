@@ -23,12 +23,20 @@ export function targetAt(x: number, y: number): DropTarget | null {
 
 export function useMoveDrag(onDrop: (id: string, target: DropTarget) => void) {
   const drag = useRef<Drag | null>(null)
+  // The latest onDrop, so the window listeners are added once, not on every render.
+  const dropRef = useRef(onDrop)
+  useEffect(() => {
+    dropRef.current = onDrop
+  })
   const [dragging, setDragging] = useState<string | null>(null)
   const [over, setOver] = useState<string | null>(null) // "day" or "day@hour"
 
   const end = useCallback(() => {
     const d = drag.current
-    if (d) d.el.style.transform = ''
+    if (d) {
+      d.el.style.transform = ''
+      d.el.style.pointerEvents = ''
+    }
     drag.current = null
     setDragging(null)
     setOver(null)
@@ -43,6 +51,8 @@ export function useMoveDrag(onDrop: (id: string, target: DropTarget) => void) {
       if (!d.moving && Math.hypot(dx, dy) < THRESHOLD) return
       if (!d.moving) {
         d.moving = true
+        // Let the slot under the post be hit-tested, not the post that follows the pointer.
+        d.el.style.pointerEvents = 'none'
         setDragging(d.id)
       }
       e.preventDefault()
@@ -58,9 +68,8 @@ export function useMoveDrag(onDrop: (id: string, target: DropTarget) => void) {
         const swallow = (c: MouseEvent) => c.stopPropagation()
         window.addEventListener('click', swallow, { capture: true, once: true })
         setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 0)
-        d.el.style.transform = ''
         const t = targetAt(e.clientX, e.clientY)
-        if (t) onDrop(d.id, t)
+        if (t) dropRef.current(d.id, t)
       }
       end()
     }
@@ -72,7 +81,7 @@ export function useMoveDrag(onDrop: (id: string, target: DropTarget) => void) {
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', end)
     }
-  }, [onDrop, end])
+  }, [end])
 
   /** Spread on a post's root element. */
   const handle = (id: string) => ({
