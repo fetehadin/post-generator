@@ -84,8 +84,9 @@ export const useSavePlatformSettings = (platform: Platform) =>
  * GET /platforms/{platform}/best-hours (FR-16, FR-34): each day's hours scored for this
  * platform's audience, in the user's own time; `best` leaves out hours that have passed.
  */
-export function useBestHours(platform: Platform, start: string, days = 7) {
+export function useBestHours(platform: Platform, start: string, days = 7, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ['best-hours', platform, start, days],
     queryFn: () => api<BestHours>(`/platforms/${platform}/best-hours?start=${start}&days=${days}`),
   })
