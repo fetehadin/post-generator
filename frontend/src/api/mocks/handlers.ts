@@ -232,7 +232,7 @@ const json = (status: number, body: unknown) =>
 
 /**
  * Something to look at on first load: yesterday's chat with an X and a LinkedIn draft, a
- * LinkedIn post due now and a Telegram post missed two days ago (both approved).
+ * LinkedIn post due now, a Telegram post missed two days ago, and two planned ones (all approved).
  */
 function seed() {
   const back = (ms: number) => new Date(Date.now() - ms).toISOString()
@@ -250,6 +250,15 @@ function seed() {
   const missed = newDraft('telegram', t.checkin_text, t.id)
   say(missed, 'assistant', '', true)
   Object.assign(missed, { status: 'approved', scheduled_for: back(2 * 86_400_000) })
+  // Two planned ones ahead, so the calendar shows every state.
+  for (const [platform, ahead] of [
+    ['x', 2 * 3_600_000],
+    ['telegram', 26 * 3_600_000],
+  ] as [Platform, number][]) {
+    const planned = newDraft(platform, t.checkin_text, t.id)
+    say(planned, 'assistant', '', true)
+    Object.assign(planned, { status: 'approved', scheduled_for: back(-ahead) })
+  }
   t.updated_at = back(86_400_000)
 }
 seed()

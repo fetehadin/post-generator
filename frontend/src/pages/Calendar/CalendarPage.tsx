@@ -1,64 +1,132 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router'
+import { useCallback, useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router'
 import { useDrafts, usePatchAnyDraft } from '../../api/drafts'
-import { useNotifications, useZone } from '../../api/me'
-import type { DraftRow } from '../../api/types'
-import { addDays, monthWeeks, moveTo, sameDay, startOfWeek, weekDays } from '../../lib/calendar'
+import { useZone } from '../../api/me'
+import { useBestHours } from '../../api/platforms'
+import type { DraftRow, Platform } from '../../api/types'
+import {
+  addDays,
+  dayKey,
+  fromDayKey,
+  monthWeeks,
+  moveTo,
+  startOfWeek,
+  weekDays,
+} from '../../lib/calendar'
+import { LABEL, PLATFORMS } from '../../lib/platforms'
 import { formatWhen } from '../../lib/time'
-import { CalendarItem } from './CalendarItem'
+import { useMoveDrag, type DropTarget } from '../../lib/useMoveDrag'
+import { cn } from '../../lib/utils'
+import { MonthGrid, TimeGrid, WeekList } from './Grids'
 
-const HOURS = Array.from({ length: 24 }, (_, h) => h)
-const ROW = 56 // px per hour in the week grid
-const dayName = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
+type View = 'month' | 'week' | 'day'
+const VIEWS: View[] = ['month', 'week', 'day']
+const SHADE_KEY = 'voxlace-calendar-shade'
 const monthName = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' })
 const rangeDay = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
-const hourLabel = (h: number) =>
-  new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(
-    new Date(2000, 0, 1, h),
-  )
+const fullDay = new Intl.DateTimeFormat(undefined, {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+})
+
+function savedShade(): Platform | 'off' {
+  try {
+    const v = localStorage.getItem(SHADE_KEY)
+    return v === 'off' || PLATFORMS.includes(v as Platform) ? (v as Platform | 'off') : 'x'
+  } catch {
+    return 'x'
+  }
+}
 
 /**
- * Calendar (DESIGN.md §4.3, the owner's Google Calendar-style grid): approved posts by day and
- * hour in your own time. Drag to change the day and time, or use "Move to…". "Posted" clears it.
+ * Calendar (DESIGN.md §4.3): approved posts by month, week or day, in your own time. Drag a
+ * post to another slot (mouse or touch), or open it for Move to…, Edit and Posted. The week
+ * and day views shade the best hours of one platform's audience (FR-16). The view and the
+ * date live in the address, so Back works and a link opens the same view.
  */
 export function CalendarPage() {
-  const [view, setView] = useState<'week' | 'month'>('week')
-  const [cursor, setCursor] = useState(() => new Date())
-  const [now] = useState(() => new Date())
+  const [params, setParams] = useSearchParams()
+  const view: View = VIEWS.includes(params.get('view') as View)
+    ? (params.get('view') as View)
+    : 'week'
+  const cursor = params.get('date') ? fromDayKey(params.get('date')!) : new Date()
+  const now = useNow()
+  const [shade, setShade] = useState(savedShade)
+  const [dropNote, setDropNote] = useState('')
   const patch = usePatchAnyDraft()
 
-  const weeks = view === 'week' ? [weekDays(startOfWeek(cursor))] : monthWeeks(cursor)
-  const from = weeks[0][0]
-  const to = addDays(weeks.at(-1)![6], 1)
+  const go = (next: View, date: Date) => setParams({ view: next, date: dayKey(date) })
+
+  const days =
+    view === 'day' ? [new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate())] : []
+  const weeks = view === 'month' ? monthWeeks(cursor) : [weekDays(startOfWeek(cursor))]
+  const visible = view === 'day' ? days : weeks.flat()
+  const from = visible[0]
+  const to = addDays(visible.at(-1)!, 1)
+
   const drafts = useDrafts({
     status: 'approved',
     scheduled_from: from.toISOString(),
     scheduled_to: to.toISOString(),
   })
   const upNext = useDrafts({ status: 'approved', scheduled_from: now.toISOString() })
-  const due = useNotifications().data?.due ?? []
   const items = drafts.data?.items ?? []
 
-  const step = (n: number) =>
-    setCursor((c) =>
-      view === 'week' ? addDays(c, 7 * n) : new Date(c.getFullYear(), c.getMonth() + n, 1),
-    )
-  const title =
-    view === 'week'
-      ? `${rangeDay.format(from)} – ${rangeDay.format(addDays(to, -1))}`
-      : monthName.format(cursor)
+  const bestHours = useBestHours(
+    shade === 'off' ? 'x' : shade,
+    dayKey(from),
+    view === 'day' ? 1 : 7,
+    shade !== 'off' && view !== 'month',
+  )
+  const best: Record<string, number[]> = Object.fromEntries(
+    (bestHours.data?.days ?? []).map((d) => [d.date, d.best]),
+  )
 
-  function drop(id: string, day: Date, hour?: number) {
-    const d = items.find((x) => x.id === id)
-    if (!d?.scheduled_for) return
-    const h = hour ?? new Date(d.scheduled_for).getHours()
-    const when = moveTo(d.scheduled_for, day, h)
-    if (when !== d.scheduled_for) patch.mutate({ id, scheduled_for: when })
+  const onDrop = useCallback(
+    (id: string, target: DropTarget) => {
+      const d = items.find((x) => x.id === id)
+      if (!d?.scheduled_for) return
+      const hour = target.hour ?? new Date(d.scheduled_for).getHours()
+      const when = moveTo(d.scheduled_for, fromDayKey(target.day), hour)
+      // Same check as Move to…'s picker: a time that has passed would be missed at once.
+      if (new Date(when) <= new Date()) {
+        setDropNote('That time has passed. Drop it on a later slot.')
+        return
+      }
+      setDropNote('')
+      if (when !== d.scheduled_for) patch.mutate({ id, scheduled_for: when })
+    },
+    [items, patch],
+  )
+  const move = useMoveDrag(onDrop)
+  const shared = { items, now, patch, move }
+
+  const step = (n: number) => {
+    if (view === 'day') go(view, addDays(cursor, n))
+    else if (view === 'week') go(view, addDays(cursor, 7 * n))
+    else go(view, new Date(cursor.getFullYear(), cursor.getMonth() + n, 1))
+  }
+  const title =
+    view === 'day'
+      ? fullDay.format(cursor)
+      : view === 'week'
+        ? `${rangeDay.format(from)} – ${rangeDay.format(addDays(to, -1))}`
+        : monthName.format(cursor)
+
+  function pickShade(next: Platform | 'off') {
+    setShade(next)
+    try {
+      localStorage.setItem(SHADE_KEY, next)
+    } catch {
+      // Private mode: the choice lasts for this page only.
+    }
   }
 
+  const control = 'min-h-9 rounded-control px-3 text-sm'
   return (
-    <div className="mx-auto max-w-[1200px] px-4 py-12 md:px-10 md:py-14">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="mx-auto max-w-wide px-4 py-10 md:px-10 md:py-14">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Calendar</h1>
         <div className="flex items-center gap-1">
           <button
@@ -71,8 +139,8 @@ export function CalendarPage() {
           </button>
           <button
             type="button"
-            onClick={() => setCursor(new Date())}
-            className="min-h-9 rounded-control border border-edge px-3 text-sm"
+            onClick={() => go(view, new Date())}
+            className={cn(control, 'border border-edge hover:bg-sunken')}
           >
             Today
           </button>
@@ -93,34 +161,57 @@ export function CalendarPage() {
           aria-label="View"
           className="ml-auto flex rounded-control border border-line p-0.5"
         >
-          {(['week', 'month'] as const).map((v) => (
+          {VIEWS.map((v) => (
             <button
               key={v}
               type="button"
               aria-pressed={view === v}
-              onClick={() => setView(v)}
-              className={`min-h-8 rounded-control px-3 text-sm ${view === v ? 'bg-sunken font-semibold' : 'text-muted'}`}
+              onClick={() => go(v, cursor)}
+              className={cn(
+                'min-h-8 rounded-control px-3 text-sm capitalize',
+                view === v ? 'bg-sunken font-semibold' : 'text-muted hover:text-ink',
+              )}
             >
-              {v === 'week' ? 'Week' : 'Month'}
+              {v}
             </button>
           ))}
         </div>
-      </div>
+      </header>
 
-      {due.length > 0 && (
-        <section aria-labelledby="due-now" className="mt-6 rounded-panel border border-signal p-4">
-          <h2 id="due-now" className="text-sm font-semibold text-signal">
-            Due now
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            Post these, then press Posted. Voxlace never posts to X or LinkedIn for you.
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {due.map((d) => (
-              <CalendarItem key={d.id} draft={d} patch={patch} />
-            ))}
-          </div>
-        </section>
+      {view !== 'month' && (
+        <div
+          role="group"
+          aria-label="Shade the best hours for"
+          className="mt-4 flex flex-wrap items-center gap-2 text-sm"
+        >
+          <span className="text-muted">Best hours for</span>
+          {[...PLATFORMS, 'off' as const].map((p) => (
+            <button
+              key={p}
+              type="button"
+              aria-pressed={shade === p}
+              onClick={() => pickShade(p)}
+              className={cn(
+                'min-h-8 rounded-full border px-3',
+                shade === p
+                  ? 'border-primary bg-primary font-semibold text-on-primary'
+                  : 'border-line text-muted hover:border-edge hover:text-ink',
+              )}
+            >
+              {p === 'off' ? 'Off' : LABEL[p]}
+            </button>
+          ))}
+          {shade !== 'off' && (
+            <span className="flex items-center gap-1.5 text-xs text-muted">
+              <span
+                aria-hidden="true"
+                className="size-3 rounded-sm border-l-2 border-edge bg-sunken ring-1 ring-line"
+              />
+              marked like this, in your time
+              {bestHours.data?.source === 'your_posts' && ', from your own posts'}
+            </span>
+          )}
+        </div>
       )}
 
       <UpNext items={upNext.data?.items.slice(0, 3) ?? []} />
@@ -130,31 +221,70 @@ export function CalendarPage() {
           {(patch.error ?? drafts.error)?.message}
         </p>
       )}
+      <p role="status" className={cn('text-sm text-danger', dropNote && 'mt-4')}>
+        {dropNote}
+      </p>
 
-      {view === 'week' ? (
-        <WeekGrid days={weeks[0]} items={items} now={now} onDrop={drop} patch={patch} />
-      ) : (
-        <MonthGrid
-          weeks={weeks}
-          month={cursor.getMonth()}
-          items={items}
-          now={now}
-          onDrop={drop}
-          patch={patch}
-        />
-      )}
-
+      {drafts.isPending && <p className="mt-4 text-sm text-muted">Loading your calendar…</p>}
       {drafts.isSuccess && !items.length && (
         <p className="mt-4 text-sm text-muted">
-          Nothing scheduled here. Approve a draft and pick a time:{' '}
+          Approve a draft and pick a time to see it here.{' '}
           <Link to="/drafts" className="text-thread underline underline-offset-4">
-            open Drafts
+            Open Drafts
           </Link>
-          .
         </p>
       )}
+
+      <div
+        className={cn(
+          'mt-6 transition-opacity duration-(--duration) ease-(--ease)',
+          drafts.isPending && 'opacity-50',
+        )}
+      >
+        {view === 'month' && (
+          <MonthGrid
+            weeks={weeks}
+            month={cursor.getMonth()}
+            onOpenDay={(day) => go('day', day)}
+            {...shared}
+          />
+        )}
+        {view === 'week' && (
+          <>
+            <div className="md:hidden">
+              <WeekList days={weeks[0]} {...shared} />
+            </div>
+            <div className="hidden md:block">
+              <TimeGrid
+                days={weeks[0]}
+                best={shade === 'off' ? {} : best}
+                bestFor={shade === 'off' ? null : LABEL[shade]}
+                {...shared}
+              />
+            </div>
+          </>
+        )}
+        {view === 'day' && (
+          <TimeGrid
+            days={days}
+            best={shade === 'off' ? {} : best}
+            bestFor={shade === 'off' ? null : LABEL[shade]}
+            {...shared}
+          />
+        )}
+      </div>
     </div>
   )
+}
+
+/** The current time, updated each minute, so a post turns due, then missed, while you watch. */
+function useNow() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+  return now
 }
 
 function UpNext({ items }: { items: DraftRow[] }) {
@@ -179,134 +309,5 @@ function UpNext({ items }: { items: DraftRow[] }) {
         ))}
       </ol>
     </section>
-  )
-}
-
-type GridProps = {
-  items: DraftRow[]
-  now: Date
-  onDrop: (id: string, day: Date, hour?: number) => void
-  patch: ReturnType<typeof usePatchAnyDraft>
-}
-
-function at(items: DraftRow[], day: Date, hour?: number) {
-  return items.filter((d) => {
-    const t = new Date(d.scheduled_for!)
-    return sameDay(t, day) && (hour === undefined || t.getHours() === hour)
-  })
-}
-
-function WeekGrid({ days, items, now, onDrop, patch }: GridProps & { days: Date[] }) {
-  const scroller = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (scroller.current) scroller.current.scrollTop = ROW * 8 // open at 08:00
-  }, [])
-  return (
-    <>
-      {/* Phones: a list per day; same items, same Move to… and Posted. */}
-      <ol className="mt-6 flex flex-col gap-4 md:hidden">
-        {days.map((day) => (
-          <li key={day.toISOString()}>
-            <h3 className={`text-sm font-semibold ${sameDay(day, now) ? 'text-ink' : ''}`}>
-              {dayName.format(day)} {day.getDate()}
-            </h3>
-            <div className="mt-1 flex flex-col gap-2">
-              {at(items, day).map((d) => (
-                <CalendarItem key={d.id} draft={d} patch={patch} />
-              ))}
-              {!at(items, day).length && <p className="text-xs text-muted">Nothing planned.</p>}
-            </div>
-          </li>
-        ))}
-      </ol>
-
-      <div className="mt-6 hidden overflow-hidden rounded-panel border border-line bg-paper md:block">
-        <div className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))] border-b border-line">
-          <span />
-          {days.map((day) => (
-            <div
-              key={day.toISOString()}
-              className={`border-l border-line px-2 py-2 text-center text-sm ${sameDay(day, now) ? 'bg-sunken font-semibold text-ink' : ''}`}
-            >
-              {dayName.format(day)} <span className="tabular-nums">{day.getDate()}</span>
-            </div>
-          ))}
-        </div>
-        <div ref={scroller} className="max-h-[65vh] overflow-y-auto">
-          {HOURS.map((h) => (
-            <div
-              key={h}
-              className="grid grid-cols-[64px_repeat(7,minmax(0,1fr))]"
-              style={{ minHeight: ROW }}
-            >
-              <span className="pt-1 pr-2 text-right text-xs text-muted tabular-nums">
-                {hourLabel(h)}
-              </span>
-              {days.map((day) => (
-                <div
-                  key={day.toISOString()}
-                  data-slot={`${day.getDate()}-${h}`}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    onDrop(e.dataTransfer.getData('text/plain'), day, h)
-                  }}
-                  className="flex flex-col gap-1 border-t border-l border-line p-1"
-                >
-                  {at(items, day, h).map((d) => (
-                    <CalendarItem key={d.id} draft={d} patch={patch} compact />
-                  ))}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    </>
-  )
-}
-
-function MonthGrid({
-  weeks,
-  month,
-  items,
-  now,
-  onDrop,
-  patch,
-}: GridProps & { weeks: Date[][]; month: number }) {
-  return (
-    <div className="mt-6 overflow-hidden rounded-panel border border-line bg-paper">
-      <div className="grid grid-cols-7 border-b border-line text-center text-sm text-muted">
-        {weeks[0].map((d) => (
-          <span key={d.toISOString()} className="py-2">
-            {dayName.format(d)}
-          </span>
-        ))}
-      </div>
-      {weeks.map((week) => (
-        <div key={week[0].toISOString()} className="grid grid-cols-7">
-          {week.map((day) => (
-            <div
-              key={day.toISOString()}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault()
-                onDrop(e.dataTransfer.getData('text/plain'), day)
-              }}
-              className={`flex min-h-28 flex-col gap-1 border-t border-l border-line p-1 ${day.getMonth() !== month ? 'bg-sunken/50' : ''}`}
-            >
-              <span
-                className={`text-xs tabular-nums ${sameDay(day, now) ? 'rounded-full bg-sunken px-1 font-semibold text-ink' : 'text-muted'}`}
-              >
-                {day.getDate()}
-              </span>
-              {at(items, day).map((d) => (
-                <CalendarItem key={d.id} draft={d} patch={patch} compact />
-              ))}
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
   )
 }
