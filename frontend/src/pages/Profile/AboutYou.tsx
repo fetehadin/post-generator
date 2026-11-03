@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { input } from './fields'
 import {
   type Profile,
   type ProfileChange,
@@ -63,9 +64,6 @@ const LANGUAGES: Array<[string, string]> = [
   ['English', 'English'],
   ['Amharic', 'Amharic'],
 ]
-
-const input =
-  'mt-1 block min-h-10 w-full rounded-control border border-edge bg-surface px-3 text-sm'
 
 /** Profile → About you: the answers, then the summary card every draft may use (FR-18). */
 export function AboutYou() {

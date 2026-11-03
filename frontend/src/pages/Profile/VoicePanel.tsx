@@ -2,11 +2,13 @@ import { useState } from 'react'
 import {
   type PlatformInfo,
   usePlatform,
+  useSavePlatformSettings,
   useSaveVoiceCard,
   useSetPremium,
   useWriteVoiceCard,
 } from '../../api/platforms'
 import type { Platform } from '../../api/types'
+import { input, primaryButton } from './fields'
 
 const pct = (x: number) => `${Math.round(x * 100)}%`
 const LIMIT = new Intl.NumberFormat()
@@ -103,6 +105,7 @@ function VoiceBody({ info, label }: { info: PlatformInfo; label: string }) {
       </div>
 
       {info.platform === 'x' && <PremiumSetting info={info} />}
+      {info.platform === 'telegram' && <ChannelSetting info={info} />}
 
       <details className="mt-4 text-sm">
         <summary className="cursor-pointer text-muted">{label} rules</summary>
@@ -149,5 +152,46 @@ function PremiumSetting({ info }: { info: PlatformInfo }) {
         ))}
       </div>
     </fieldset>
+  )
+}
+
+/** FR-12: the Telegram channel the hand-off opens after copying a post. */
+function ChannelSetting({ info }: { info: PlatformInfo }) {
+  const save = useSavePlatformSettings('telegram')
+  const [channel, setChannel] = useState(info.channel ?? '')
+  const changed = channel.trim() !== (info.channel ?? '')
+  return (
+    <form
+      className="mt-4 flex flex-wrap items-end gap-3 text-sm"
+      onSubmit={(e) => {
+        e.preventDefault()
+        // The server keeps the bare name (t.me/name → name): show what it saved.
+        save.mutate({ channel: channel.trim() }, { onSuccess: (i) => setChannel(i.channel ?? '') })
+      }}
+    >
+      <label className="min-w-56 flex-1">
+        <span className="font-semibold">Your Telegram channel</span>
+        <input
+          className={input}
+          value={channel}
+          placeholder="@yourchannel or t.me/yourchannel"
+          onChange={(e) => setChannel(e.target.value)}
+          autoComplete="off"
+          spellCheck={false}
+        />
+      </label>
+      <button type="submit" className={primaryButton} disabled={!changed || save.isPending}>
+        {save.isPending ? 'Saving…' : 'Save channel'}
+      </button>
+      <p className="w-full text-muted">
+        Copy now opens this channel, so you only paste and send.{' '}
+        <span aria-live="polite">{save.isSuccess && !changed ? 'Saved.' : ''}</span>
+      </p>
+      {save.isError && (
+        <p role="alert" className="w-full text-danger">
+          {save.error.message}
+        </p>
+      )}
+    </form>
   )
 }
