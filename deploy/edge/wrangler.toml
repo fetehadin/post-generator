@@ -1,0 +1,9 @@
+# Deploy from this folder: npx wrangler deploy (needs a Cloudflare login with Workers access).
+name = "voxlace-edge"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = false
+routes = [{ pattern = "voxlace.fetehadin.com", custom_domain = true }]
+
+[vars]
+ORIGIN = "voxlace.duckdns.org"

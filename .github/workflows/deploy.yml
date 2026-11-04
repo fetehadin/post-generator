@@ -1,7 +1,7 @@
 name: Deploy
 
 # Runs after CI succeeds on main, or by hand from the Actions tab.
-# Stays off until the repository variable DEPLOY_ENABLED is set to "true" (Phase 2).
+# Stays off until the repository variable DEPLOY_ENABLED is set to "true" (on since 4 Nov 2026).
 on:
   workflow_run:
     workflows: [CI]
@@ -43,7 +43,9 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+          # Keep-alives: the image build takes minutes with no output, and an idle connection gets dropped.
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=10 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
             "cd '$DEPLOY_PATH' && ./deploy/deploy.sh '$SHA'"
 
       - name: Health check
