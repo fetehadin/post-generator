@@ -24,6 +24,7 @@ flowchart LR
 |---|---|
 | `.github/workflows/ci.yml` | Runs on every pull request and every push to `main` |
 | `.github/workflows/deploy.yml` | Runs after CI succeeds on `main`, or by hand. Off until enabled. |
+| `.github/workflows/uptime.yml` | Every 30 minutes calls `https://$DOMAIN/api/v1/health` (three tries). A failed scheduled run emails the repo owner. Off while `DEPLOY_ENABLED` isn't `true`. |
 | `deploy/deploy.sh` | Runs on the server: checks out the commit, builds, migrates, restarts, and rolls back if a step fails |
 | `.github/dependabot.yml` | Weekly pull requests to update GitHub Actions (and Python/npm packages from Phase 0) |
 
@@ -98,4 +99,5 @@ Delete the local `voxlace_deploy` files once the secret is saved.
 | A CI job is red | Click the job in the PR's **Checks** tab; the failing step shows the exact command and output. Run the same command locally. |
 | Secret scan fails | Remove the secret from the code, **rotate the key** (it's already exposed in history), then push. |
 | Deploy fails at SSH | Check `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS`, and that the public key is in `~deploy/.ssh/authorized_keys`. |
+| Uptime run fails | Same as below. If only the edge is down, `https://voxlace.duckdns.org/api/v1/health` still answers (deploy/README.md, edge Worker). |
 | Deploy succeeds but health check fails | `ssh deploy@server`, then `docker compose -f deploy/docker-compose.prod.yml logs api --tail 100`. |
