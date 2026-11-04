@@ -37,8 +37,8 @@ export type Profile = {
 
 export type ProfileChange = Partial<Omit<Profile, 'summary_updated_at'>>
 
-export function useProfile() {
-  return useQuery({ queryKey: ['profile'], queryFn: () => api<Profile>('/profile') })
+export function useProfile(enabled = true) {
+  return useQuery({ queryKey: ['profile'], queryFn: () => api<Profile>('/profile'), enabled })
 }
 
 function useProfileMutation<I>(fn: (input: I) => Promise<Profile>) {
