@@ -5,6 +5,7 @@
     python -m app.dev search "a topic" [--platform telegram]
     python -m app.dev draft "today's check-in" [--platform telegram] [--show-prompt]
     python -m app.dev eval [--platform telegram]   # the ten test topics
+    python -m app.dev check-models                  # one tiny prompt per model (daily cron)
 
 Everything is stored under one fixed dev user, the same way real users will be.
 """
@@ -15,6 +16,7 @@ from pathlib import Path
 
 from sqlalchemy.dialects.postgresql import insert
 
+from app.ai.client import default_client
 from app.core.auth import DEV_USER_ID
 from app.core.db import user_session
 from app.evals import run_eval
@@ -83,6 +85,16 @@ def evaluate(platform: str) -> None:
     print(f"report: {path}")
 
 
+def check_models() -> None:
+    """Daily health check of each model in the chain. Exits 1 when any model fails, so cron
+    and the log show it before the fallback quietly carries every draft."""
+    checks = default_client().check_models()
+    for c in checks:
+        print(f"{c.provider}:{c.model} {'ok' if c.error is None else 'FAILED ' + c.error}")
+    if any(c.error for c in checks):
+        raise SystemExit(1)
+
+
 def make_invite(email: str | None) -> None:
     """FR-28: an invite code for one tester (bound to their email if given)."""
     code = f"VX-{secrets.token_hex(3).upper()}-{secrets.token_hex(3).upper()}"
@@ -107,6 +119,7 @@ def main() -> None:
     drf.add_argument("--show-prompt", action="store_true")
     ev = sub.add_parser("eval", help="draft the ten test topics and write a report")
     ev.add_argument("--platform", default="telegram", choices=["telegram", "x", "linkedin"])
+    sub.add_parser("check-models", help="send one tiny prompt to each model in the chain")
     inv = sub.add_parser("invite", help="create an invite code for a tester")
     inv.add_argument("--email", help="only this email can use the code")
     args = parser.parse_args()
@@ -120,6 +133,8 @@ def main() -> None:
         draft(args.topic, args.platform, args.show_prompt)
     elif args.command == "eval":
         evaluate(args.platform)
+    elif args.command == "check-models":
+        check_models()
     elif args.command == "invite":
         make_invite(args.email)
 

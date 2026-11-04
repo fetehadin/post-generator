@@ -480,3 +480,17 @@ def test_gemini_is_skipped_rather_than_given_under_10_seconds():
         client.generate("prompt")
     assert models.gen_calls == ["first"]  # second had 5 s left: not asked (Gemini needs 10)
     assert "under 10 s left" in str(e.value)
+
+
+def test_check_models_tries_every_model_on_its_own_and_reports_each():
+    groq = FakeGroq(statuses=[401])
+    models = FakeModels(gen_failures={"first": [404]})
+    client, _ = make_groq(groq, models=models, chain="google:first,google:second,groq:g,nope:x")
+    checks = client.check_models()
+    assert [(c.provider, c.model, c.error) for c in checks] == [
+        ("google", "first", "404: fake 404"),
+        ("google", "second", None),
+        ("groq", "g", "401: fake 401"),
+        ("nope", "x", "unknown provider"),
+    ]
+    assert models.gen_calls == ["first", "second"]
