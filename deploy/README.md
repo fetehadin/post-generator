@@ -132,6 +132,30 @@ docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
 Until Voxlace is running, the domain returns 502; the other sites aren't affected. If the other app ever
 rebuilds its network, run `./deploy/deploy.sh "$(git rev-parse HEAD)"` again so our Caddy rejoins it.
 
+## voxlace.fetehadin.com (the Cloudflare edge Worker)
+
+`fetehadin.com` lives on Cloudflare. Our Cloudflare login can publish Workers but not edit DNS, so the
+public name is a small Worker (`deploy/edge/`) on a Worker custom domain. It forwards every request,
+unchanged, to the origin name the shared Caddy already serves (`voxlace.duckdns.org`, the block above):
+
+```mermaid
+flowchart LR
+    Browser -->|voxlace.fetehadin.com| Worker[Cloudflare Worker<br/>voxlace-edge]
+    Worker -->|voxlace.duckdns.org| Shared[Shared Caddy]
+    Shared --> Web[voxlace-web]
+```
+
+```bash
+cd deploy/edge && npx wrangler deploy   # creates the DNS record and certificate itself
+```
+
+The server settings say `DOMAIN=voxlace.fetehadin.com` (the API's allowed origin) and the GitHub variable
+`DOMAIN` is the same, so the deploy health check goes through the Worker.
+
+**To drop the Worker later:** in Cloudflare DNS add `voxlace` → A → the server's address, DNS only (grey
+cloud); rename the shared Caddy block to `voxlace.fetehadin.com`, reload it; then `npx wrangler delete`
+in `deploy/edge`.
+
 ## Server checklist (once)
 
 - [ ] `deploy` user with Docker and no sudo (`add-deploy-user.sh`); SSH key login only; password login off. **The script leaves sshd and `ufw` alone: these two lines stay open until you do them by hand (NFR-18).**
