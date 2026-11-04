@@ -80,6 +80,8 @@
   --color-scrim: var(--scrim);
   /* The one centred column (DESIGN.md §5) and the writing line-height. */
   --container-column: 720px;
+  /* The calendar's wider frame: seven day columns need the room. */
+  --container-wide: 1200px;
   --leading-writing: 1.7;
   --radius-control: 8px;
   --radius-panel: 12px;
