@@ -1,8 +1,9 @@
-import { useId, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useEffect, useId, useState } from 'react'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { useZone } from '../../api/me'
 import { useCreateThread, useThreads } from '../../api/threads'
 import { dateIn } from '../../lib/time'
+import { useNeedsWelcome } from '../../lib/welcome'
 
 const STARTERS = ['Today I shipped ', 'A lesson from this week: ', 'A problem I solved: ']
 
@@ -12,7 +13,11 @@ const STARTERS = ['Today I shipped ', 'A lesson from this week: ', 'A problem I 
  * keeps the text exactly where it was (NFR-4).
  */
 export function NewChatPage() {
-  const [text, setText] = useState('')
+  // The welcome's last step may hand over a suggested first topic.
+  const location = useLocation()
+  const handed = (location.state as { text?: string } | null)?.text
+  const [text, setText] = useState(handed ?? '')
+  const needsWelcome = useNeedsWelcome()
   const [action, setAction] = useState<'save' | 'generate'>('generate')
   const zone = useZone()
   const create = useCreateThread()
@@ -38,6 +43,14 @@ export function NewChatPage() {
     timeZone: zone,
   }).format(new Date())
 
+  // Used once: drop it from history, so Back or a reload doesn't suggest it again.
+  useEffect(() => {
+    if (handed) navigate(location.pathname, { replace: true, state: null })
+  }, [handed, location.pathname, navigate])
+
+  if (needsWelcome === true) return <Navigate to="/welcome" replace />
+  // Don't offer the box until we know, so nothing typed is thrown away by the redirect.
+  if (needsWelcome === 'loading') return <p className="p-8 text-muted">Loading…</p>
   return (
     <div className="mx-auto max-w-column px-4 pt-12 pb-16 md:px-6 md:pt-[12vh]">
       <p className="text-sm text-muted">{today}</p>

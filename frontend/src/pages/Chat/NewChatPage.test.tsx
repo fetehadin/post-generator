@@ -15,6 +15,7 @@ vi.mock('../../api/client', async (importOriginal) => ({
 let fail = false
 beforeEach(() => {
   fail = false
+  localStorage.setItem('voxlace-welcomed:u1', '1') // the first-run welcome has its own tests
   routeApi({
     'GET /me': () => ({ id: 'u1', email: 'a@b.c', timezone: 'UTC' }),
     'GET /threads': () => ({ items: [] }),
