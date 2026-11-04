@@ -38,6 +38,8 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 MODEL_SHARE = 0.6  # of the time left, for one model while backups remain
 GEMINI_MIN_SECONDS = 10  # Gemini's smallest allowed call deadline
+HEALTH_PROMPT = "Reply with the single word OK."
+HEALTH_SECONDS = 30  # per model in the daily check
 
 
 class ProviderError(Exception):
@@ -63,6 +65,13 @@ class GenerationResult:
     model: str
     provider: str
     model_version: str | None
+
+
+@dataclass(frozen=True)
+class ModelCheck:
+    provider: str
+    model: str
+    error: str | None  # None: the model answered
 
 
 class AIClient:
@@ -155,6 +164,23 @@ class AIClient:
                 logger.warning("%s generation failed on %s: %s", purpose, model, describe(e))
                 failures.append(f"{model} {describe(e)}")
         raise AIUnavailable("all models failed: " + "; ".join(failures))
+
+    def check_models(self) -> list[ModelCheck]:
+        """The daily health check (BUILD_PLAN Phase 6): one tiny prompt to every model in the
+        chain on its own, so a model that disappeared shows up before the fallback hides it."""
+        providers = {"google": self._generate_google, "groq": self._generate_groq}
+        checks = []
+        for provider, model in self.settings.generation_chain:
+            call = providers.get(provider)
+            if call is None:
+                checks.append(ModelCheck(provider, model, "unknown provider"))
+                continue
+            try:
+                call(model, HEALTH_PROMPT, 0.0, self._clock() + HEALTH_SECONDS)
+                checks.append(ModelCheck(provider, model, None))
+            except (errors.APIError, ProviderError, httpx.TransportError, AIUnavailable) as e:
+                checks.append(ModelCheck(provider, model, describe(e)))
+        return checks
 
     def _left(self, deadline: float) -> float:
         """Seconds for the next call: the usual timeout, or less near the deadline."""

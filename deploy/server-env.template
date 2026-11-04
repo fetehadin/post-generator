@@ -14,8 +14,11 @@ APP_DB_USER=voxlace_app
 APP_DB_PASSWORD=
 
 GEMINI_API_KEY=
-GENERATION_MODELS=google:gemini-flash-latest,google:gemini-flash-lite-latest,groq:openai/gpt-oss-120b
-# Groq writes drafts when every Gemini model is busy (free key at console.groq.com).
+# Groq second: when Gemini is overloaded it is the one that answers in time. With the 40 s deadline a
+# third Gemini model often gets under 10 s and is skipped, so Groq can't wait behind it.
+# Check them all with: docker compose ... exec api python -m app.dev check-models
+GENERATION_MODELS=google:gemini-flash-latest,groq:openai/gpt-oss-120b,google:gemini-flash-lite-latest
+# Groq writes drafts when Gemini is busy (free key at console.groq.com).
 GROQ_API_KEY=
 
 # Supabase -> Project settings -> API. The publishable key is public (it is built into the app).
