@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useMe, useNotifications, useSetTimezone } from '../api/me'
 import { useThreads } from '../api/threads'
+import { remember, remembered } from '../lib/storage'
 import { cn } from '../lib/utils'
 import { useMedia } from '../lib/useMedia'
 import { LABEL, PLATFORMS } from '../lib/platforms'
@@ -16,23 +17,6 @@ const NEXT: Record<Theme, Theme> = { light: 'dark', dark: 'light' }
 const COLLAPSED_KEY = 'voxlace-sidebar-collapsed'
 const DRAFTS_OPEN_KEY = 'voxlace-drafts-open'
 const TZ_SENT_KEY = 'voxlace-timezone-sent'
-
-function remembered(key: string, fallback: boolean): boolean {
-  try {
-    const v = localStorage.getItem(key)
-    return v === null ? fallback : v === '1'
-  } catch {
-    return fallback
-  }
-}
-
-function remember(key: string, on: boolean) {
-  try {
-    localStorage.setItem(key, on ? '1' : '0')
-  } catch {
-    // private mode: remembered for this page only
-  }
-}
 
 /**
  * DESIGN.md §2 (decided 22 Oct 2026). Left: a floating sidebar card with New chat, the chat

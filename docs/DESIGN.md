@@ -160,7 +160,7 @@ Tabs: **About you** (role, experience, discipline, your time zone, language), **
 
 ### 4.5 First run
 
-Invite → privacy → pick platforms → upload one export (or "skip, later") → role, focus areas, audience profession and places (pre-filled from your time zone) → first draft from a suggested topic. Everything else waits in Profile.
+Invite → privacy → pick platforms → role and focus → audience profession and place (pre-filled from your time zone, saved for each picked platform) → import an export, or "skip, write a first draft" with a topic suggested from your focus. Shown once, to accounts with no role yet (`/welcome`, linked from the new chat). Everything else waits in Profile.
 
 ---
 
