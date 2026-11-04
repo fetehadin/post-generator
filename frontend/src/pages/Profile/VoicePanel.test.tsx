@@ -52,13 +52,18 @@ beforeEach(() => {
         voice_card_updated_at: '2026-10-22T09:00:00Z',
       }
     } else if (init?.method === 'PUT') {
-      const body = JSON.parse(String(init.body)) as { voice_card?: string; x_premium?: boolean }
+      const body = JSON.parse(String(init.body)) as {
+        voice_card?: string
+        x_premium?: boolean
+        channel?: string
+      }
       current = {
         ...current,
         ...('voice_card' in body && {
           voice_card: body.voice_card!,
           voice_card_updated_at: '2026-10-22T10:00:00Z',
         }),
+        ...('channel' in body && { channel: String(body.channel).replace(/^@|^t\.me\//, '') }),
         ...('x_premium' in body && {
           x_premium: body.x_premium!,
           premium_source: 'user' as const,
@@ -126,4 +131,20 @@ test('asks X users about Premium and shows the new limit (Q31)', async () => {
   await userEvent.click(screen.getByLabelText('No (280)'))
   await vi.waitFor(() => expect(screen.getByLabelText('No (280)')).toBeChecked())
   expect(screen.queryByText(/we guessed yes/)).not.toBeInTheDocument()
+})
+
+test('Telegram: the channel is saved, and shown as the server keeps it (FR-12)', async () => {
+  renderPanel()
+  await userEvent.type(await screen.findByLabelText('Your Telegram channel'), '@fetescript_demo')
+  await userEvent.click(screen.getByRole('button', { name: 'Save channel' }))
+  expect(await screen.findByText('Saved.')).toBeInTheDocument()
+  expect(screen.getByLabelText('Your Telegram channel')).toHaveValue('fetescript_demo')
+  expect(screen.getByRole('button', { name: 'Save channel' })).toBeDisabled()
+})
+
+test('X has no channel field', async () => {
+  current = info({ platform: 'x' })
+  renderPanel('x', 'X')
+  await screen.findByText(/Premium/)
+  expect(screen.queryByLabelText('Your Telegram channel')).not.toBeInTheDocument()
 })

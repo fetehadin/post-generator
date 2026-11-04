@@ -1,9 +1,10 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useMe, useNotifications, useSetTimezone } from '../api/me'
 import { useThreads } from '../api/threads'
 import { remember, remembered } from '../lib/storage'
 import { cn } from '../lib/utils'
+import { useMedia } from '../lib/useMedia'
 import { LABEL, PLATFORMS } from '../lib/platforms'
 import { applyTheme, nextTheme, savedTheme, type Theme } from '../lib/theme'
 import { Icon, type IconName } from './Icon'
@@ -162,18 +163,6 @@ export function AppShell() {
 
       <MobileTabs />
     </div>
-  )
-}
-
-/** Whether a media query matches, kept up to date (e.g. the 1280px panel breakpoint). */
-function useMedia(query: string): boolean {
-  return useSyncExternalStore(
-    (change) => {
-      const m = matchMedia(query)
-      m.addEventListener('change', change)
-      return () => m.removeEventListener('change', change)
-    },
-    () => matchMedia(query).matches,
   )
 }
 

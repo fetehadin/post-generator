@@ -49,11 +49,18 @@ export function usePlatform(platform: Platform, enabled = true) {
   })
 }
 
-function usePlatformMutation<I>(platform: Platform, fn: (input: I) => Promise<PlatformInfo>) {
+function usePlatformMutation<I>(
+  platform: Platform,
+  fn: (input: I) => Promise<PlatformInfo>,
+  stale?: unknown[],
+) {
   const client = useQueryClient()
   return useMutation({
     mutationFn: fn,
-    onSuccess: (info) => client.setQueryData(['platform', platform], info),
+    onSuccess: (info) => {
+      client.setQueryData(['platform', platform], info)
+      if (stale) void client.invalidateQueries({ queryKey: stale })
+    },
   })
 }
 
@@ -75,17 +82,22 @@ export const useSetPremium = () =>
     api<PlatformInfo>('/platforms/x/settings', json('PUT', { x_premium })),
   )
 
+/** The audience decides the best hours, so they're worked out again after a save. */
 export const useSavePlatformSettings = (platform: Platform) =>
-  usePlatformMutation(platform, (settings: PlatformSettings) =>
-    api<PlatformInfo>(`/platforms/${platform}/settings`, json('PUT', settings)),
+  usePlatformMutation(
+    platform,
+    (settings: PlatformSettings) =>
+      api<PlatformInfo>(`/platforms/${platform}/settings`, json('PUT', settings)),
+    ['best-hours', platform],
   )
 
 /**
  * GET /platforms/{platform}/best-hours (FR-16, FR-34): each day's hours scored for this
  * platform's audience, in the user's own time; `best` leaves out hours that have passed.
  */
-export function useBestHours(platform: Platform, start: string, days = 7) {
+export function useBestHours(platform: Platform, start: string, days = 7, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ['best-hours', platform, start, days],
     queryFn: () => api<BestHours>(`/platforms/${platform}/best-hours?start=${start}&days=${days}`),
   })
