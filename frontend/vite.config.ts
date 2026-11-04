@@ -12,8 +12,10 @@ import { defineConfig } from 'vitest/config'
  */
 function publicLoginSettings(mode: string): Record<string, string> {
   if (mode === 'test') return {}
-  const root = loadEnv(mode, '..', '')
   const own = loadEnv(mode, '.', 'VITE_')
+  // Mock mode has no real API to log in to: no login, like local development without Supabase.
+  if (own.VITE_USE_MOCKS === 'true') return {}
+  const root = loadEnv(mode, '..', '')
   const url = own.VITE_SUPABASE_URL || root.SUPABASE_URL
   const key = own.VITE_SUPABASE_PUBLISHABLE_KEY || root.SUPABASE_PUBLISHABLE_KEY
   if (key && !key.startsWith('sb_publishable_') && !key.startsWith('eyJ')) {

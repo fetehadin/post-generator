@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { usePatchAnyDraft } from '../api/drafts'
 import { useMe, useNotifications } from '../api/me'
-import { usePlatform } from '../api/platforms'
 import { useScheduleDraft } from '../api/threads'
 import type { DraftRow, Notifications } from '../api/types'
-import { handOff, handOffLabel } from '../lib/handoff'
 import { LABEL } from '../lib/platforms'
 import { formatShort } from '../lib/time'
+import { usePostNow } from '../lib/usePostNow'
 import { DayChips } from './DayChips'
 import { PlatformMark } from './PlatformMark'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
@@ -65,35 +63,14 @@ export function NotificationsPanel() {
 
 function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) {
   const zone = useMe().data?.timezone
-  const channel = usePlatform('telegram').data?.channel
-  const patch = usePatchAnyDraft()
+  const now = usePostNow(draft)
   const schedule = useScheduleDraft()
-  const [asked, setAsked] = useState(false)
-  const [note, setNote] = useState('')
   const [open, setOpen] = useState(false)
   const name = LABEL[draft.platform]
   const when = draft.scheduled_for ? formatShort(draft.scheduled_for, zone) : ''
   const firstLine = draft.text.split('\n').find((l) => l.trim()) ?? ''
-
-  async function post() {
-    let copied: boolean | null
-    try {
-      ;({ copied } = await handOff(draft, channel))
-    } catch (e) {
-      setNote((e as Error).message)
-      return
-    }
-    setNote(
-      copied === false
-        ? "Couldn't copy: select the text in the draft and copy it by hand."
-        : draft.platform === 'telegram' && !channel
-          ? 'Copied. Open your channel in Telegram and paste it. Add the channel name in Profile.'
-          : copied
-            ? 'Copied.'
-            : '',
-    )
-    setAsked(true)
-  }
+  const { asked, note, post } = now
+  const patch = now.patch
 
   return (
     <li
@@ -120,14 +97,14 @@ function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) 
             <button
               type="button"
               disabled={patch.isPending}
-              onClick={() => patch.mutate({ id: draft.id, status: 'published' })}
+              onClick={now.markPosted}
               className="min-h-9 rounded-control bg-primary px-3 font-semibold text-on-primary"
             >
               Yes, mark as posted
             </button>
             <button
               type="button"
-              onClick={() => setAsked(false)}
+              onClick={now.notYet}
               className="min-h-9 rounded-control border border-edge px-3 hover:bg-sunken"
             >
               Not yet
@@ -146,7 +123,7 @@ function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) 
             onClick={() => void post()}
             className="min-h-9 rounded-control bg-primary px-3 font-semibold text-on-primary"
           >
-            {handOffLabel(draft.platform, channel)}
+            {now.label}
           </button>
           {kind === 'missed' && (
             <Popover open={open} onOpenChange={setOpen}>
