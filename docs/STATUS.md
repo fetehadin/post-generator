@@ -2,9 +2,30 @@
 
 A running log so anyone (Nezira especially) can catch up: what was done, where, the result, and what's next. Newest first. Claude updates it at the end of every task.
 
-**Where we are:** Phase 3 officially (CLAUDE.md). Code for Phases 3–6 is mostly built (the inspiration pool, #51, closed the last Phase 3 build item), but no demo after Phase 2 has run yet. The task queue is set by Fetehadin. Nezira is away, so each PR is reviewed by a fresh-context review subagent plus Fetehadin's reading of the summary, and tagged `@Nezira_Worku please post-review` so she reads it when she's back.
+**Where we are:** Phases 3–6 demos passed on 4 Nov 2026; next is beta prep (Phase 7). Live at https://voxlace.fetehadin.com, deployed on every merge to `main`. The task queue is set by Fetehadin. Nezira is away, so each PR is reviewed by a fresh-context review subagent plus Fetehadin's reading of the summary, and tagged `@Nezira_Worku please post-review` so she reads it when she's back.
 
 ---
+
+## 2026-11-04: UI finished, live deploy, demos for Phases 3–6
+
+**Result: the V1 UI is merged and live; every skipped demo has run.**
+- Merged #59 (calendar), #60 (Profile tabs), #61 (first-run welcome) and #62 (edge Worker). Every merge to `main` now deploys by itself (`DEPLOY_ENABLED=true`), and each of the four deploys passed its health check.
+- **Live URL:** https://voxlace.fetehadin.com. A Cloudflare Worker forwards the subdomain to the shared Caddy (deploy/README.md), because our Cloudflare login can publish Workers but not edit DNS.
+- **Demo data:** one inspiration author per platform, never mixed and never Fetehadin's own posts: X `simonw` (30 posts), LinkedIn `guillermo_rauch` (46), Telegram `Pavel Durov` (390 of 483 kept). All on a throwaway database with the dev user.
+- **Phase 3, pass on platform shape:** the same check-in gave a 163-character X post, a 987-character LinkedIn post with a strong first line and a list, and an emoji-led Telegram post. *Open:* the LinkedIn and Telegram drafts added things the check-in didn't say ("I'm already sketching a script", a "What I do" list), plus a placeholder `— @mychannel` signature. That breaks rule 10. The fix is a prompt change, which is ask-first and needs the ten-topic before/after.
+- **Phase 4, pass:** check-in → three drafts in 52 s → "Shorter" (26 s) → "End with a question" (21 s) → approve → X intent link pre-filled.
+- **Phase 5 (V1 version), pass:** approving Telegram with a day picked 08:00 Addis, with the reason "audience in Addis Ababa · Telegram's morning peak · your own posts do well then". Moving it to 5 minutes from now put it in **Due**; Posted set `published_at`; publishing an unapproved draft gives `409 not_approved`.
+- **Phase 6, pass:** with a removed model first in the chain, the draft came from Groq, and the prompt log names `openai/gpt-oss-120b` and `groq`. The UI doesn't name models, by design (DESIGN.md principle 2). `DELETE /me` removed all 467 posts and every row in 9 tables, plus the user.
+- **Found on the way:** Gemini Flash answered 503/504 for the whole session. The local chain's last model, Groq `llama-3.3-70b-versatile`, no longer exists (404), so every draft failed until the chain changed. The server's chain had no Groq at all. Both now run `gemini-flash-latest → groq:openai/gpt-oss-120b → gemini-flash-lite-latest`. Groq is second because, with the 40 s deadline, a third Gemini model often gets under 10 s and is skipped. **Your local settings file still names the dead Llama model:** change its `GENERATION_MODELS` line to the one in `deploy/server-env.template`.
+- **Hardening:**
+  - `python -m app.dev check-models` sends one tiny prompt to each model in the chain and exits 1 if any fails; it runs daily by cron on the server.
+  - `.github/workflows/uptime.yml` checks the live health endpoint every 30 minutes.
+  - The nightly backup cron is installed (03:15 UTC), and one restore into a scratch database matched the live counts.
+  - `backup.sh` is now executable.
+- **Still open:**
+  - `BACKUP_REMOTE` is empty, so backups stay on the server only. It needs an off-server target: an rsync host, or a Drive remote like TajStore's.
+  - Supabase **Site URL** and redirect URL must be `https://voxlace.fetehadin.com` (Supabase dashboard → Authentication → URL configuration). Only sign-up confirmation emails depend on it, because login is email + password.
+  - Phase 7: feedback form, export guide, invites.
 
 ## 2026-11-02: Task 4, UI/UX to DESIGN.md v3 (PRs #54–#57)
 
