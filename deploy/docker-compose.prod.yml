@@ -9,7 +9,7 @@ services:
       context: ..
       dockerfile: deploy/Caddy.Dockerfile
       args:
-        VITE_SUPABASE_URL: ${SUPABASE_URL}
+        VITE_SUPABASE_URL: ${AUTH_PUBLIC_URL:-${SUPABASE_URL}}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY}
     restart: unless-stopped
     environment:

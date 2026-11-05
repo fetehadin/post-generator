@@ -26,6 +26,10 @@ SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 SUPABASE_PUBLISHABLE_KEY=
 # Only if your project signs logins with a shared secret (HS256); cloud projects with signing keys leave it empty.
 SUPABASE_JWT_SECRET=
+# Where the browser reaches Supabase login. Set it to the site's own address (https://<your domain>)
+# when the edge Worker forwards /auth/v1/* (deploy/edge), so networks that block *.supabase.co still
+# work. Empty: the browser talks to SUPABASE_URL directly. The API always uses SUPABASE_URL.
+AUTH_PUBLIC_URL=
 # The team: these emails join without an invite code.
 ALLOWED_EMAILS=
 
