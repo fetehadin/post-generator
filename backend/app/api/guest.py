@@ -1,10 +1,13 @@
 """Guest mode (FR-47): draft and revise without logging in. Nothing of the guest's is stored;
 the drafts come back with signed receipts that `POST /threads/claim` saves after login."""
 
+import hmac
+
 from fastapi import APIRouter, Depends, Request
 
 from app.ai.client import AIClient, AIUnavailable, EmbeddingUnavailable
 from app.api.deps import get_ai
+from app.core.config import get_settings
 from app.core.errors import AppError
 from app.schemas import (
     GenerateFailureOut,
@@ -23,12 +26,17 @@ router = APIRouter(prefix="/guest", tags=["guest"])
 
 
 def address(request: Request) -> str:
-    """The visitor's IP: Cloudflare's header first (the edge Worker), then the proxy chain.
-    Only used, hashed, to count guest drafts; it can be spoofed by calling the origin
-    directly, which is why there's also a daily total for all guests."""
+    """The visitor's IP, only to count guest drafts (hashed). The edge Worker sends the real
+    address with a shared secret; any other header could be made up by calling the server
+    directly, so without the secret everyone counts as the address that connected."""
+    settings = get_settings()
     h = request.headers
-    forwarded = h.get("x-forwarded-for", "").split(",")[0].strip()
-    return h.get("cf-connecting-ip") or forwarded or (request.client.host if request.client else "")
+    vouched = h.get("x-voxlace-edge", "")
+    if settings.edge_secret and hmac.compare_digest(
+        vouched.encode(), settings.edge_secret.encode()
+    ):
+        return h.get("x-voxlace-client-ip", "")
+    return request.client.host if request.client else ""
 
 
 def _out(d: guest.GuestDraft) -> GuestDraftOut:

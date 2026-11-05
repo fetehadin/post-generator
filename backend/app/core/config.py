@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     guest_daily_drafts: int = 12
     guest_daily_total: int = 300
     guest_signing_key: str = ""
+    # The edge Worker sends the visitor's IP with this shared secret (deploy/edge). Only then is
+    # the IP believed; without it every caller counts as the one address that connected.
+    edge_secret: str = ""
 
     gemini_api_key: str = ""
     embedding_model: str = "gemini-embedding-2"

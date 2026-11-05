@@ -27,23 +27,28 @@ from app.core.config import get_settings
 from app.core.db import user_session
 from app.counting import post_length
 from app.models import (
+    Checkin,
     Draft,
     DraftMessage,
     DraftVersion,
     GuestUsage,
     PlatformProfile,
     PromptLog,
+    Thread,
 )
+from app.services.clock import local_today
 from app.services.drafting import (
     PLATFORM_NAMES,
     DraftError,
+    _problems,
     _rewrite_if_needed,
     build_prompt,
     clean_output,
+    thread_title,
 )
 from app.services.retrieval import Example, inspiration
 from app.services.revising import QUESTION, revise_prompt
-from app.services.threads import AI_BUSY, ThreadDetail, detail, start
+from app.services.threads import AI_BUSY, ThreadDetail, detail
 
 # No user: shared tables only (platform rules, the inspiration pool). Under RLS this id owns
 # nothing, so a guest query that touched user tables would see 0 rows (fails closed).
@@ -51,6 +56,7 @@ NOBODY = uuid.UUID(int=0)
 RECEIPT_DAYS = 30  # a guest who logs in later than this has to draft again
 MAX_TOPIC = 4000
 MAX_CLAIM = 6
+MAX_RECEIPT = 200_000  # characters; a real one is a few KB
 DEV_KEY = "voxlace-development-only"  # local runs without a key; never in production
 KEEP_DAYS = 3  # guest counters are deleted after this
 
@@ -86,16 +92,20 @@ def visitor(address: str) -> str:
 
 
 def _sign(payload: dict) -> str:
-    body = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode())
+    raw = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode()
+    body = base64.urlsafe_b64encode(raw)  # UTF-8: Amharic is 3 bytes a character, not 6
     mac = hmac.new(_key(), body, hashlib.sha256).hexdigest()
     return f"{body.decode()}.{mac}"
 
 
 def read_receipt(receipt: str) -> dict:
     """The receipt's contents, or 400 when it was changed, is malformed or is too old."""
+    if len(receipt or "") > MAX_RECEIPT:
+        raise DraftError("invalid_receipt", "That draft can't be saved. Write it again.")
     body, _, mac = (receipt or "").partition(".")
     good = hmac.new(_key(), body.encode(), hashlib.sha256).hexdigest()
-    if not mac or not hmac.compare_digest(mac, good):
+    # Bytes, not str: compare_digest refuses non-ASCII strings with a TypeError (a 500).
+    if not mac or not hmac.compare_digest(mac.encode(), good.encode()):
         raise DraftError("invalid_receipt", "That draft can't be saved. Write it again.")
     payload = json.loads(base64.urlsafe_b64decode(body))
     if time.time() - payload["at"] > RECEIPT_DAYS * 86400:
@@ -139,7 +149,7 @@ def _rules(platform: str) -> PlatformProfile:
     return rules
 
 
-def _draft(platform: str, topic: str, ai: AIClient) -> GuestDraft:
+def _draft(platform: str, topic: str, ai: AIClient, who: str) -> GuestDraft:
     rules = _rules(platform)
     pool = inspiration(NOBODY, platform)
     prompt = build_prompt(rules, [], topic, pool=pool)
@@ -148,7 +158,13 @@ def _draft(platform: str, topic: str, ai: AIClient) -> GuestDraft:
     if not out:
         raise AIUnavailable("the model returned nothing")
     shapes = [Example(uuid.uuid4(), t, 0.0, False) for t in pool]  # never copy these
-    prompt, result, out = _rewrite_if_needed(ai, prompt, result, out, topic, shapes)
+    if _problems(out, topic, shapes):
+        # The fix-up is a second AI call, so it counts too; past the limit, keep the first.
+        try:
+            _spend(who, 1)
+        except DraftError:
+            return _guest_draft(rules, topic, out, prompt, result)
+        prompt, result, out = _rewrite_if_needed(ai, prompt, result, out, topic, shapes)
     return _guest_draft(rules, topic, out, prompt, result)
 
 
@@ -183,12 +199,13 @@ def write(
     unknown = [p for p in platforms if p not in PLATFORM_NAMES]
     if not platforms or unknown:
         raise DraftError("unsupported_platform", "Pick X, LinkedIn or Telegram.")
-    _spend(visitor(address), len(platforms))
+    who = visitor(address)
+    _spend(who, len(platforms))
     ai = ai or default_client()
     drafts, failures = [], []
     for platform in platforms:
         try:
-            drafts.append(_draft(platform, topic, ai))
+            drafts.append(_draft(platform, topic, ai, who))
         except (AIUnavailable, EmbeddingUnavailable):
             failures.append(GuestFailure(platform, "ai_unavailable", AI_BUSY))
     return drafts, failures
@@ -218,19 +235,28 @@ def revise(
 
 def claim(user_id: uuid.UUID, receipts: list[str]) -> ThreadDetail:
     """After login: the guest's drafts become one chat in their account, each with the
-    exact prompt and model that wrote it (rule 9)."""
+    exact prompt and model that wrote it (rule 9). One transaction: all or nothing. Each
+    prompt log keeps the time the prompt ran, so the daily limit (FR-30) counts a guest
+    draft on the day it was written."""
     if not receipts or len(receipts) > MAX_CLAIM:
         raise DraftError("invalid_receipt", f"Save between 1 and {MAX_CLAIM} drafts at once.")
     drafts = [read_receipt(r) for r in receipts]  # all valid, or nothing is saved
-    thread = start(user_id, drafts[0]["topic"])
+    topic = drafts[0]["topic"]
     with user_session(user_id) as s:
+        checkin = Checkin(user_id=user_id, day=local_today(s, user_id), text=topic)
+        s.add(checkin)
+        s.flush()
+        thread = Thread(user_id=user_id, title=thread_title(topic), checkin_id=checkin.id)
+        s.add(thread)
+        s.flush()
+        s.add(DraftMessage(user_id=user_id, thread_id=thread.id, role="user", text=topic))
         for d in drafts:
             draft = Draft(
                 user_id=user_id,
                 platform=d["platform"],
                 topic=d["topic"],
-                checkin_id=thread.thread.checkin_id,
-                thread_id=thread.thread.id,
+                checkin_id=checkin.id,
+                thread_id=thread.id,
             )
             s.add(draft)
             s.flush()
@@ -242,7 +268,7 @@ def claim(user_id: uuid.UUID, receipts: list[str]) -> ThreadDetail:
             s.add(
                 DraftMessage(
                     user_id=user_id,
-                    thread_id=thread.thread.id,
+                    thread_id=thread.id,
                     draft_id=draft.id,
                     role="assistant",
                     text="",
@@ -258,6 +284,8 @@ def claim(user_id: uuid.UUID, receipts: list[str]) -> ThreadDetail:
                     model=d["model"],
                     model_version=d["model_version"],
                     provider=d["provider"],
+                    created_at=datetime.fromtimestamp(d["at"], UTC),
                 )
             )
-    return detail(user_id, thread.thread.id)
+        thread_id = thread.id
+    return detail(user_id, thread_id)

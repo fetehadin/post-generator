@@ -124,3 +124,28 @@ test('says what to set up when the API wants a login but the app has none', asyn
   renderGate()
   expect(await screen.findByRole('alert')).toHaveTextContent('SUPABASE_PUBLISHABLE_KEY')
 })
+
+test('a failed save keeps the guest drafts for next time, unless they can never be saved', async () => {
+  const stored = JSON.stringify({
+    topic: 'T',
+    drafts: [{ platform: 'x', text: 'Hi', receipt: 'r1' }],
+  })
+  localStorage.setItem('voxlace-guest', stored)
+  auth.supabase = fakeSupabase({ access_token: 't' })
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === '/me') return me()
+    throw new ApiError(0, 'network_error', 'Offline')
+  })
+  const first = renderGate()
+  expect(await screen.findByText('The app')).toBeInTheDocument()
+  expect(localStorage.getItem('voxlace-guest')).toBe(stored)
+  first.unmount()
+
+  vi.mocked(api).mockImplementation(async (path) => {
+    if (path === '/me') return me()
+    throw new ApiError(400, 'invalid_receipt', 'Too old')
+  })
+  renderGate()
+  expect(await screen.findByText('The app')).toBeInTheDocument()
+  expect(localStorage.getItem('voxlace-guest')).toBeNull()
+})

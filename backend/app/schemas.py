@@ -507,7 +507,7 @@ class GuestDraftsOut(BaseModel):
 
 
 class GuestReviseIn(BaseModel):
-    receipt: str = Field(min_length=1, max_length=60000)
+    receipt: str = Field(min_length=1, max_length=200_000)
     instruction: str = Field(min_length=1, max_length=2000)
 
 
@@ -518,3 +518,5 @@ class GuestReviseOut(BaseModel):
 
 class ClaimIn(BaseModel):
     receipts: list[str] = Field(min_length=1, max_length=6)
+    # Each receipt holds a prompt (a few KB; Amharic is 3 bytes a character, base64 adds a
+    # third). The route checks each one's size; the list length is checked here.

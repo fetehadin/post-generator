@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 import type { Session } from '@supabase/supabase-js'
+import { ApiError } from '../api/client'
 import { useClaimGuest } from '../api/guest'
 import { useMe } from '../api/me'
 import { supabase } from '../lib/auth'
@@ -64,12 +65,16 @@ function ClaimGuest({ children }: { children: ReactNode }) {
     claim.mutate(
       guest.drafts.map((d) => d.receipt),
       {
-        onSuccess: (thread) => navigate(`/chat/${thread.id}`, { replace: true }),
-        // Too old or not ours: drop them rather than ask again on every page.
-        onSettled: () => {
+        onSuccess: (thread) => {
           clearGuest()
-          setPending(false)
+          navigate(`/chat/${thread.id}`, { replace: true })
         },
+        onError: (err) => {
+          // Changed or too old: they can never be saved, so drop them. Anything else (offline,
+          // the server busy) keeps them for the next visit.
+          if (err instanceof ApiError && err.code === 'invalid_receipt') clearGuest()
+        },
+        onSettled: () => setPending(false),
       },
     )
   }, [claim, navigate])

@@ -19,7 +19,9 @@ def guest(api, owner_engine, monkeypatch):
     cfg = get_settings()
     monkeypatch.setattr(cfg, "guest_daily_drafts", 12)
     monkeypatch.setattr(cfg, "guest_daily_total", 1000)
-    api.headers["CF-Connecting-IP"] = f"203.0.113.{uuid.uuid4().int % 250}-{uuid.uuid4()}"
+    monkeypatch.setattr(cfg, "edge_secret", "edge-test-secret")
+    api.headers["X-Voxlace-Edge"] = "edge-test-secret"
+    api.headers["X-Voxlace-Client-IP"] = f"203.0.113.{uuid.uuid4().int % 250}-{uuid.uuid4()}"
     yield api
     with owner_engine.begin() as conn:
         conn.execute(text("DELETE FROM guest_usage"))
@@ -73,14 +75,14 @@ def test_the_guest_limit_stops_before_any_ai_call(guest, monkeypatch):
     r = write(guest, ["x"])
     assert r.status_code == 429 and r.json()["error"]["code"] == "guest_limit"
     # A refused request uses nothing: another visitor still has their own allowance.
-    guest.headers["CF-Connecting-IP"] = "198.51.100.7"
+    guest.headers["X-Voxlace-Client-IP"] = "198.51.100.7"
     assert write(guest, ["x"]).status_code == 200
 
 
 def test_the_daily_total_for_all_guests_holds_too(guest, monkeypatch):
     monkeypatch.setattr(get_settings(), "guest_daily_total", 1)
     assert write(guest).status_code == 200
-    guest.headers["CF-Connecting-IP"] = "198.51.100.8"
+    guest.headers["X-Voxlace-Client-IP"] = "198.51.100.8"
     assert write(guest).status_code == 429
 
 
@@ -157,3 +159,40 @@ def test_guest_input_is_checked(guest):
     assert empty.status_code == 422
     assert write(guest, []).status_code == 422
     assert write(guest, ["myspace"]).status_code == 422
+
+
+def test_a_made_up_ip_header_without_the_edge_secret_is_ignored(guest, monkeypatch):
+    monkeypatch.setattr(get_settings(), "guest_daily_drafts", 1)
+    guest.headers["X-Voxlace-Edge"] = "guessed"
+    assert write(guest).status_code == 200
+    # A new address each time doesn't help: without the secret, all count as one caller.
+    guest.headers["X-Voxlace-Client-IP"] = "198.51.100.99"
+    guest.headers["CF-Connecting-IP"] = "198.51.100.98"
+    assert write(guest).status_code == 429
+
+
+def test_a_receipt_with_odd_characters_is_refused_not_a_crash(guest):
+    for bad in ["x.é", "nodot", "a" * 200_001, "eyJ9.00"]:
+        r = guest.post(f"{API}/guest/revise", json={"receipt": bad[:200_000], "instruction": "x"})
+        assert r.status_code in (400, 422), bad[:10]
+
+
+def test_long_amharic_check_ins_still_fit_in_a_receipt(guest):
+    topic = "ዛሬ የመግቢያውን ችግር አስተካከልኩ። " * 140  # about 3,900 characters
+    first = write(guest, topic=topic[:3990]).json()["drafts"][0]
+    assert len(first["receipt"]) < 200_000
+    r = guest.post(
+        f"{API}/guest/revise", json={"receipt": first["receipt"], "instruction": "Shorter"}
+    )
+    assert r.status_code == 200
+
+
+def test_a_rewrite_call_counts_toward_the_guest_limit(guest, monkeypatch, owner_engine):
+    class Copies(FakeAI):
+        def generate(self, prompt, purpose="draft", temperature=0.9):
+            return GenerationResult("We shipped 999 new things today", "m", "google", "v")
+
+    guest.state["ai"] = Copies()  # 999 isn't in the topic: an invented number, so a rewrite
+    write(guest)
+    with owner_engine.begin() as conn:
+        assert conn.execute(text("SELECT drafts FROM guest_usage")).scalar_one() == 2
