@@ -1,9 +1,10 @@
 import uuid
-from datetime import datetime, time
+from datetime import date, datetime, time
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     SmallInteger,
@@ -28,6 +29,17 @@ class Invite(CreatedAt, Base):
     email: Mapped[str | None] = mapped_column(String(320))
     used_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class GuestUsage(Base):
+    """FR-47: drafts guests wrote per UTC day per hashed IP. No user_id and no RLS (not user
+    data); the address itself is never stored."""
+
+    __tablename__ = "guest_usage"
+
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    visitor: Mapped[str] = mapped_column(String(64), primary_key=True)
+    drafts: Mapped[int] = mapped_column(server_default=text("0"))
 
 
 class Profile(CreatedAt, Base):

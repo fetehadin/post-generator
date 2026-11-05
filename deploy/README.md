@@ -150,6 +150,16 @@ fetch". The Supabase emails link to `{{ .SiteURL }}/auth/v1/verify?...` for the 
 Supabase dashboard → Authentication → Emails). Trade-off: Supabase sees Cloudflare's address instead of
 the user's, so its per-IP limits (30 sign-ins per 5 minutes) are shared by everyone; fine for the beta.
 
+**The Worker vouches for the visitor's address.** Guest drafts are limited per visitor (FR-47). Behind
+Caddy the API only sees Caddy's address, so the Worker adds `X-Voxlace-Client-IP` (Cloudflare's
+`cf-connecting-ip`) and `X-Voxlace-Edge` (a shared secret) to requests for our server, never to Supabase.
+The API trusts the address only when the secret matches its `EDGE_SECRET`. Set the same value in both:
+
+```bash
+openssl rand -hex 32 > /tmp/edge   # then put it in the server settings as EDGE_SECRET
+cd deploy/edge && npx wrangler secret put EDGE_SECRET < /tmp/edge && rm /tmp/edge
+```
+
 ```bash
 cd deploy/edge && npx wrangler deploy   # creates the DNS record and certificate itself
 ```

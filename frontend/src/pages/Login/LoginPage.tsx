@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { authMessage, supabase } from '../../lib/auth'
 
 type Mode = 'login' | 'signup' | 'forgot'
@@ -11,7 +11,8 @@ type Mode = 'login' | 'signup' | 'forgot'
  */
 export function LoginPage() {
   const navigate = useNavigate()
-  const [mode, setMode] = useState<Mode>('login')
+  const asked = (useLocation().state as { mode?: Mode } | null)?.mode
+  const [mode, setMode] = useState<Mode>(asked === 'signup' ? 'signup' : 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -186,7 +187,7 @@ export function LoginPage() {
         </button>
       )}
       <p className="mt-6 text-sm text-muted">
-        {mode === 'login' ? 'New here? Voxlace is invite-only.' : 'Already have an account?'}{' '}
+        {mode === 'login' ? 'New here?' : 'Already have an account?'}{' '}
         <button
           type="button"
           onClick={() => switchTo(mode === 'login' ? 'signup' : 'login')}
@@ -194,6 +195,13 @@ export function LoginPage() {
         >
           {mode === 'login' ? 'Create an account' : 'Log in'}
         </button>
+      </p>
+      <p className="mt-3 text-sm text-muted">
+        Or{' '}
+        <Link to="/" className="text-thread underline underline-offset-4">
+          try it without an account
+        </Link>
+        ; nothing is saved until you log in.
       </p>
     </main>
   )
