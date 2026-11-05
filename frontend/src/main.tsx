@@ -22,6 +22,7 @@ import { NewChatPage } from './pages/Chat/NewChatPage'
 import { ThreadPage } from './pages/Chat/ThreadPage'
 import { DraftsPage } from './pages/Drafts/DraftsPage'
 import { LoginPage } from './pages/Login/LoginPage'
+import { ResetPasswordPage } from './pages/Login/ResetPasswordPage'
 import { ProfilePage } from './pages/Profile/ProfilePage'
 import { StatusPage } from './pages/Status/StatusPage'
 import { UploadPage } from './pages/Upload/UploadPage'
@@ -33,6 +34,7 @@ const queryClient = new QueryClient()
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/reset-password', element: <ResetPasswordPage /> },
   // First run: full screen, no sidebar, but behind the same login, invite and privacy steps.
   {
     path: '/welcome',
