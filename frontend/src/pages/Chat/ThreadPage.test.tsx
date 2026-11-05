@@ -80,12 +80,14 @@ beforeEach(() => {
     'GET /platforms/telegram': () => ({ channel: null }),
     'POST /drafts/:id/revise': () => detail({ id: 'd1' }),
     'POST /drafts/:id/schedule': () => {
+      // Relative to now: a fixed date turns into "passed" once the calendar reaches it.
+      const tomorrow = new Date(Date.now() + 24 * 3600_000).toISOString()
       thread = makeThread([
-        row({ id: 'd1', platform: 'x', status: 'approved', scheduled_for: '2026-11-04T15:00:00Z' }),
+        row({ id: 'd1', platform: 'x', status: 'approved', scheduled_for: tomorrow }),
       ])
       return {
         draft: thread.drafts[0],
-        scheduled_for: '2026-11-04T15:00:00Z',
+        scheduled_for: tomorrow,
         rank: 1,
         reason: "your audience is in Addis Ababa · X's evening peak",
         warning: null,

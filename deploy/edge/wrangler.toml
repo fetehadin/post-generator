@@ -7,3 +7,4 @@ routes = [{ pattern = "voxlace.fetehadin.com", custom_domain = true }]
 
 [vars]
 ORIGIN = "voxlace.duckdns.org"
+SUPABASE_HOST = "njkauwpkovsqmcqcghom.supabase.co"
