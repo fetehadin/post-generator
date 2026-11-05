@@ -30,8 +30,15 @@ SUPABASE_JWT_SECRET=
 # when the edge Worker forwards /auth/v1/* (deploy/edge), so networks that block *.supabase.co still
 # work. Empty: the browser talks to SUPABASE_URL directly. The API always uses SUPABASE_URL.
 AUTH_PUBLIC_URL=
-# The team: these emails join without an invite code.
+# FR-28: anyone can make an account. INVITE_ONLY=true brings back the invite gate; then the team
+# (these emails) joins without an invite code.
+INVITE_ONLY=false
 ALLOWED_EMAILS=
+# FR-47 guest mode. A long random string (openssl rand -hex 32); it signs guests' drafts so they can
+# be saved after login. Changing it makes guest drafts not yet saved unsaveable. Empty = guests off.
+GUEST_SIGNING_KEY=
+GUEST_DAILY_DRAFTS=12
+GUEST_DAILY_TOTAL=300
 
 # Off-server copy for deploy/backup.sh: an rsync destination such as user@host:/backups/voxlace
 BACKUP_REMOTE=

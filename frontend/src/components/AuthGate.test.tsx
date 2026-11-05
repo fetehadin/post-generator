@@ -39,14 +39,16 @@ beforeEach(() => {
   auth.supabase = null
 })
 
-function renderGate() {
+function renderGate(path = '/') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/login" element={<p>Login page</p>} />
           <Route path="/" element={<AuthGate>The app</AuthGate>} />
+          <Route path="/calendar" element={<AuthGate>The calendar</AuthGate>} />
+          <Route path="/chat/:id" element={<p>The saved chat</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -59,11 +61,35 @@ test('local development without Supabase goes straight in', async () => {
   expect(await screen.findByText('The app')).toBeInTheDocument()
 })
 
-test('logged out goes to the login page', async () => {
+test('logged out, the home page is guest mode (FR-47)', async () => {
   auth.supabase = fakeSupabase(null)
   renderGate()
-  expect(await screen.findByText('Login page')).toBeInTheDocument()
+  expect(await screen.findByText(/trying Voxlace as a guest/)).toBeInTheDocument()
   expect(api).not.toHaveBeenCalled()
+})
+
+test('logged out, any other page goes to the login page', async () => {
+  auth.supabase = fakeSupabase(null)
+  renderGate('/calendar')
+  expect(await screen.findByText('Login page')).toBeInTheDocument()
+})
+
+test("after login, the guest's drafts are saved into the account once and opened", async () => {
+  localStorage.setItem(
+    'voxlace-guest',
+    JSON.stringify({ topic: 'Shipped', drafts: [{ platform: 'x', text: 'Hi', receipt: 'r1' }] }),
+  )
+  auth.supabase = fakeSupabase({ access_token: 't' })
+  vi.mocked(api).mockImplementation(async (path) =>
+    path === '/me' ? me() : ({ id: 't9' } as never),
+  )
+  renderGate()
+  expect(await screen.findByText('The saved chat')).toBeInTheDocument()
+  expect(api).toHaveBeenCalledWith(
+    '/threads/claim',
+    expect.objectContaining({ body: JSON.stringify({ receipts: ['r1'] }) }),
+  )
+  expect(localStorage.getItem('voxlace-guest')).toBeNull()
 })
 
 test('a new person enters an invite, then accepts the privacy notice, then gets in', async () => {

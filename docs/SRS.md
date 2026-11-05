@@ -193,11 +193,12 @@ flowchart LR
 | ID | Requirement | Priority | Test |
 |---|---|---|---|
 | FR-27 | Users sign up and log in through a managed login provider, and every API call is tied to the logged-in user. | Must | Call the API logged out; it returns 401. |
-| FR-28 | Sign-up is invite-only: it needs an invite code or an allow-listed email. | Must | Sign up without a code; it is refused. |
+| FR-28 | Anyone can sign up (decided 5 Nov 2026). An `INVITE_ONLY` setting brings back the invite gate: an invite code or an allow-listed email. | Must | Sign up with no code: admitted. With `INVITE_ONLY=true`: refused. |
 | FR-29 | A user can never read another user's posts, drafts, profile or uploads, through the app or the API. | Must | As user B, request user A's draft; 403 or 404. |
 | FR-30 | Each user has daily limits on drafts and embeddings, shown in the app. | Must | Pass the limit; a clear message, other users unaffected. |
 | FR-37 | Before any upload, a new user sees a short privacy notice and must accept it. | Must | Skip the notice; uploads are blocked. |
 | FR-38 | A user can export and delete all their data. | Must | Delete; every post, draft, profile and upload row is gone. |
+| FR-47 | **Guest mode** (decided 5 Nov 2026): without logging in, anyone can write what they did, get a draft per platform, revise it and copy it. Nothing of theirs is stored on the server: the drafts stay in their browser with a signed receipt (the draft, its exact prompt and model). Approving, scheduling, importing and history ask them to log in, and at login their guest drafts become one chat in the account, with the prompt logs rule 9 needs. Guests are limited per visitor (hashed IP) and in total per day. | Must | Draft as a guest: no draft, check-in or prompt row exists. Log in: the drafts appear as one chat with their prompts. A changed receipt is refused. |
 | FR-15 | The app records, for each draft, whether it was published and how much it was edited, and shows a weekly publish rate. | Should (recording is Must) | Publish two of four drafts; the page shows 50%. |
 
 ---

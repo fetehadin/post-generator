@@ -108,13 +108,17 @@ def create_user(s, who: Identity) -> None:
 
 
 def admit_if_allowed(who: Identity) -> bool:
-    """Create the user row when their email is on the allow-list (FR-28). True if admitted."""
+    """Create the user row on first use; with invite_only, only for allow-listed emails
+    (FR-28). True if admitted."""
     with user_session(who.user_id) as s:
         if s.get(User, who.user_id):
             return True
+        settings = get_settings()
         # Only a *confirmed* email counts: if sign-up didn't confirm emails, anyone could
-        # claim a team address. Invites work either way.
-        if who.email_confirmed and who.email in get_settings().allowed_email_set:
+        # claim a team address. Invites work either way. Without invite_only, everyone is in.
+        if not settings.invite_only or (
+            who.email_confirmed and who.email in settings.allowed_email_set
+        ):
             create_user(s, who)
             return True
     return False

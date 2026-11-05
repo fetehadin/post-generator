@@ -136,7 +136,7 @@ The exact prompt behind the draft's first version.
 
 ## Phase 2 — accounts (built)
 
-Login itself happens in the browser with Supabase; the API only verifies the token (signature, expiry, audience `authenticated`, issuer). The user id is the token's `sub`. A person must be **admitted** before any other route works: by redeeming an invite code, or because their email is in `ALLOWED_EMAILS`.
+Login itself happens in the browser with Supabase; the API only verifies the token (signature, expiry, audience `authenticated`, issuer). The user id is the token's `sub`. A person must be **admitted** before any other route works. Since 5 Nov 2026 everyone who logs in is admitted (FR-28). With `INVITE_ONLY=true` it takes an invite code or an email in `ALLOWED_EMAILS`. Without logging in, only `GET /health` and guest mode (below) work.
 
 ### `GET /me`
 
@@ -153,6 +153,35 @@ Works for any valid token, admitted or not.
 ```
 
 Returns the same shape as `GET /me`. Codes are case-insensitive and work once; a code made for one email works only for that email. Error: `400 invalid_invite`. Admins create codes with `python -m app.dev invite [--email sam@example.com]`.
+
+### Guest mode (FR-47)
+
+No login needed. Nothing of the guest's is stored: the API writes only a counter per UTC day and per hashed IP address. Limits: `GUEST_DAILY_DRAFTS` per visitor (default 12) and `GUEST_DAILY_TOTAL` for all guests (default 300). Each platform drafted and each revision counts 1. Past either one: `429 guest_limit`. Without `GUEST_SIGNING_KEY` in production: `503 guest_off`.
+
+#### `POST /guest/drafts`
+
+```json
+{ "topic": "Shipped the login fix today", "platforms": ["x", "linkedin"] }
+```
+
+`200`:
+
+```json
+{
+  "drafts": [{ "platform": "x", "text": "…", "length": { "count": 163, "limit": 280, "over": false }, "receipt": "eyJ….9f2c…" }],
+  "failures": [{ "platform": "linkedin", "code": "ai_unavailable", "message": "The AI service is busy right now. Try again in a minute." }]
+}
+```
+
+Guests have no posts, so drafts take their shape from the shared inspiration pool (FR-5) and their facts only from `topic` (rule 10). The `receipt` is the draft, its exact prompt and model, signed by the server (HMAC-SHA256). Keep it in the browser; it's valid for 30 days. Errors: `422` (empty topic, no or unknown platform), `400 topic_too_long`, `429 guest_limit`.
+
+#### `POST /guest/revise`
+
+`{"receipt": "…", "instruction": "Shorter"}` → `200 {"draft": {…same shape, new receipt…}, "question": null}`, or `{"draft": null, "question": "Which day did it ship?"}` when it needs a fact the guest didn't give. Errors: `400 invalid_receipt`, `429 guest_limit`, `503 ai_unavailable`.
+
+#### `POST /threads/claim` (logged in)
+
+`{"receipts": ["…", "…"]}` (1–6) → `201` with `GET /threads/{id}`'s shape: one new chat whose check-in is the guest's topic, with one draft per receipt (status `draft`), each with its prompt log. If any receipt was changed or is too old, nothing is saved: `400 invalid_receipt`.
 
 ### `POST /me/privacy-accept`
 
