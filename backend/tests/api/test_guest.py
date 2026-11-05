@@ -196,3 +196,37 @@ def test_a_rewrite_call_counts_toward_the_guest_limit(guest, monkeypatch, owner_
     write(guest)
     with owner_engine.begin() as conn:
         assert conn.execute(text("SELECT drafts FROM guest_usage")).scalar_one() == 2
+
+
+def test_saving_the_same_drafts_twice_returns_the_first_chat(guest, owner_engine):
+    receipts = [d["receipt"] for d in write(guest, ["x", "telegram"]).json()["drafts"]]
+    first = guest.post(f"{API}/threads/claim", json={"receipts": receipts})
+    before = counts(owner_engine)
+    again = guest.post(f"{API}/threads/claim", json={"receipts": receipts})
+    assert again.status_code == 201 and again.json()["id"] == first.json()["id"]
+    assert counts(owner_engine) == before  # the lost-answer retry made no second copy
+
+
+def test_a_receipt_saved_in_one_account_cant_be_saved_in_another(guest, make_user):
+    receipt = write(guest).json()["drafts"][0]["receipt"]
+    assert guest.post(f"{API}/threads/claim", json={"receipts": [receipt]}).status_code == 201
+    guest.state["user"] = make_user()
+    r = guest.post(f"{API}/threads/claim", json={"receipts": [receipt]})
+    assert r.status_code == 400 and r.json()["error"]["code"] == "invalid_receipt"
+
+
+def test_saving_guest_drafts_respects_the_accounts_daily_limit(guest, monkeypatch):
+    receipt = write(guest).json()["drafts"][0]["receipt"]
+    monkeypatch.setattr(get_settings(), "daily_draft_limit", 0)
+    r = guest.post(f"{API}/threads/claim", json={"receipts": [receipt]})
+    assert r.status_code == 429 and r.json()["error"]["code"] == "daily_limit"
+
+
+def test_one_ipv6_block_counts_as_one_visitor(guest, monkeypatch):
+    monkeypatch.setattr(get_settings(), "guest_daily_drafts", 1)
+    guest.headers["X-Voxlace-Client-IP"] = "2001:db8:1:2::1"
+    assert write(guest).status_code == 200
+    guest.headers["X-Voxlace-Client-IP"] = "2001:db8:1:2:ffff::9"  # same /64
+    assert write(guest).status_code == 429
+    guest.headers["X-Voxlace-Client-IP"] = "2001:db8:1:3::1"  # another home
+    assert write(guest).status_code == 200

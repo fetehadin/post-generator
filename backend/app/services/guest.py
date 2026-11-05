@@ -14,6 +14,7 @@ before login is a counter per day and per hashed IP address, for the guest limit
 import base64
 import hashlib
 import hmac
+import ipaddress
 import json
 import time
 import uuid
@@ -21,6 +22,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, func, select, text
+from sqlalchemy.exc import IntegrityError
 
 from app.ai.client import AIClient, AIUnavailable, EmbeddingUnavailable, default_client
 from app.core.config import get_settings
@@ -40,6 +42,7 @@ from app.services.clock import local_today
 from app.services.drafting import (
     PLATFORM_NAMES,
     DraftError,
+    _check_limit,
     _problems,
     _rewrite_if_needed,
     build_prompt,
@@ -87,7 +90,17 @@ def _key() -> bytes:
 
 
 def visitor(address: str) -> str:
-    """Who to count, without knowing who it is: a keyed hash of the IP address."""
+    """Who to count, without knowing who it is: a keyed hash of the IP address. An IPv6
+    home or phone connection gets a whole /64 block, billions of addresses, so the block is
+    the visitor; otherwise one person could step through it and never hit the limit."""
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        ip = None
+    if ip is not None and ip.version == 6 and ip.ipv4_mapped is None:
+        address = str(ipaddress.ip_network(f"{ip}/64", strict=False))
+    elif ip is not None and ip.version == 6:
+        address = str(ip.ipv4_mapped)
     return hmac.new(_key(), address.encode(), hashlib.sha256).hexdigest()
 
 
@@ -108,6 +121,8 @@ def read_receipt(receipt: str) -> dict:
     if not mac or not hmac.compare_digest(mac.encode(), good.encode()):
         raise DraftError("invalid_receipt", "That draft can't be saved. Write it again.")
     payload = json.loads(base64.urlsafe_b64decode(body))
+    if not isinstance(payload.get("id"), str) or len(payload["id"]) != 32:
+        raise DraftError("invalid_receipt", "That draft can't be saved. Write it again.")
     if time.time() - payload["at"] > RECEIPT_DAYS * 86400:
         raise DraftError("invalid_receipt", "That draft is too old to save. Write it again.")
     return payload
@@ -171,6 +186,7 @@ def _draft(platform: str, topic: str, ai: AIClient, who: str) -> GuestDraft:
 def _guest_draft(rules, topic, out, prompt, result) -> GuestDraft:
     receipt = _sign(
         {
+            "id": uuid.uuid4().hex,  # saved once (drafts.guest_receipt_id)
             "platform": rules.platform,
             "topic": topic,
             "text": out,
@@ -237,10 +253,34 @@ def claim(user_id: uuid.UUID, receipts: list[str]) -> ThreadDetail:
     """After login: the guest's drafts become one chat in their account, each with the
     exact prompt and model that wrote it (rule 9). One transaction: all or nothing. Each
     prompt log keeps the time the prompt ran, so the daily limit (FR-30) counts a guest
-    draft on the day it was written."""
+    draft on the day it was written.
+
+    Saving twice is safe: when these receipts were already saved into this account (the
+    answer got lost and the browser tried again), it returns that chat. A receipt saved into
+    another account is refused."""
+    receipts = list(dict.fromkeys(receipts or []))
     if not receipts or len(receipts) > MAX_CLAIM:
         raise DraftError("invalid_receipt", f"Save between 1 and {MAX_CLAIM} drafts at once.")
     drafts = [read_receipt(r) for r in receipts]  # all valid, or nothing is saved
+    with user_session(user_id) as s:
+        done = s.scalar(
+            select(Draft.thread_id)
+            .where(Draft.guest_receipt_id.in_([d["id"] for d in drafts]))
+            .limit(1)
+        )
+    if done is not None:
+        return detail(user_id, done)
+    _check_limit(user_id)  # FR-30: guest drafts don't get around the account's daily limit
+    try:
+        thread_id = _save(user_id, drafts)
+    except IntegrityError as e:
+        raise DraftError(
+            "invalid_receipt", "These drafts were already saved in another account."
+        ) from e
+    return detail(user_id, thread_id)
+
+
+def _save(user_id: uuid.UUID, drafts: list[dict]) -> uuid.UUID:
     topic = drafts[0]["topic"]
     with user_session(user_id) as s:
         checkin = Checkin(user_id=user_id, day=local_today(s, user_id), text=topic)
@@ -257,6 +297,7 @@ def claim(user_id: uuid.UUID, receipts: list[str]) -> ThreadDetail:
                 topic=d["topic"],
                 checkin_id=checkin.id,
                 thread_id=thread.id,
+                guest_receipt_id=d["id"],
             )
             s.add(draft)
             s.flush()
@@ -287,5 +328,4 @@ def claim(user_id: uuid.UUID, receipts: list[str]) -> ThreadDetail:
                     created_at=datetime.fromtimestamp(d["at"], UTC),
                 )
             )
-        thread_id = thread.id
-    return detail(user_id, thread_id)
+        return thread.id

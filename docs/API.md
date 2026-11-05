@@ -156,7 +156,7 @@ Returns the same shape as `GET /me`. Codes are case-insensitive and work once; a
 
 ### Guest mode (FR-47)
 
-No login needed. Nothing of the guest's is stored: the API writes only a counter per UTC day and per hashed IP address. The address comes from the edge Worker's `X-Voxlace-Client-IP` header, trusted only when `X-Voxlace-Edge` matches the server's `EDGE_SECRET`; otherwise it's the address that reached the API. Limits: `GUEST_DAILY_DRAFTS` per visitor (default 12) and `GUEST_DAILY_TOTAL` for all guests (default 300). Each platform drafted and each revision counts 1. Past either one: `429 guest_limit`. Without `GUEST_SIGNING_KEY` in production: `503 guest_off`.
+No login needed. Nothing of the guest's is stored: the API writes only a counter per UTC day and per hashed IP address (an IPv6 address counts by its /64 block, one home or phone). The address comes from the edge Worker's `X-Voxlace-Client-IP` header, trusted only when `X-Voxlace-Edge` matches the server's `EDGE_SECRET`; otherwise it's the address that reached the API. Limits: `GUEST_DAILY_DRAFTS` per visitor (default 12) and `GUEST_DAILY_TOTAL` for all guests (default 300). Each platform drafted and each revision counts 1. Past either one: `429 guest_limit`. Without `GUEST_SIGNING_KEY` in production: `503 guest_off`.
 
 #### `POST /guest/drafts`
 
@@ -181,7 +181,7 @@ Guests have no posts, so drafts take their shape from the shared inspiration poo
 
 #### `POST /threads/claim` (logged in)
 
-`{"receipts": ["…", "…"]}` (1–6) → `201` with `GET /threads/{id}`'s shape: one new chat whose check-in is the guest's topic, with one draft per receipt (status `draft`), each with its prompt log. If any receipt was changed or is too old, nothing is saved: `400 invalid_receipt`.
+`{"receipts": ["…", "…"]}` (1–6) → `201` with `GET /threads/{id}`'s shape: one new chat whose check-in is the guest's topic, with one draft per receipt (status `draft`), each with its prompt log. If any receipt was changed or is too old, nothing is saved: `400 invalid_receipt`. Saving the same receipts again into the same account returns the chat they were saved in (no second copy); a receipt already saved in another account: `400 invalid_receipt`. The account's daily limit (FR-30) applies: `429 daily_limit`, and the browser keeps the drafts to try again.
 
 ### `POST /me/privacy-accept`
 
