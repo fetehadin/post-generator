@@ -10,8 +10,6 @@ flowchart LR
     Caddy -->|/| Static[Built React app]
     Caddy -->|/api| API[FastAPI · uvicorn]
     API --> DB[(Postgres + pgvector)]
-    Worker[Worker] --> DB
-    Worker -->|sendMessage| TG[Telegram]
     Backup[Nightly pg_dump] --> DB
     Backup -->|off-server copy| Remote[(Backup storage)]
 ```
@@ -20,14 +18,13 @@ flowchart LR
 |---|---|---|
 | `caddy` | `caddy:2` + `Caddyfile` | 80, 443 |
 | `api` | `backend/Dockerfile` | internal only |
-| `worker` | `backend/Dockerfile`, command `python -m app.worker` | none |
 | `db` | `pgvector/pgvector:pg18` | none (never public) |
 
 ## Files
 
 | File | What |
 |---|---|
-| `docker-compose.prod.yml` | `caddy`, `api` and `db`, all `restart: unless-stopped`. Only Caddy publishes ports. The worker joins in Phase 5. |
+| `docker-compose.prod.yml` | `caddy`, `api` and `db`, all `restart: unless-stopped`. Only Caddy publishes ports. No separate worker in V1: the API runs a small background loop (SRS 1.3). |
 | `Caddy.Dockerfile` | Builds the React app (with the public Supabase URL and key), then serves it with Caddy |
 | `Caddyfile` | `{$DOMAIN}`: automatic HTTPS, security headers, `/api/*` → `api:8000`, everything else → the app |
 | `../backend/Dockerfile` | The API image (non-root user) |
@@ -143,7 +140,15 @@ flowchart LR
     Browser -->|voxlace.fetehadin.com| Worker[Cloudflare Worker<br/>voxlace-edge]
     Worker -->|voxlace.duckdns.org| Shared[Shared Caddy]
     Shared --> Web[voxlace-web]
+    Worker -->|/auth/v1/*| SB[Supabase login]
 ```
+
+**Login goes through the Worker too.** Requests to `/auth/v1/*` go to Supabase (`SUPABASE_HOST` in
+`wrangler.toml`), and the server setting `AUTH_PUBLIC_URL=https://voxlace.fetehadin.com` builds the app to
+use that path. Why: some networks can't resolve `*.supabase.co`, and sign-up showed only "Failed to
+fetch". The Supabase emails link to `{{ .SiteURL }}/auth/v1/verify?...` for the same reason (set in the
+Supabase dashboard → Authentication → Emails). Trade-off: Supabase sees Cloudflare's address instead of
+the user's, so its per-IP limits (30 sign-ins per 5 minutes) are shared by everyone; fine for the beta.
 
 ```bash
 cd deploy/edge && npx wrangler deploy   # creates the DNS record and certificate itself
