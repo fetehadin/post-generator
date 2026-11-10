@@ -20,6 +20,7 @@ def guest(api, owner_engine, monkeypatch):
     monkeypatch.setattr(cfg, "guest_daily_drafts", 12)
     monkeypatch.setattr(cfg, "guest_daily_total", 1000)
     monkeypatch.setattr(cfg, "edge_secret", "edge-test-secret")
+    monkeypatch.setattr(cfg, "guest_signing_key", "guest-test-key")  # CI runs as APP_ENV=test
     api.headers["X-Voxlace-Edge"] = "edge-test-secret"
     api.headers["X-Voxlace-Client-IP"] = f"203.0.113.{uuid.uuid4().int % 250}-{uuid.uuid4()}"
     yield api
