@@ -39,6 +39,7 @@ def login(monkeypatch, owner_engine):
     monkeypatch.setenv("SUPABASE_JWT_SECRET", SECRET)
     monkeypatch.setenv("SUPABASE_URL", "")
     monkeypatch.setenv("ALLOWED_EMAILS", "team@voxlace.test")
+    monkeypatch.setenv("INVITE_ONLY", "true")  # these tests are about the invite gate
     get_settings.cache_clear()
     app = create_app()
     app.dependency_overrides[get_ai] = lambda: FakeAI()
@@ -105,6 +106,14 @@ def test_health_needs_no_login(login):
 
 
 # ---- invites (FR-28) and the privacy notice (FR-37)
+
+
+def test_without_invite_only_anyone_who_logs_in_is_admitted(login, monkeypatch):
+    monkeypatch.setenv("INVITE_ONLY", "false")
+    get_settings.cache_clear()
+    client = login()
+    assert client.get("/api/v1/me").json()["admitted"] is True
+    assert client.get("/api/v1/threads").status_code == 200
 
 
 def test_a_new_person_needs_an_invite(login):

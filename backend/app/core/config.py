@@ -21,8 +21,19 @@ class Settings(BaseSettings):
     # Supabase signs with a shared secret (HS256). Each token's algorithm picks its key.
     supabase_url: str = ""
     supabase_jwt_secret: str = ""
-    # FR-28: comma-separated emails that may join without an invite code (the team).
+    # FR-28: off by default since 5 Nov 2026 (anyone can make an account). When on, only an
+    # invite code or an email in allowed_emails (comma-separated, the team) gets in.
+    invite_only: bool = False
     allowed_emails: str = ""
+    # FR-47: guests draft without logging in; nothing of theirs is stored. Per visitor (hashed
+    # IP) and in total per UTC day, counting every AI writing call. The key signs the guest's
+    # drafts so they can be saved, with their exact prompt, once the guest logs in.
+    guest_daily_drafts: int = 12
+    guest_daily_total: int = 300
+    guest_signing_key: str = ""
+    # The edge Worker sends the visitor's IP with this shared secret (deploy/edge). Only then is
+    # the IP believed; without it every caller counts as the one address that connected.
+    edge_secret: str = ""
 
     gemini_api_key: str = ""
     embedding_model: str = "gemini-embedding-2"

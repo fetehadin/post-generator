@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import (
     checkins,
     drafts,
+    guest,
     health,
     imports,
     me,
@@ -65,6 +66,7 @@ def create_app() -> FastAPI:
         checkins,
         threads,
         drafts,
+        guest,
     ):
         app.include_router(module.router, prefix=API_PREFIX)
     return app

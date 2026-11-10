@@ -86,6 +86,9 @@ class Draft(CreatedAt, Base):
     source_draft_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("drafts.id", ondelete="SET NULL")
     )
+    # Saved from a guest receipt (FR-47): its id, unique across all accounts, so a receipt is
+    # saved once. A retried save finds the draft instead of making a second copy.
+    guest_receipt_id: Mapped[str | None] = mapped_column(String(32), unique=True)
 
 
 class Thread(CreatedAt, Base):
