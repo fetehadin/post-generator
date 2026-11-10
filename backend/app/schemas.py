@@ -481,3 +481,42 @@ class DraftStatsOut(BaseModel):
     edited: float | None = Field(
         description="Average edit of posted drafts from v1, 0 (as written) – 1 (rewritten)"
     )
+
+
+# ---- guest mode (FR-47)
+
+
+class GuestDraftIn(BaseModel):
+    topic: str = Field(min_length=1, max_length=4000)
+    platforms: list[Platform] = Field(min_length=1, max_length=3)
+
+
+class GuestDraftOut(BaseModel):
+    platform: Platform
+    text: str
+    length: LengthOut
+    receipt: str = Field(
+        description="Signed draft + prompt + model. Keep it in the browser; send it to "
+        "POST /threads/claim after login to save the draft"
+    )
+
+
+class GuestDraftsOut(BaseModel):
+    drafts: list[GuestDraftOut]
+    failures: list[GenerateFailureOut] = Field(default_factory=list)
+
+
+class GuestReviseIn(BaseModel):
+    receipt: str = Field(min_length=1, max_length=200_000)
+    instruction: str = Field(min_length=1, max_length=2000)
+
+
+class GuestReviseOut(BaseModel):
+    draft: GuestDraftOut | None = Field(description="The new version; null with a question")
+    question: str | None = Field(description="Set when it needs a fact you didn't give")
+
+
+class ClaimIn(BaseModel):
+    receipts: list[str] = Field(min_length=1, max_length=6)
+    # Each receipt holds a prompt (a few KB; Amharic is 3 bytes a character, base64 adds a
+    # third). The route checks each one's size; the list length is checked here.

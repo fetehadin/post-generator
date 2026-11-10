@@ -11,8 +11,8 @@ from app.api.deps import get_ai
 from app.api.shapes import thread_out
 from app.core.auth import current_user
 from app.core.errors import AppError
-from app.schemas import ThreadGenerateIn, ThreadIn, ThreadOut, ThreadRowOut, ThreadsOut
-from app.services import threads
+from app.schemas import ClaimIn, ThreadGenerateIn, ThreadIn, ThreadOut, ThreadRowOut, ThreadsOut
+from app.services import guest, threads
 from app.services.drafting import DraftError
 
 router = APIRouter(prefix="/threads", tags=["threads"])
@@ -27,6 +27,15 @@ def start_thread(body: ThreadIn, user_id: uuid.UUID = Depends(current_user)) -> 
     """ "Save": the text becomes that day's check-in and the first message of a new thread."""
     try:
         return thread_out(threads.start(user_id, body.text, body.day))
+    except DraftError as e:
+        raise _fail(e) from e
+
+
+@router.post("/claim", response_model=ThreadOut, status_code=201)
+def claim(body: ClaimIn, user_id: uuid.UUID = Depends(current_user)) -> ThreadOut:
+    """FR-47: after login, the drafts written as a guest become one chat in this account."""
+    try:
+        return thread_out(guest.claim(user_id, body.receipts))
     except DraftError as e:
         raise _fail(e) from e
 
