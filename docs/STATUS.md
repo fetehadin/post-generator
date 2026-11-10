@@ -2,9 +2,17 @@
 
 A running log so anyone (Nezira especially) can catch up: what was done, where, the result, and what's next. Newest first. Claude updates it at the end of every task.
 
-**Where we are:** Phases 3–6 demos passed on 4 Nov 2026; next is beta prep (Phase 7). Live at https://voxlace.fetehadin.com, deployed on every merge to `main`. The task queue is set by Fetehadin. Nezira is away, so each PR is reviewed by a fresh-context review subagent plus Fetehadin's reading of the summary, and tagged `@Nezira_Worku please post-review` so she reads it when she's back.
+**Where we are:** Phases 3–6 demos passed on 4 Nov 2026; next is beta prep (Phase 7). Live at https://voxlace.fetehadin.com, deployed on every merge to `main`. Since 10 Nov anyone with the link can try it as a guest or sign up without an invite. The task queue is set by Fetehadin. Nezira is away, so each PR is reviewed by a fresh-context review subagent plus Fetehadin's reading of the summary, and tagged `@Nezira_Worku please post-review` so she reads it when she's back.
 
 ---
+
+## 2026-11-10: Open to anyone with the link; Nezira's access
+
+**Result: anyone can try Voxlace without an account, and anyone can sign up without an invite.**
+- Merged #65 (guest mode, FR-47; open sign-up, FR-28). CI first failed because the guest tests had no signing key under `APP_ENV=test`; the test fixture now sets one. Deploy passed.
+- **Checked live:** a guest draft from a plain `curl` returned an X draft; the server has `GUEST_SIGNING_KEY` and `EDGE_SECRET`, `INVITE_ONLY` is off; the Worker `voxlace-edge` has the `EDGE_SECRET` secret, so each visitor is counted by their own address; Supabase allows sign-up, and new users confirm their email first.
+- **Nezira (`Jennah198`, neziraworku198@gmail.com):** a GitHub collaborator with write access (the most a personal-account repo gives). Her GitHub SSH key now logs in to the server as `deploy` (marked `nezira-Jennah198` in `authorized_keys`). `deploy` is in the `docker` group on a server other apps share, so it can reach their containers too.
+- **Still open (dashboards; Fetehadin):** invite Nezira to the Supabase project (Organization → Team) and to the Cloudflare account (Manage account → Members). For local development she makes her own free Gemini and Groq keys. When she's back, set "Protect main" required approvals back to 1.
 
 ## 2026-11-04: UI finished, live deploy, demos for Phases 3–6
 
