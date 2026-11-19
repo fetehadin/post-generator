@@ -28,12 +28,12 @@ def upgrade() -> None:
         "profiles", sa.Column("main_goal", sa.String(16), server_default="", nullable=False)
     )
     op.create_check_constraint(
-        "ck_profiles_audience_kind",
+        op.f("ck_profiles_audience_kind"),
         "profiles",
         "audience_kind IN ('', 'peers', 'clients', 'employers', 'public')",
     )
     op.create_check_constraint(
-        "ck_profiles_main_goal",
+        op.f("ck_profiles_main_goal"),
         "profiles",
         "main_goal IN ('', 'teach', 'sell', 'hire', 'network', 'announce')",
     )
@@ -42,7 +42,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # The filled-in "developer" values stay: they can't be told apart from typed ones.
-    op.drop_constraint("ck_profiles_main_goal", "profiles", type_="check")
-    op.drop_constraint("ck_profiles_audience_kind", "profiles", type_="check")
+    op.drop_constraint(op.f("ck_profiles_main_goal"), "profiles", type_="check")
+    op.drop_constraint(op.f("ck_profiles_audience_kind"), "profiles", type_="check")
     op.drop_column("profiles", "main_goal")
     op.drop_column("profiles", "audience_kind")
