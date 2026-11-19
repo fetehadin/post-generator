@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     CheckConstraint,
     Date,
@@ -18,14 +19,20 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, CreatedAt
 
+# The local model's vectors (app/ai/local_embed.py). Changing it needs a migration.
+LOCAL_DIMENSIONS = 384
+
 
 class ExemplarPost(Base):
-    """Shared inspiration posts per platform, written for Voxlace (migration 0010). Used for
-    structure only when a user has few posts there. Not user-owned, so no RLS."""
+    """The shared inspiration pool per platform (FR-41): team-written templates (0010) and
+    posts by creators, imported for their STRUCTURE only (0014). Never shown to users and
+    never a source of facts or wording; drafts borrow the hook, shape, rhythm and length.
+    Not user-owned, so no RLS. Vectors come from the local model (rule 3), not Gemini."""
 
     __tablename__ = "exemplar_posts"
     __table_args__ = (
         CheckConstraint("platform IN ('telegram', 'x', 'linkedin')", name="platform"),
+        CheckConstraint("source IN ('template', 'creator')", name="source"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -37,6 +44,19 @@ class ExemplarPost(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )
+    source: Mapped[str] = mapped_column(String(16), server_default="template")
+    author: Mapped[str | None] = mapped_column(String(64))  # the creator's handle
+    text_hash: Mapped[str | None] = mapped_column(String(64))  # sha256: import twice, store once
+    # Tags from the free LLM (`python -m app.dev backfill-inspiration`), NULL until tagged.
+    hook_type: Mapped[str | None] = mapped_column(String(32))
+    structure: Mapped[str | None] = mapped_column(Text)  # the shape in topic-free words
+    tone: Mapped[str | None] = mapped_column(String(32))
+    goal: Mapped[str | None] = mapped_column(String(16))
+    source_profession: Mapped[str | None] = mapped_column(String(48))
+    tagged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(LOCAL_DIMENSIONS))
+    structure_embedding: Mapped[list[float] | None] = mapped_column(Vector(LOCAL_DIMENSIONS))
+    embedding_model: Mapped[str | None] = mapped_column(String(128))
     # Declared last: inside the class body, `text` would otherwise hide sqlalchemy's text().
     text: Mapped[str] = mapped_column(Text)
 
