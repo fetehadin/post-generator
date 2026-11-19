@@ -1,6 +1,7 @@
 """SQLAlchemy models. Importing this package registers every table on Base.metadata."""
 
 from app.models.accounts import GuestUsage, Invite, Profile, ReminderSettings, Upload
+from app.models.ai import AICall, UserAIKey
 from app.models.base import Base
 from app.models.drafts import (
     Checkin,
@@ -17,6 +18,8 @@ from app.models.user import User
 from app.models.voice import PlatformSettings, PostingCurve, VoiceCard
 
 __all__ = [
+    "AICall",
+    "UserAIKey",
     "Checkin",
     "DraftMessage",
     "GuestUsage",

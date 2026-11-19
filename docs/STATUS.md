@@ -1,8 +1,45 @@
 # Status log
 
-A running log so anyone (Nezira especially) can catch up: what was done, where, the result, and what's next. Newest first. Claude updates it at the end of every task.
+A running log so anyone (Nezira especially) can catch up: what was done, where, the result, and what's next. Newest first. Updated at the end of every task.
 
 **Where we are:** Phases 3–6 demos passed on 4 Nov 2026; next is beta prep (Phase 7). Live at https://voxlace.fetehadin.com, deployed on every merge to `main`. The task queue is set by Fetehadin. Nezira is away, so each PR is reviewed by a fresh-context review subagent plus Fetehadin's reading of the summary, and tagged `@Nezira_Worku please post-review` so she reads it when she's back.
+
+---
+
+## 2026-11-19: Your own AI keys, faster fallback, every AI call measured (`feat/ai-keys-and-usage`)
+
+**Why:** on the live server, all 17 drafts of the past 14 days came from Groq and none from Gemini (timeouts, 503 "high demand", 429 quota). Every draft still waited up to ~24 s on Gemini before Groq answered, and nothing recorded tokens or timing, so we couldn't tell what to fix.
+
+**Built (FR-48, NFR-19, NFR-20; SRS 1.4):**
+- **Your own AI keys:** Profile → AI keys takes a Google Gemini and/or Groq key. Each key is:
+  - checked with the provider before saving, without spending quota;
+  - encrypted (Fernet, `AI_KEY_ENCRYPTION_KEYS`; rotation supported);
+  - shown only by its last four characters, never exported, and removed with the account.
+
+  Drafts, revisions, cards and imports try the user's key first, then ours. Drafts on their key don't count towards the daily limit; past the limit, a user with a key keeps going on their key only. A key the provider later refuses shows "Not working" and is skipped.
+- **Circuit breaker:** a model that fails 3 calls in a row, or says it's out for hours (daily quota, rejected key, removed model), is skipped for a while instead of slowing every draft. A failing model gets 2 tries while a backup waits, not 5.
+- **`ai_calls`:** one row per AI call: purpose, model, whose key, tries, time, tokens in/out/thinking. Never any text. `python -m app.dev ai-report` prints the week as the table owner.
+- **The topic is embedded once,** not once per platform (cache by text).
+- **Two settings, off until tested:**
+  - `GENERATION_MODELS_LIGHT`, a cheaper chain for the voice and summary cards;
+  - `GEMINI_THINKING_LEVEL`, less Gemini thinking.
+
+  Both change outputs, so they wait for the ten-topic before/after.
+- Migration 0013: `user_ai_keys`, `ai_calls` (RLS; guests' rows have no user), `prompt_logs.key_source`.
+
+**Checks:** backend ruff passes and 423 tests pass, 50 of them new (keys, breaker, encryption, records, limits, isolation). 0013 downgrades and upgrades cleanly. Frontend lint passes, 165 tests pass and the build works.
+
+**To switch it on in production (after merge):**
+1. Make a key with `python -m app.dev new-secret-key`.
+2. Put it in the server's settings file as `AI_KEY_ENCRYPTION_KEYS`, and keep a copy with the backups.
+3. Restart `api`.
+
+Without the key the feature stays off and says so. Also add the three new lines from `deploy/server-env.template` to your local `.env.example` (that file is edited by hand, OPEN_QUESTIONS Q23).
+
+**Not done, on purpose:**
+- One call for all three platforms, and token-budgeted examples: these are prompt changes that need the ten-topic eval.
+- Queue-instead-of-fail for drafts.
+- Offline check-ins.
 
 ---
 

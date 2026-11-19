@@ -120,6 +120,9 @@ class UsageOut(BaseModel):
     posts: int
     post_limit: int
     resets_at: datetime
+    own_key: bool = Field(
+        False, description="FR-48: the user has a working AI key; its drafts aren't counted"
+    )
 
 
 class DeleteMeIn(BaseModel):
@@ -520,3 +523,36 @@ class ClaimIn(BaseModel):
     receipts: list[str] = Field(min_length=1, max_length=6)
     # Each receipt holds a prompt (a few KB; Amharic is 3 bytes a character, base64 adds a
     # third). The route checks each one's size; the list length is checked here.
+
+
+AIProvider = Literal["google", "groq"]
+
+
+class AIKeyIn(BaseModel):
+    """PUT /me/ai-keys/{provider} (FR-48). The key is checked, encrypted and never returned."""
+
+    key: str = Field(min_length=1, max_length=300)
+
+
+class AIKeyOut(BaseModel):
+    provider: AIProvider
+    last4: str
+    status: Literal["active", "rejected"]
+    last_error: str | None
+    added_at: datetime
+    last_used_at: datetime | None
+
+
+class AIProviderOut(BaseModel):
+    id: AIProvider
+    name: str
+    key_url: str
+    used_for: str
+
+
+class AIKeysOut(BaseModel):
+    """GET /me/ai-keys: whether the feature is on, the providers, and the user's keys."""
+
+    enabled: bool
+    providers: list[AIProviderOut]
+    keys: list[AIKeyOut]

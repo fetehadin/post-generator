@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session
 
-from app.ai.client import AIClient, EmbeddingUnavailable, default_client
+from app.ai.client import AIClient, EmbeddingUnavailable, default_client, for_user
 from app.core.config import get_settings
 from app.core.db import get_engine, user_session
 from app.models import Import, SourcePost
@@ -45,7 +45,7 @@ def embed_pending(
     limit: int = DEFAULT_LIMIT,
     batch_size: int = BATCH,
 ) -> EmbedReport:
-    ai = ai or default_client()
+    ai = for_user(ai or default_client(), user_id)  # the user's Gemini key first (FR-48)
     model = get_settings().embedding_model
     done, reason = 0, None
 

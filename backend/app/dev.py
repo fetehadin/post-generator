@@ -6,6 +6,8 @@
     python -m app.dev draft "today's check-in" [--platform telegram] [--show-prompt]
     python -m app.dev eval [--platform telegram]   # the ten test topics
     python -m app.dev check-models                  # one tiny prompt per model (daily cron)
+    python -m app.dev ai-report [--days 7]          # AI calls per day and purpose (as owner)
+    python -m app.dev new-secret-key                # a key for AI_KEY_ENCRYPTION_KEYS
 
 Everything is stored under one fixed dev user, the same way real users will be.
 """
@@ -18,6 +20,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.ai.client import default_client
 from app.core.auth import DEV_USER_ID
+from app.core.config import get_settings
 from app.core.db import user_session
 from app.evals import run_eval
 from app.importers.telegram import parse_telegram
@@ -95,6 +98,47 @@ def check_models() -> None:
         raise SystemExit(1)
 
 
+AI_REPORT = """
+SELECT created_at::date AS day, purpose, coalesce(key_source, '-') AS key,
+       count(*) AS calls,
+       round(100.0 * avg(ok::int)) AS ok_pct,
+       round(avg(latency_ms) FILTER (WHERE ok)) AS avg_ms,
+       percentile_disc(0.95) WITHIN GROUP (ORDER BY latency_ms) AS p95_ms,
+       round(avg(attempts), 1) AS attempts,
+       coalesce(sum(prompt_tokens), 0) AS tokens_in,
+       coalesce(sum(output_tokens), 0) AS tokens_out,
+       coalesce(sum(thinking_tokens), 0) AS thinking,
+       count(DISTINCT user_id) AS users
+FROM ai_calls
+WHERE created_at > now() - make_interval(days => :days)
+GROUP BY 1, 2, 3 ORDER BY 1 DESC, 4 DESC
+"""
+
+
+def ai_report(days: int) -> None:
+    """Numbers only, never text (NFR-20). Runs as the table owner, because row-level security
+    rightly hides every user's calls from the app's own role."""
+    from sqlalchemy import create_engine, text
+
+    engine = create_engine(get_settings().migrations_database_url)
+    with engine.connect() as conn:
+        rows = conn.execute(text(AI_REPORT), {"days": days}).mappings().all()
+    if not rows:
+        print(f"No AI calls in the last {days} days.")
+        return
+    cols = list(rows[0].keys())
+    widths = {c: max(len(c), *(len(str(r[c])) for r in rows)) for c in cols}
+    print("  ".join(c.ljust(widths[c]) for c in cols))
+    for r in rows:
+        print("  ".join(str(r[c]).ljust(widths[c]) for c in cols))
+
+
+def new_secret_key() -> None:
+    from app.core.secrets import new_key
+
+    print(new_key())
+
+
 def make_invite(email: str | None) -> None:
     """FR-28: an invite code for one tester (bound to their email if given)."""
     code = f"VX-{secrets.token_hex(3).upper()}-{secrets.token_hex(3).upper()}"
@@ -120,6 +164,9 @@ def main() -> None:
     ev = sub.add_parser("eval", help="draft the ten test topics and write a report")
     ev.add_argument("--platform", default="telegram", choices=["telegram", "x", "linkedin"])
     sub.add_parser("check-models", help="send one tiny prompt to each model in the chain")
+    rep = sub.add_parser("ai-report", help="AI calls per day, purpose and key (numbers only)")
+    rep.add_argument("--days", type=int, default=7)
+    sub.add_parser("new-secret-key", help="print a new key for AI_KEY_ENCRYPTION_KEYS")
     inv = sub.add_parser("invite", help="create an invite code for a tester")
     inv.add_argument("--email", help="only this email can use the code")
     args = parser.parse_args()
@@ -135,6 +182,10 @@ def main() -> None:
         evaluate(args.platform)
     elif args.command == "check-models":
         check_models()
+    elif args.command == "ai-report":
+        ai_report(args.days)
+    elif args.command == "new-secret-key":
+        new_secret_key()
     elif args.command == "invite":
         make_invite(args.email)
 

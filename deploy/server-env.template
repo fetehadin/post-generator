@@ -20,6 +20,16 @@ GEMINI_API_KEY=
 GENERATION_MODELS=google:gemini-flash-latest,groq:openai/gpt-oss-120b,google:gemini-flash-lite-latest
 # Groq writes drafts when Gemini is busy (free key at console.groq.com).
 GROQ_API_KEY=
+# Optional cheaper chain for the voice card and summary card; empty = the chain above.
+GENERATION_MODELS_LIGHT=
+# Gemini thinking for writing calls: empty = the model's default; minimal, low, medium or high.
+# Turn it down only after the ten-topic before/after (it changes drafts for everyone).
+GEMINI_THINKING_LEVEL=
+# FR-48: lets users add their own Gemini/Groq key (encrypted with this). Empty = feature off.
+# Make one with: docker compose ... exec api python -m app.dev new-secret-key
+# Rotation: put the new key first, comma, the old one; drop the old one later. Losing every
+# key only means users must re-enter their AI keys. Keep a copy with the backups.
+AI_KEY_ENCRYPTION_KEYS=
 
 # Supabase -> Project settings -> API. The publishable key is public (it is built into the app).
 SUPABASE_URL=https://YOUR-PROJECT.supabase.co

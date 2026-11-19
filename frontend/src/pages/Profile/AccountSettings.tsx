@@ -33,6 +33,7 @@ export function AccountSettings() {
           {usage.data.post_limit} posts learned.{' '}
           <span className="text-muted">
             Resets at {time.format(new Date(usage.data.resets_at))}.
+            {usage.data.own_key && " Drafts written with your own AI key aren't counted."}
           </span>
         </p>
       )}

@@ -116,6 +116,7 @@ def get_usage(user_id=Depends(current_user)) -> UsageOut:
         posts=u.posts,
         post_limit=u.post_limit,
         resets_at=u.resets_at,
+        own_key=u.own_key,
     )
 
 

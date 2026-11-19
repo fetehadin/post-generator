@@ -40,7 +40,16 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 768
     # Ordered fallback chain, comma-separated "provider:model" (FR-31). Providers: google, groq.
     generation_models: str = "google:gemini-flash-latest"
+    # Optional cheaper chain for small jobs (voice card, summary card); empty = the main chain.
+    generation_models_light: str = ""
+    # Gemini's thinking for writing calls: "" leaves the model's default; minimal, low, medium
+    # or high. Less thinking is faster and uses less quota; check drafts with the ten topics.
+    gemini_thinking_level: str = ""
     groq_api_key: str = ""
+    # FR-48: users may add their own AI keys. They are encrypted with these Fernet keys
+    # (comma-separated; the first encrypts, all decrypt, for rotation). Empty turns the
+    # feature off. Make one with `python -m app.dev new-secret-key`.
+    ai_key_encryption_keys: str = ""
     # Longest one AI call may take before it counts as a network drop and is retried.
     ai_timeout_seconds: int = 60
     # The most one draft may spend across retries and fallback models before the user is told
@@ -69,16 +78,28 @@ class Settings(BaseSettings):
 
     @property
     def generation_chain(self) -> list[tuple[str, str]]:
-        chain = []
-        for item in self.generation_models.split(","):
-            item = item.strip()
-            if not item:
-                continue
-            provider, _, model = item.partition(":")
-            chain.append(
-                (provider.strip(), model.strip()) if model else ("google", provider.strip())
-            )
-        return chain
+        return _chain(self.generation_models)
+
+    def chain_for(self, purpose: str) -> list[tuple[str, str]]:
+        """Small jobs use the light chain when one is set; writing always uses the main one."""
+        if purpose in LIGHT_PURPOSES and self.generation_models_light.strip():
+            return _chain(self.generation_models_light)
+        return self.generation_chain
+
+
+# AI jobs that don't write a post: they can run on a cheaper model.
+LIGHT_PURPOSES = frozenset({"voice_card", "summary"})
+
+
+def _chain(spec: str) -> list[tuple[str, str]]:
+    chain = []
+    for item in spec.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        provider, _, model = item.partition(":")
+        chain.append((provider.strip(), model.strip()) if model else ("google", provider.strip()))
+    return chain
 
 
 @lru_cache

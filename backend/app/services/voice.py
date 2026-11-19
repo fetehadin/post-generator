@@ -18,7 +18,7 @@ from string import Template
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
-from app.ai.client import AIClient, default_client
+from app.ai.client import AIClient, default_client, for_user
 from app.core.db import user_session
 from app.counting import post_length
 from app.models import PlatformProfile, PlatformSettings, SourcePost, VoiceCard
@@ -262,7 +262,7 @@ def write_card(user_id: uuid.UUID, platform: str, ai: AIClient | None = None) ->
         raise NoPosts
     language = get_profile(user_id).language
     prompt = card_prompt(platform, measure(texts, counting_rule), posts, kept, language)
-    result = (ai or default_client()).generate(prompt, purpose="voice_card")
+    result = for_user(ai or default_client(), user_id).generate(prompt, purpose="voice_card")
     ai_text = result.text.strip()
     _save_card(user_id, platform, card=merge_kept(ai_text, kept), ai_card=ai_text)
 
