@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Product** | Voxlace (working name) |
-| **Version** | 1.3 — Telegram as a hand-off, chat board, posting times |
-| **Date** | 22 October 2026 |
+| **Version** | 1.4 — your own AI keys, AI call log |
+| **Date** | 19 November 2026 |
 | **Authors** | Fetehadin Negash, Nezira |
 | **Status** | Locked. Changes go through a pull request that edits this file. |
 
@@ -199,6 +199,7 @@ flowchart LR
 | FR-37 | Before any upload, a new user sees a short privacy notice and must accept it. | Must | Skip the notice; uploads are blocked. |
 | FR-38 | A user can export and delete all their data. | Must | Delete; every post, draft, profile and upload row is gone. |
 | FR-47 | **Guest mode** (decided 5 Nov 2026): without logging in, anyone can write what they did, get a draft per platform, revise it and copy it. Nothing of theirs is stored on the server: the drafts stay in their browser with a signed receipt (the draft, its exact prompt and model). Approving, scheduling, importing and history ask them to log in, and at login their guest drafts become one chat in the account, with the prompt logs rule 9 needs. Guests are limited per visitor (hashed IP) and in total per day. | Must | Draft as a guest: no draft, check-in or prompt row exists. Log in: the drafts appear as one chat with their prompts. A changed receipt is refused. |
+| FR-48 | **Your own AI keys** (decided 19 Nov 2026): a user may add their own Google Gemini and/or Groq API key in Profile. The key is checked with the provider before saving (without spending generation quota), stored encrypted, never shown again (only its last four characters), never exported, and removable at any time. Drafts, revisions, voice and summary cards and imports try the user's keys first with the same models, then the app's keys. Drafts written on the user's key don't count towards the daily limit (FR-30); past the limit, a user with a key keeps drafting on their key only. A key the provider later refuses is marked "not working" and skipped until replaced. Embeddings stay on the one fixed model (C-7); only whose quota pays changes. | Should | Save a wrong key: refused, nothing stored. Save a working key: the next draft's log says `own`, and the daily count doesn't move. User B never sees or uses A's key. |
 | FR-15 | The app records, for each draft, whether it was published and how much it was edited, and shows a weekly publish rate. | Should (recording is Must) | Publish two of four drafts; the page shows 50%. |
 
 ---
@@ -225,6 +226,8 @@ flowchart LR
 | NFR-16 | Time | All times are stored in UTC and shown in the user's time zone. | Change the user's time zone; calendar times shift, stored values do not. |
 | NFR-17 | Recoverability | The database is backed up nightly to storage off the server, and a restore has been tested. | Restore last night's backup into a fresh container; row counts match. |
 | NFR-18 | Security | The server accepts SSH by key only, exposes only ports 80/443/SSH, and Postgres is not reachable from the internet. | Port scan from outside shows only 22, 80, 443. |
+| NFR-19 | Security | Secrets users give the app (their AI keys) are encrypted at rest with keys held only in the server environment, never logged, and never returned by the API. Rotation keeps old rows readable. | A database dump contains no readable key; the API and logs never show one. |
+| NFR-20 | Observability | Every AI call (generate or embed, users' and guests') is logged with its purpose, model, key source, attempts, time and token counts, never its text. A model that keeps failing is skipped for a while instead of slowing every request (circuit breaker). | `python -m app.dev ai-report` lists the last week's calls; with the first model down, a draft no longer waits on it. |
 
 ---
 
@@ -300,7 +303,9 @@ erDiagram
 | `threads` | id, user_id, title, checkin_id, created_at, updated_at | One chat on the chat board (FR-46). |
 | `drafts` | id, user_id, thread_id, source_draft_id, checkin_id, platform, topic, status, scheduled_for, published_at, created_at | One row per post in progress. `source_draft_id` links a version written for another platform. |
 | `draft_versions` | id, draft_id, text, instruction, model, created_at | Every revision. |
-| `prompt_logs` | id, draft_id, draft_version_id, prompt, model, provider, created_at | Exact prompt behind each draft and each revision. |
+| `prompt_logs` | id, draft_id, draft_version_id, prompt, model, provider, key_source (own, default), created_at | Exact prompt behind each draft and each revision, and whose key wrote it. |
+| `user_ai_keys` | user_id, provider (google, groq), sealed_key, last4, status (active, rejected), last_error, last_used_at, created_at, updated_at | The user's own AI keys, encrypted (FR-48, NFR-19). |
+| `ai_calls` | id, user_id (null for guests), purpose, kind (generate, embed), ok, provider, model, model_version, key_source, error, attempts, routes_tried, latency_ms, prompt_tokens, output_tokens, thinking_tokens, items, created_at | One row per AI call, no text (NFR-20). Users read only their own; the team reads all as the table owner. |
 | `draft_messages` | id, thread_id, draft_id, role (user, assistant), text, draft_version_id, created_at | The thread's conversation (FR-40, FR-46). |
 | `inspiration_posts` | id, user_id, creator, platform, text, post_type, likes, posted_at, embedding | Posts from creators the user admires, **per platform** (a Telegram channel only inspires Telegram drafts); structure examples only (FR-41). Never shown to other users. |
 | `reminder_settings` | user_id, days, local_time, enabled | Check-in reminders, shown in the app (FR-42). |
@@ -367,7 +372,7 @@ Seed values for `platform_profiles`, as of October 2026.
 | 4 — Drafting workflow | FR-6, FR-8, FR-10, FR-11, FR-19, FR-40, FR-46, FR-12 |
 | 5 — Calendar, posting times and reminders | FR-13, FR-16, FR-34, FR-35, FR-42, FR-45, NFR-14, NFR-16 |
 | 6 — SaaS hardening and deploy | FR-30, FR-31, FR-32, FR-38, NFR-1, NFR-3, NFR-4, NFR-10, NFR-11, NFR-17 |
-| 7 — Private beta | FR-15, success metrics |
+| 7 — Private beta | FR-15, FR-48, NFR-19, NFR-20, success metrics |
 | Stretch | FR-14 |
 | After V1 | FR-36, FR-43 (Telegram bot) |
 
@@ -377,6 +382,7 @@ Seed values for `platform_profiles`, as of October 2026.
 
 | Version | Date | Change |
 |---|---|---|
+| 1.4 | 19 Nov 2026 | New FR-48 (your own AI keys), NFR-19 (secrets encrypted at rest), NFR-20 (AI call log and circuit breaker). New tables `user_ai_keys`, `ai_calls`; `prompt_logs` gains `key_source`. FR-30's limit counts only drafts on the app's keys. |
 | 1.3 | 22 Oct 2026 | No Telegram bot in V1: Telegram is copy + open channel (C-6, FR-12, FR-35; FR-36 and FR-43 move after V1), and reminders live in the app (FR-42). Chat board threads with a new draft card per revision (FR-40, new FR-46). Posting times move into V1: best hours from audience places and profession (FR-16, FR-34) and the app picks the hour on approve (new FR-45). Resume and portfolio import move into V1 (FR-20, FR-21, NFR-12). FR-23 rules change through migrations. Groq is the fallback provider. NFR-14 is now the background embedding retry. New tables `threads`, `posting_curves`; `profiles`, `platform_settings`, `drafts`, `draft_messages`, `reminder_settings`, `uploads` change. |
 | 1.2 | 17 Oct 2026 | Added FR-40 (chat panel on each draft), FR-41 (inspiration picked by post type), FR-42 (daily check-in reminders), FR-43 (reply to the bot = check-in), FR-44 (excluded hashtags, best-1,000 import cap). New tables `imports`, `draft_messages`, `inspiration_posts`, `reminder_settings`; `source_posts` gains `origin`, `import_id`, `embedding_model`. Decisions behind them: OPEN_QUESTIONS Q2, Q3, Q5, Q24–Q27. |
 | 1.1 | 14 Oct 2026 | Hosting moved to the team's Contabo VPS: always-on worker replaces the external cron; Supabase used for login only; added NFR-17 (backups) and NFR-18 (server hardening). |

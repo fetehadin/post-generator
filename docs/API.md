@@ -405,8 +405,10 @@ Copies an earlier version as the newest one ("Restored v2"). Only while `draft`.
 Today's use against the daily limits (FR-30), per UTC day:
 
 ```json
-{ "drafts": 12, "draft_limit": 40, "posts": 412, "post_limit": 3000, "resets_at": "2026-10-23T00:00:00Z" }
+{ "drafts": 12, "draft_limit": 40, "posts": 412, "post_limit": 3000, "resets_at": "2026-10-23T00:00:00Z", "own_key": false }
 ```
+
+- `own_key` (FR-48): the user has a working AI key of their own. Drafts written on it aren't counted in `drafts`; past the limit, a user with a key keeps drafting on their key only.
 
 - `drafts` counts every AI writing call: new drafts and chat revisions. At the limit, `POST /drafts/generate` and `POST /drafts/{id}/revise` return `429 daily_limit` (the user's text is in their own request, so nothing is lost).
 - `posts` counts posts added by imports today (each is embedded once). An import that would add more new posts than are left returns `429 daily_limit` and saves nothing. Re-importing known posts costs nothing.
@@ -418,7 +420,40 @@ Everything the user gave Voxlace or made with it, as one JSON download (FR-38): 
 
 ### `DELETE /me`
 
-Body `{"confirm": "delete"}` (any case) → `204`. Deletes the user's row and, by cascade, every row they own: posts and embeddings, imports, profile, uploads, voice cards, check-ins, drafts, versions, chat and prompt logs (FR-38, NFR-10). Anything else in `confirm` → `400 confirm_required`. The Supabase login stays; without data or an invite it can't use the app.
+Body `{"confirm": "delete"}` (any case) → `204`. Deletes the user's row and, by cascade, every row they own: posts and embeddings, imports, profile, uploads, voice cards, check-ins, drafts, versions, chat, prompt logs, AI keys and the AI call log (FR-38, NFR-10). Anything else in `confirm` → `400 confirm_required`. The Supabase login stays; without data or an invite it can't use the app.
+
+### Your own AI keys (FR-48, NFR-19)
+
+#### `GET /me/ai-keys`
+
+```json
+{
+  "enabled": true,
+  "providers": [
+    { "id": "google", "name": "Google Gemini", "key_url": "https://aistudio.google.com/apikey", "used_for": "Drafts, revisions and reading your imported posts" },
+    { "id": "groq", "name": "Groq", "key_url": "https://console.groq.com/keys", "used_for": "Drafts and revisions" }
+  ],
+  "keys": [
+    { "provider": "google", "last4": "wxyz", "status": "active", "last_error": null, "added_at": "2026-11-19T10:00:00Z", "last_used_at": "2026-11-19T11:02:00Z" }
+  ]
+}
+```
+
+- `enabled` is `false` when the server has no `AI_KEY_ENCRYPTION_KEYS`; the UI then says the feature is off.
+- The key itself is never returned, only `last4`. `status: "rejected"` means the provider refused it on a real call; it's skipped until replaced.
+
+#### `PUT /me/ai-keys/{provider}` → `200`
+
+`provider` is `google` or `groq`. Body `{"key": "…"}`. The key is checked with the provider first (Gemini: read the embedding model's details; Groq: list models; neither spends generation quota), then stored encrypted, replacing any earlier key for that provider. Returns one key object as above.
+
+- `400 invalid_key`: not shaped like a key (20–300 characters, no spaces), or the provider refused it. Nothing is stored.
+- `503 key_check_unavailable`: the provider couldn't be reached; nothing is decided. Try again.
+- `503 keys_disabled`: the feature is off on this server.
+- `404 unknown_provider`.
+
+#### `DELETE /me/ai-keys/{provider}` → `204`
+
+`404 not_found` when there's no key for that provider. Deleting the account removes keys too; the export lists `ai_keys` as `{provider, last4, status}` only.
 
 ### `GET /drafts/stats`
 
