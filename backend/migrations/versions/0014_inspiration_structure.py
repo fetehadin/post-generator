@@ -42,7 +42,7 @@ def upgrade() -> None:
     add(sa.Column("structure_embedding", Vector(DIMS), nullable=True))
     add(sa.Column("embedding_model", sa.String(128), nullable=True))
     op.create_check_constraint(
-        "ck_exemplar_posts_source", "exemplar_posts", "source IN ('template', 'creator')"
+        op.f("ck_exemplar_posts_source"), "exemplar_posts", "source IN ('template', 'creator')"
     )
     # The templates get their hash too, so an import can never add one of them twice.
     op.execute(
@@ -65,7 +65,7 @@ def downgrade() -> None:
     for col in ("embedding", "structure_embedding"):
         op.execute(f"DROP INDEX IF EXISTS ix_exemplar_posts_{col}_hnsw")
     op.drop_index("uq_exemplar_posts_platform_text_hash", table_name="exemplar_posts")
-    op.drop_constraint("ck_exemplar_posts_source", "exemplar_posts", type_="check")
+    op.drop_constraint(op.f("ck_exemplar_posts_source"), "exemplar_posts", type_="check")
     for name in (
         "embedding_model",
         "structure_embedding",
