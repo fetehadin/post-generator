@@ -1,0 +1,133 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600&family=Nunito:wght@900&display=swap" rel="stylesheet">
+<style>
+.vx{display:flex;flex-direction:column;gap:22px;font-family:var(--font-sans)}
+.vx svg{display:block}
+.lab{font:600 11px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)}
+.sec{display:flex;flex-direction:column;gap:10px}
+.sec>p{margin:0;font-size:13.5px;line-height:1.55;color:var(--muted-foreground);max-width:62ch}
+.hero{border-radius:var(--radius);padding:16px;background:#fff;border:1px solid #E4E4E7;display:grid;place-items:center;height:250px;position:relative}
+.hero .w{width:min(78%,440px)}
+.hero .tag{position:absolute;left:16px;bottom:14px;font:500 12px/1.3 var(--font-sans);color:#71717A}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:600px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
+.tile{border-radius:var(--radius);padding:16px;height:118px;display:flex;flex-direction:column;justify-content:space-between}
+.tile .w{width:82%;align-self:center;margin-top:18px}
+.tile small{font:500 11.5px/1.3 var(--font-sans)}
+.t-light{background:#fff;border:1px solid #E4E4E7;color:#71717A}
+.t-dark{background:#171717;border:1px solid #2E2E2E;color:#A1A1AA}
+.t-teal{background:#2B6B5B;color:#CFE7E0}
+.t-sunk{background:#F4F4F5;border:1px solid #E4E4E7;color:#71717A}
+.build{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:16px;align-items:center;border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+@media (max-width:600px){.build{grid-template-columns:1fr}}
+.construct{width:100%;max-width:260px;justify-self:center}
+.notes{display:flex;flex-direction:column;gap:12px;margin:0;padding:0;list-style:none}
+.notes li{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13.5px;line-height:1.5}
+.notes b{display:block;font-weight:600;color:var(--foreground)}
+.notes span.k{width:14px;height:14px;border-radius:4px;margin-top:3px}
+.notes span.t{color:var(--muted-foreground)}
+.icons{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-end;border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.ic{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:11.5px;color:var(--muted-foreground)}
+.tabs{display:flex;gap:2px;align-items:flex-end}
+.tab{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px 10px 0 0;font:12px system-ui,sans-serif;width:150px}
+.tab.on{background:#fff;color:#09090B;border:1px solid #E4E4E7;border-bottom:0}
+.tab.off{background:#E4E4E7;color:#52525B}
+.ctx{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+@media (max-width:600px){.ctx{grid-template-columns:1fr}}
+.side{border-radius:var(--radius);background:#fff;border:1px solid #E4E4E7;padding:16px;display:flex;flex-direction:column;gap:6px;font:13px/1 Archivo,system-ui,sans-serif;color:#52525B}
+.side .top{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 12px}
+.side .w{width:104px}
+.nav{padding:9px 10px;border-radius:8px}
+.nav.cur{background:#F4F4F5;color:#09090B;font-weight:600}
+.newbtn{margin-top:6px;background:#18181B;color:#FAFAFA;border-radius:8px;padding:10px;text-align:center;font-weight:600}
+.og{border-radius:var(--radius);overflow:hidden;border:1px solid #2E2E2E;background:#171717;display:flex;flex-direction:column}
+.og .img{aspect-ratio:1.91/1;max-width:100%;background:#171717;display:flex;flex-direction:column;justify-content:center;gap:12px;padding:0 9%;position:relative;overflow:hidden}
+.og .img .w{width:58%}
+.og .img p{margin:0;color:#A1A1AA;font:500 13px/1.4 var(--font-sans);max-width:30ch}
+.og .img .glyph{position:absolute;right:-9%;bottom:-24%;width:46%;opacity:.09}
+.og .meta{padding:10px 14px;border-top:1px solid #2E2E2E;font:12px/1.4 system-ui,sans-serif;color:#A1A1AA}
+.og .meta b{display:block;color:#FAFAFA;font-weight:600}
+.spec{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+@media (max-width:600px){.spec{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.spec div{background:var(--background);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.spec b{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.ba{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:center}
+.ba .tile{height:96px}
+.ba .arrow{color:var(--muted-foreground);font-size:18px}
+.old{font:900 34px/1 Nunito,sans-serif;letter-spacing:-.03em;color:#09090B;align-self:center;margin-top:12px;display:flex;align-items:baseline}
+.old svg{width:.7em;height:.7em;margin:0 .01em;transform:translateY(.07em)}
+</style></head><body><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="vx-rest" viewBox="0 0 3296.5 737.0"><path d="M206 726 0 240H165L305 645H233.5L373.5 240H535.5L329.5 726Z M1381 726 1264.5 537.5 1231.5 516 1040.5 240H1219L1328.5 417L1360.5 437L1558 726ZM1031 726 1230 443.5 1317 541.5 1198 726ZM1359.5 515 1272 417.5 1382 240H1548.5Z M1569.5 726V0H1722.5V726Z M1998.5 736Q1931.5 736 1878.8 703Q1826 670 1795.8 613Q1765.5 556 1765.5 483.5Q1765.5 410.5 1795.8 353.2Q1826 296 1878.8 263Q1931.5 230 1998.5 230Q2047.5 230 2087 249Q2126.5 268 2151.2 301.5Q2176 335 2179.5 378V588Q2176 631 2151.5 664.5Q2127 698 2087.2 717Q2047.5 736 1998.5 736ZM2029.5 598Q2078.5 598 2108.5 565.8Q2138.5 533.5 2138.5 483Q2138.5 449 2125 423.2Q2111.5 397.5 2087 382.8Q2062.5 368 2030 368Q1998 368 1973.5 382.8Q1949 397.5 1934.8 423.5Q1920.5 449.5 1920.5 483Q1920.5 516.5 1934.5 542.5Q1948.5 568.5 1973.2 583.2Q1998 598 2029.5 598ZM2132 726V595.5L2155 477L2132 359.5V240H2282.5V726Z M2596.5 737Q2521 737 2460.2 704Q2399.5 671 2364.5 613.2Q2329.5 555.5 2329.5 483.5Q2329.5 410.5 2364.8 353Q2400 295.5 2461 262.2Q2522 229 2598 229Q2655 229 2702.5 248.8Q2750 268.5 2787 307L2689.5 405Q2672.5 386.5 2649.8 377.2Q2627 368 2598 368Q2565.5 368 2540 382.5Q2514.5 397 2499.8 422.5Q2485 448 2485 482.5Q2485 516.5 2499.8 542.5Q2514.5 568.5 2540.2 583.2Q2566 598 2598 598Q2628.5 598 2651.8 587.8Q2675 577.5 2692 558L2789.5 656Q2751 696 2703.2 716.5Q2655.5 737 2596.5 737Z M3062 737Q2983 737 2921.8 704.5Q2860.5 672 2825.5 614.2Q2790.5 556.5 2790.5 483Q2790.5 410 2824.8 352.8Q2859 295.5 2918.2 262.2Q2977.5 229 3051 229Q3123 229 3178.2 260.2Q3233.5 291.5 3265 346.5Q3296.5 401.5 3296.5 472Q3296.5 485.5 3295 500Q3293.5 514.5 3289.5 533L2870.5 534.5V429.5L3224.5 428L3158.5 472.5Q3157.5 430.5 3145.2 402.8Q3133 375 3109.8 360.5Q3086.5 346 3052 346Q3016 346 2989.5 362.5Q2963 379 2948.8 409.2Q2934.5 439.5 2934.5 482Q2934.5 525 2949.8 555.8Q2965 586.5 2993.5 602.8Q3022 619 3061.5 619Q3097.5 619 3126.5 606.8Q3155.5 594.5 3177.5 569.5L3261.5 653.5Q3225.5 695 3174.5 716Q3123.5 737 3062 737Z"/></symbol>
+<symbol id="vx-o" viewBox="0 0 3296.5 737.0"><path d="M777.5 737Q853.5 737 913.5 703.5Q973.5 670 1008.2 612Q1043 554 1043 482Q1043 410 1008 352.8Q973 295.5 913 262.2Q853 229 777 229Q701.5 229 641.2 262.5Q581 296 546.2 353Q511.5 410 511.5 482Q511.5 482.5 511.5 483H511.5V726.4C511.5 732.2 516.3 737 522.1 737L777.2 737Q777.4 737 777.5 737ZM777 598Q745 598 720 583.5Q695 569 681 542.8Q667 516.5 667 483Q667 449 681 423.2Q695 397.5 720 382.8Q745 368 777 368Q810 368 834.5 382.5Q859 397 873.2 422.8Q887.5 448.5 887.5 482.5Q887.5 516.5 873.8 542.8Q860 569 835 583.5Q810 598 777 598Z"/></symbol>
+<symbol id="vx-mark" viewBox="0 0 531.5 508.0"><path d="M266 508Q342 508 402 474.5Q462 441 496.8 383Q531.5 325 531.5 253Q531.5 181 496.5 123.8Q461.5 66.5 401.5 33.2Q341.5 0 265.5 0Q190 0 129.8 33.5Q69.5 67 34.8 124Q0 181 0 253Q0 253.5 0 254H0V497.4C0 503.2 4.8 508 10.6 508L265.8 508Q265.9 508 266 508ZM265.5 369Q233.5 369 208.5 354.5Q183.5 340 169.5 313.8Q155.5 287.5 155.5 254Q155.5 220 169.5 194.2Q183.5 168.5 208.5 153.8Q233.5 139 265.5 139Q298.5 139 323 153.5Q347.5 168 361.8 193.8Q376 219.5 376 253.5Q376 287.5 362.2 313.8Q348.5 340 323.5 354.5Q298.5 369 265.5 369Z"/></symbol>
+<symbol id="vx-sq" viewBox="0 0 100 100"><path d="M100.00 50.00 L99.99 63.06 L99.95 67.23 L99.89 70.26 L99.80 72.72 L99.69 74.82 L99.56 76.68 L99.40 78.34 L99.22 79.86 L99.01 81.26 L98.77 82.55 L98.51 83.76 L98.22 84.89 L97.91 85.95 L97.57 86.95 L97.20 87.89 L96.81 88.78 L96.39 89.63 L95.94 90.43 L95.46 91.18 L94.94 91.90 L94.40 92.58 L93.83 93.22 L93.22 93.83 L92.58 94.40 L91.90 94.94 L91.18 95.46 L90.43 95.94 L89.63 96.39 L88.78 96.81 L87.89 97.20 L86.95 97.57 L85.95 97.91 L84.89 98.22 L83.76 98.51 L82.55 98.77 L81.26 99.01 L79.86 99.22 L78.34 99.40 L76.68 99.56 L74.82 99.69 L72.72 99.80 L70.26 99.89 L67.23 99.95 L63.06 99.99 L50.00 100.00 L36.94 99.99 L32.77 99.95 L29.74 99.89 L27.28 99.80 L25.18 99.69 L23.32 99.56 L21.66 99.40 L20.14 99.22 L18.74 99.01 L17.45 98.77 L16.24 98.51 L15.11 98.22 L14.05 97.91 L13.05 97.57 L12.11 97.20 L11.22 96.81 L10.37 96.39 L9.57 95.94 L8.82 95.46 L8.10 94.94 L7.42 94.40 L6.78 93.83 L6.17 93.22 L5.60 92.58 L5.06 91.90 L4.54 91.18 L4.06 90.43 L3.61 89.63 L3.19 88.78 L2.80 87.89 L2.43 86.95 L2.09 85.95 L1.78 84.89 L1.49 83.76 L1.23 82.55 L0.99 81.26 L0.78 79.86 L0.60 78.34 L0.44 76.68 L0.31 74.82 L0.20 72.72 L0.11 70.26 L0.05 67.23 L0.01 63.06 L0.00 50.00 L0.01 36.94 L0.05 32.77 L0.11 29.74 L0.20 27.28 L0.31 25.18 L0.44 23.32 L0.60 21.66 L0.78 20.14 L0.99 18.74 L1.23 17.45 L1.49 16.24 L1.78 15.11 L2.09 14.05 L2.43 13.05 L2.80 12.11 L3.19 11.22 L3.61 10.37 L4.06 9.57 L4.54 8.82 L5.06 8.10 L5.60 7.42 L6.17 6.78 L6.78 6.17 L7.42 5.60 L8.10 5.06 L8.82 4.54 L9.57 4.06 L10.37 3.61 L11.22 3.19 L12.11 2.80 L13.05 2.43 L14.05 2.09 L15.11 1.78 L16.24 1.49 L17.45 1.23 L18.74 0.99 L20.14 0.78 L21.66 0.60 L23.32 0.44 L25.18 0.31 L27.28 0.20 L29.74 0.11 L32.77 0.05 L36.94 0.01 L50.00 0.00 L63.06 0.01 L67.23 0.05 L70.26 0.11 L72.72 0.20 L74.82 0.31 L76.68 0.44 L78.34 0.60 L79.86 0.78 L81.26 0.99 L82.55 1.23 L83.76 1.49 L84.89 1.78 L85.95 2.09 L86.95 2.43 L87.89 2.80 L88.78 3.19 L89.63 3.61 L90.43 4.06 L91.18 4.54 L91.90 5.06 L92.58 5.60 L93.22 6.17 L93.83 6.78 L94.40 7.42 L94.94 8.10 L95.46 8.82 L95.94 9.57 L96.39 10.37 L96.81 11.22 L97.20 12.11 L97.57 13.05 L97.91 14.05 L98.22 15.11 L98.51 16.24 L98.77 17.45 L99.01 18.74 L99.22 20.14 L99.40 21.66 L99.56 23.32 L99.69 25.18 L99.80 27.28 L99.89 29.74 L99.95 32.77 L99.99 36.94Z"/></symbol>
+</defs></svg>
+<div class="vx">
+
+<div class="hero"><svg class="w" viewBox="0 0 3296.5 737.0" role="img" aria-label="voxlace"><use href="#vx-rest" fill="#09090B"/><use href="#vx-o" fill="#2B6B5B"/></svg><span class="tag">Primary lockup · ink with the teal o</span></div>
+
+<section class="sec"><span class="lab">The idea</span>
+<p>The o is the speech bubble. It keeps the typeface's own o and squares off one corner as the bubble's tail, so it sits on the baseline like any other letter and has exactly the same weight.</p>
+<div class="build"><svg class="construct" viewBox="-70 -70 671.5 648.0" aria-label="How the o is built">
+<defs><pattern id="hatch" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="16" fill="#2B6B5B" opacity=".55"/></pattern></defs>
+<clipPath id="oclip"><path d="M266 508Q342 508 402 474.5Q462 441 496.8 383Q531.5 325 531.5 253Q531.5 181 496.5 123.8Q461.5 66.5 401.5 33.2Q341.5 0 265.5 0Q190 0 129.8 33.5Q69.5 67 34.8 124Q0 181 0 253Q0 253.5 0 254H0V497.4C0 503.2 4.8 508 10.6 508L265.8 508Q265.9 508 266 508ZM265.5 369Q233.5 369 208.5 354.5Q183.5 340 169.5 313.8Q155.5 287.5 155.5 254Q155.5 220 169.5 194.2Q183.5 168.5 208.5 153.8Q233.5 139 265.5 139Q298.5 139 323 153.5Q347.5 168 361.8 193.8Q376 219.5 376 253.5Q376 287.5 362.2 313.8Q348.5 340 323.5 354.5Q298.5 369 265.5 369Z"/></clipPath>
+<path fill="var(--foreground)" opacity=".92" d="M266 508Q342 508 402 474.5Q462 441 496.8 383Q531.5 325 531.5 253Q531.5 181 496.5 123.8Q461.5 66.5 401.5 33.2Q341.5 0 265.5 0Q190 0 129.8 33.5Q69.5 67 34.8 124Q0 181 0 253Q0 253.5 0 254H0V497.4C0 503.2 4.8 508 10.6 508L265.8 508Q265.9 508 266 508ZM265.5 369Q233.5 369 208.5 354.5Q183.5 340 169.5 313.8Q155.5 287.5 155.5 254Q155.5 220 169.5 194.2Q183.5 168.5 208.5 153.8Q233.5 139 265.5 139Q298.5 139 323 153.5Q347.5 168 361.8 193.8Q376 219.5 376 253.5Q376 287.5 362.2 313.8Q348.5 340 323.5 354.5Q298.5 369 265.5 369Z"/>
+<rect x="0" y="254.0" width="265.75" height="254.0" fill="url(#hatch)" clip-path="url(#oclip)"/>
+<ellipse cx="265.75" cy="254.0" rx="265.75" ry="254.0" fill="none" stroke="#72C4AE" stroke-width="5" stroke-dasharray="14 12"/>
+<line x1="-70" x2="601.5" y1="497.0" y2="497.0" stroke="#72C4AE" stroke-width="3"/>
+<line x1="-70" x2="601.5" y1="0" y2="0" stroke="#72C4AE" stroke-width="3" stroke-dasharray="6 8"/>
+<line x1="265.75" x2="265.75" y1="-70" y2="578.0" stroke="#72C4AE" stroke-width="2" stroke-dasharray="4 8"/>
+<line x1="-70" x2="601.5" y1="254.0" y2="254.0" stroke="#72C4AE" stroke-width="2" stroke-dasharray="4 8"/>
+</svg>
+<ul class="notes">
+<li><span class="k" style="border:2px dashed #72C4AE"></span><div><b>Outfit's own o</b><span class="t">Same curve and counter as the font, so the bubble has the same weight as v, x and l.</span></div></li>
+<li><span class="k" style="background:#2B6B5B;opacity:.45"></span><div><b>One square corner</b><span class="t">The lower-left quarter becomes the tail. The single-storey a has the same flat corner, on the other side.</span></div></li>
+<li><span class="k" style="background:#72C4AE;height:3px;margin-top:9px"></span><div><b>Sits on the baseline</b><span class="t">The tail points down-left at whoever is speaking, the way a chat bubble does. In Voxlace, that's you.</span></div></li>
+</ul></div></section>
+
+<section class="sec"><span class="lab">Color</span>
+<p>Teal is the color the app already uses for the AI. On the o it says one thing: this is where your voice comes from. Use the all-ink and all-white versions anywhere one color is needed.</p>
+<div class="grid4">
+<div class="tile t-light"><svg class="w" viewBox="0 0 3296.5 737.0" role="img" aria-label="voxlace"><use href="#vx-rest" fill="#09090B"/><use href="#vx-o" fill="#2B6B5B"/></svg><small>Ink + teal</small></div>
+<div class="tile t-dark"><svg class="w" viewBox="0 0 3296.5 737.0" role="img" aria-label="voxlace"><use href="#vx-rest" fill="#FAFAFA"/><use href="#vx-o" fill="#72C4AE"/></svg><small>Paper + light teal</small></div>
+<div class="tile t-sunk"><svg class="w" viewBox="0 0 3296.5 737.0" role="img" aria-label="voxlace"><use href="#vx-rest" fill="#09090B"/><use href="#vx-o" fill="#09090B"/></svg><small>One color, ink</small></div>
+<div class="tile t-teal"><svg class="w" viewBox="0 0 3296.5 737.0" role="img" aria-label="voxlace"><use href="#vx-rest" fill="#FFFFFF"/><use href="#vx-o" fill="#FFFFFF"/></svg><small>One color, white</small></div>
+</div></section>
+
+<section class="sec"><span class="lab">App icon and small sizes</span>
+<p>The o alone is the icon, in a continuous-curve square like a phone's home screen. It's nudged slightly up and right because the tail adds weight to the lower left.</p>
+<div class="icons">
+<div class="ic"><svg width="84" height="84" viewBox="0 0 100 100" aria-hidden="true"><use href="#vx-sq" fill="#09090B"/><g transform="translate(23.20 22.04) scale(0.10536)"><path fill="#FAFAFA" d="M266 508Q342 508 402 474.5Q462 441 496.8 383Q531.5 325 531.5 253Q531.5 181 496.5 123.8Q461.5 66.5 401.5 33.2Q341.5 0 265.5 0Q190 0 129.8 33.5Q69.5 67 34.8 124Q0 181 0 253Q0 253.5 0 254H0V497.4C0 503.2 4.8 508 10.6 508L265.8 508Q265.9 508 266 508ZM265.5 369Q233.5 369 208.5 354.5Q183.5 340 169.5 313.8Q155.5 287.5 155.5 254Q155.5 220 169.5 194.2Q183.5 168.5 208.5 153.8Q233.5 139 265.5 139Q298.5 139 323 153.5Q347.5 168 361.8 193.8Q376 219.5 376 253.5Q376 287.5 362.2 313.8Q348.5 340 323.5 354.5Q298.5 369 265.5 369Z"/></g></svg>App icon</div>
+<div class="ic"><svg width="84" height="84" viewBox="0 0 100 100" aria-hidden="true"><use href="#vx-sq" fill="#2B6B5B"/><g transform="translate(23.20 22.04) scale(0.10536)"><path fill="#FFFFFF" d="M266 508Q342 508 402 474.5Q462 441 496.8 383Q531.5 325 531.5 253Q531.5 181 496.5 123.8Q461.5 66.5 401.5 33.2Q341.5 0 265.5 0Q190 0 129.8 33.5Q69.5 67 34.8 124Q0 181 0 253Q0 253.5 0 254H0V497.4C0 503.2 4.8 508 10.6 508L265.8 508Q265.9 508 266 508ZM265.5 369Q233.5 369 208.5 354.5Q183.5 340 169.5 313.8Q155.5 287.5 155.5 254Q155.5 220 169.5 194.2Q183.5 168.5 208.5 153.8Q233.5 139 265.5 139Q298.5 139 323 153.5Q347.5 168 361.8 193.8Q376 219.5 376 253.5Q376 287.5 362.2 313.8Q348.5 340 323.5 354.5Q298.5 369 265.5 369Z"/></g></svg>Teal</div>
+<div class="ic"><svg width="84" height="84" viewBox="0 0 100 100" aria-hidden="true"><use href="#vx-sq" fill="#F4F4F5"/><g transform="translate(23.20 22.04) scale(0.10536)"><path fill="#09090B" d="M266 508Q342 508 402 474.5Q462 441 496.8 383Q531.5 325 531.5 253Q531.5 181 496.5 123.8Q461.5 66.5 401.5 33.2Q341.5 0 265.5 0Q190 0 129.8 33.5Q69.5 67 34.8 124Q0 181 0 253Q0 253.5 0 254H0V497.4C0 503.2 4.8 508 10.6 508L265.8 508Q265.9 508 266 508ZM265.5 369Q233.5 369 208.5 354.5Q183.5 340 169.5 313.8Q155.5 287.5 155.5 254Q155.5 220 169.5 194.2Q183.5 168.5 208.5 153.8Q233.5 139 265.5 139Q298.5 139 323 153.5Q347.5 168 361.8 193.8Q376 219.5 376 253.5Q376 287.5 362.2 313.8Q348.5 340 323.5 354.5Q298.5 369 265.5 369Z"/></g></svg>Light</div>
+<div class="ic"><svg width="56" height="56" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="50" fill="#09090B"/><g transform="translate(21.20 20.13) scale(0.11289)"><path fill="#FAFAFA" d="M266 508Q342 508 402 474.5Q462 441 496.8 383Q531.5 325 531.5 253Q531.5 181 496.5 123.8Q461.5 66.5 401.5 33.2Q341.5 0 265.5 0Q190 0 129.8 33.5Q69.5 67 34.8 124Q0 181 0 253Q0 253.5 0 254H0V497.4C0 503.2 4.8 508 10.6 508L265.8 508Q265.9 508 266 508ZM265.5 369Q233.5 369 208.5 354.5Q183.5 340 169.5 313.8Q155.5 287.5 155.5 254Q155.5 220 169.5 194.2Q183.5 168.5 208.5 153.8Q233.5 139 265.5 139Q298.5 139 323 153.5Q347.5 168 361.8 193.8Q376 219.5 376 253.5Q376 287.5 362.2 313.8Q348.5 340 323.5 354.5Q298.5 369 265.5 369Z"/></g></svg>X avatar</div>
+<div class="ic"><div style="display:flex;gap:10px;align-items:center"><svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true"><use href="#vx-sq" fill="#09090B"/><g transform="translate(19.20 18.21) scale(0.12041)"><path fill="#FAFAFA" d="M266 508Q342 508 402 474.5Q462 441 496.8 383Q531.5 325 531.5 253Q531.5 181 496.5 123.8Q461.5 66.5 401.5 33.2Q341.5 0 265.5 0Q190 0 129.8 33.5Q69.5 67 34.8 124Q0 181 0 253Q0 253.5 0 254H0V497.4C0 503.2 4.8 508 10.6 508L265.8 508Q265.9 508 266 508ZM265.5 369Q233.5 369 208.5 354.5Q183.5 340 169.5 313.8Q155.5 287.5 155.5 254Q155.5 220 169.5 194.2Q183.5 168.5 208.5 153.8Q233.5 139 265.5 139Q298.5 139 323 153.5Q347.5 168 361.8 193.8Q376 219.5 376 253.5Q376 287.5 362.2 313.8Q348.5 340 323.5 354.5Q298.5 369 265.5 369Z"/></g></svg><svg width="16" height="16" viewBox="0 0 100 100" aria-hidden="true"><use href="#vx-sq" fill="#09090B"/><g transform="translate(19.20 18.21) scale(0.12041)"><path fill="#FAFAFA" d="M266 508Q342 508 402 474.5Q462 441 496.8 383Q531.5 325 531.5 253Q531.5 181 496.5 123.8Q461.5 66.5 401.5 33.2Q341.5 0 265.5 0Q190 0 129.8 33.5Q69.5 67 34.8 124Q0 181 0 253Q0 253.5 0 254H0V497.4C0 503.2 4.8 508 10.6 508L265.8 508Q265.9 508 266 508ZM265.5 369Q233.5 369 208.5 354.5Q183.5 340 169.5 313.8Q155.5 287.5 155.5 254Q155.5 220 169.5 194.2Q183.5 168.5 208.5 153.8Q233.5 139 265.5 139Q298.5 139 323 153.5Q347.5 168 361.8 193.8Q376 219.5 376 253.5Q376 287.5 362.2 313.8Q348.5 340 323.5 354.5Q298.5 369 265.5 369Z"/></g></svg></div>32 · 16 px</div>
+<div class="ic"><div class="tabs"><div class="tab on"><svg width="16" height="16" viewBox="0 0 100 100" aria-hidden="true"><use href="#vx-sq" fill="#09090B"/><g transform="translate(19.20 18.21) scale(0.12041)"><path fill="#FAFAFA" d="M266 508Q342 508 402 474.5Q462 441 496.8 383Q531.5 325 531.5 253Q531.5 181 496.5 123.8Q461.5 66.5 401.5 33.2Q341.5 0 265.5 0Q190 0 129.8 33.5Q69.5 67 34.8 124Q0 181 0 253Q0 253.5 0 254H0V497.4C0 503.2 4.8 508 10.6 508L265.8 508Q265.9 508 266 508ZM265.5 369Q233.5 369 208.5 354.5Q183.5 340 169.5 313.8Q155.5 287.5 155.5 254Q155.5 220 169.5 194.2Q183.5 168.5 208.5 153.8Q233.5 139 265.5 139Q298.5 139 323 153.5Q347.5 168 361.8 193.8Q376 219.5 376 253.5Q376 287.5 362.2 313.8Q348.5 340 323.5 354.5Q298.5 369 265.5 369Z"/></g></svg>Voxlace · Drafts</div><div class="tab off">● Inbox</div></div>Browser tab</div>
+</div></section>
+
+<section class="sec"><span class="lab">In use</span>
+<div class="ctx">
+<div class="side"><div class="top"><svg class="w" viewBox="0 0 3296.5 737.0" role="img" aria-label="voxlace"><use href="#vx-rest" fill="#09090B"/><use href="#vx-o" fill="#2B6B5B"/></svg><span>☾</span></div>
+<div class="nav cur">Today</div><div class="nav">Drafts</div><div class="nav">Calendar</div><div class="nav">Profile</div>
+<div class="newbtn">New chat</div></div>
+<div class="og"><div class="img"><svg class="glyph" viewBox="0 0 531.5 508.0"><use href="#vx-mark" fill="#72C4AE"/></svg><svg class="w" viewBox="0 0 3296.5 737.0" role="img" aria-label="voxlace"><use href="#vx-rest" fill="#FAFAFA"/><use href="#vx-o" fill="#72C4AE"/></svg><p>Posts for X, LinkedIn and Telegram, written in your own voice.</p></div>
+<div class="meta"><b>Voxlace</b>voxlace.fetehadin.com</div></div>
+</div></section>
+
+<section class="sec"><span class="lab">Spec</span>
+<div class="spec">
+<div><span class="lab">Typeface</span><b>Outfit Bold</b></div>
+<div><span class="lab">Letter spacing</span><b>−35 / 1000</b></div>
+<div><span class="lab">Clear space</span><b>1 × the o</b></div>
+<div><span class="lab">Smallest</span><b>72 px wide</b></div>
+</div></section>
+
+<section class="sec"><span class="lab">Before and after</span>
+<div class="ba">
+<div class="tile t-light"><div class="old">v<svg viewBox="0 0 48 48"><path fill="#09090B" fill-rule="evenodd" d="M24 4a20 20 0 1 1-12.6 35.5L4 43l2.8-8.3A20 20 0 0 1 24 4zm0 8.6a11.4 11.4 0 1 0 0 22.8 11.4 11.4 0 0 0 0-22.8z"/></svg>xlace</div><small>Option 4: a drawn ring next to font letters</small></div>
+<span class="arrow">→</span>
+<div class="tile t-light"><svg class="w" viewBox="0 0 3296.5 737.0" role="img" aria-label="voxlace"><use href="#vx-rest" fill="#09090B"/><use href="#vx-o" fill="#2B6B5B"/></svg><small>Final: one family, outlined, spaced by hand</small></div>
+</div></section>
+
+</div></body></html>
