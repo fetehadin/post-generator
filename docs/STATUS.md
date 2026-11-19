@@ -2,7 +2,37 @@
 
 A running log so anyone (Nezira especially) can catch up: what was done, where, the result, and what's next. Newest first. Claude updates it at the end of every task.
 
-**Where we are:** Phases 3–6 demos passed on 4 Nov 2026; next is beta prep (Phase 7). Live at https://voxlace.fetehadin.com, deployed on every merge to `main`. Since 10 Nov anyone with the link can try it as a guest or sign up without an invite. The task queue is set by Fetehadin. Nezira is away, so each PR is reviewed by a fresh-context review subagent plus Fetehadin's reading of the summary, and tagged `@Nezira_Worku please post-review` so she reads it when she's back.
+**Where we are:** Phases 3–6 demos passed on 4 Nov 2026; next is beta prep (Phase 7). Live at https://voxlace.fetehadin.com, deployed on every merge to `main`. Since 10 Nov anyone with the link can try it as a guest or sign up without an invite. Since 19 Nov Nezira is back as a full partner with the same access as Fetehadin (see the handoff below), so each PR is reviewed by the other person, as BUILD_PLAN §2 says.
+
+---
+
+## 2026-11-19: Handoff to Nezira (partner, full access)
+
+**Result: Nezira can pick up any open work.** Fetehadin made her a partner on the project; this entry is everything she needs to continue.
+
+**Access**
+
+| Where | Nezira's access | Status |
+|---|---|---|
+| GitHub `fetehadin/post-generator` | Write (`Jennah198`): push branches, open and merge PRs once CI is green | ✅ Done. Write is the highest role a personal-account repo gives a collaborator. |
+| Server (`deploy@`, `/srv/voxlace`) | Her GitHub SSH key logs in as `deploy` (Docker, no sudo, by design) | ✅ Done (10 Nov). Host and paths are in `deploy/README.md`; the address is in Fetehadin's git-ignored `deploy/local.env`, so ask him for it. |
+| Merging to `main` | Every merge deploys to https://voxlace.fetehadin.com by itself | ✅ The `production` environment has no extra gate |
+| Supabase project (login) | Organization → Team → invite | ⏳ **Fetehadin, in the dashboard** |
+| Cloudflare (edge Worker `voxlace-edge`) | Manage account → Members → invite | ⏳ **Fetehadin, in the dashboard** |
+| GitHub repo settings and secrets | Admin only | ⏳ Needs the repo moved into a GitHub organization with both as owners. Not done: it's a bigger change, so decide it together. |
+| "Protect main" ruleset | Required approvals are 0 | ⏳ **Fetehadin:** set back to 1 now that there are two reviewers |
+| AI keys for local work | Her own free Gemini and Groq keys in her own `.env` | Nezira |
+
+**Getting started:** read `CLAUDE.md`, then `backend/CLAUDE.md` and `frontend/CLAUDE.md`. `README.md` has the local setup. Backend tests create their own `<db>_test` database. Use the inspiration samples for demos, never anyone's real posts.
+
+**In progress (pick any)**
+1. **Logo: `chore/brand-logo` (draft PR).** The "talking o" wordmark is chosen: Outfit Bold, outlined, with the o as a speech bubble (teal in the main version). The SVG and PNG files and the scripts that make them are in `design/brand/`. Still to do: swap in `frontend/public/favicon.svg`, add `apple-touch-icon.png`, put the wordmark in the sidebar header, add a link-preview image, add a "Logo" section to `docs/DESIGN.md`, and get screenshots in light and dark. Two choices are still open: teal or black o in the main logo, and a black or teal app icon. The proposal is a teal o, a black icon in the app and a teal one for social avatars.
+2. **Phase 7: drafts state only given facts (rule 10, FR-19).** `backend/app/ai/prompts/draft.md` forbids invented numbers and names, but not invented plans ("I'm already sketching a script") or sign-offs and handles (`— @mychannel`). Add both rules, plus a check in `app/checks.py` that flags any `@handle` or link found in neither the facts nor the examples. Prompt changes are ask-first: show before/after on the ten topics (`backend/evals/`; the last run was 19 Oct).
+3. **Phase 7: feedback on drafts.** Thumbs up or down plus an optional note on each draft card, saved next to the prompt log (new table, migration). This replaces a separate feedback form.
+4. **Phase 7: weekly beta report.** `python -m app.dev beta-report` runs as the migrations role and prints numbers only, never post text: drafts, publish rate, edit amount, thumbs-down rate and guest use, per user per week. `library.stats()` already does this for one user (FR-15).
+5. **Phase 7: the success bar.** Agree on one before inviting testers, for example "40% of drafts published by week 3".
+6. **Phase 7: tester guide.** How to get each export. X and LinkedIn archives can take up to 24 hours, so testers should ask for them on day 1.
+7. **Ops before inviting testers:** an off-server backup target (`BACKUP_REMOTE` is empty); the Supabase Site URL set to `https://voxlace.fetehadin.com`; a check that the free AI quota holds up with 5–10 testers.
 
 ---
 
