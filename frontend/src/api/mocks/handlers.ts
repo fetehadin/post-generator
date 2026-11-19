@@ -203,6 +203,7 @@ const profile: Profile = {
 }
 
 const uploads: Upload[] = []
+const aiKeys = new Map<string, Record<string, unknown>>()
 const imports = new Map<string, ImportJob>()
 const posts: Post[] = [
   'Ship log: fixed the timezone bug. Everything is UTC in the database now and only converted at the edges.',
@@ -546,6 +547,48 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
       },
       ...info,
     })
+  }
+
+  const keyMatch = path.match(/^\/me\/ai-keys\/(google|groq)$/)
+  if (path === '/me/ai-keys')
+    return json(200, {
+      enabled: true,
+      providers: [
+        {
+          id: 'google',
+          name: 'Google Gemini',
+          key_url: 'https://aistudio.google.com/apikey',
+          used_for: 'Drafts, revisions and reading your imported posts',
+        },
+        {
+          id: 'groq',
+          name: 'Groq',
+          key_url: 'https://console.groq.com/keys',
+          used_for: 'Drafts and revisions',
+        },
+      ],
+      keys: [...aiKeys.values()],
+    })
+  if (keyMatch && init?.method === 'PUT') {
+    const { key } = JSON.parse(String(init.body)) as { key: string }
+    if (key.trim().length < 20)
+      return json(400, {
+        error: { code: 'invalid_key', message: "That doesn't look like an API key." },
+      })
+    const saved = {
+      provider: keyMatch[1],
+      last4: key.trim().slice(-4),
+      status: 'active',
+      last_error: null,
+      added_at: new Date().toISOString(),
+      last_used_at: null,
+    }
+    aiKeys.set(keyMatch[1], saved)
+    return json(200, saved)
+  }
+  if (keyMatch && init?.method === 'DELETE') {
+    aiKeys.delete(keyMatch[1])
+    return new Response(null, { status: 204 })
   }
 
   if (path === '/me/usage') {
