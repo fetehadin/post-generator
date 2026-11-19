@@ -144,6 +144,9 @@ class PromptLog(CreatedAt, Base):
     model: Mapped[str] = mapped_column(String(64))  # configured name, e.g. gemini-flash-latest
     model_version: Mapped[str | None] = mapped_column(String(64))  # what actually answered
     provider: Mapped[str] = mapped_column(String(32))
+    # "own": written on the user's own AI key (FR-48), so it isn't counted against the daily
+    # limit; "default": the app's key.
+    key_source: Mapped[str] = mapped_column(String(8), server_default="default")
 
 
 class DraftMessage(CreatedAt, Base):

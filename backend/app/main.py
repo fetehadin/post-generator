@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
+    ai_keys,
     checkins,
     drafts,
     guest,
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     for module in (
         health,
         me,
+        ai_keys,
         profile,
         uploads,
         platforms,
