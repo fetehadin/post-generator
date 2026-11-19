@@ -17,7 +17,7 @@ class FakeAI:
         self.key_check = "ok"  # "ok" | "reject" | "down", for PUT /me/ai-keys
         self.checked: list[tuple[str, str]] = []
 
-    def check_key(self, provider, key):
+    def check_key(self, provider, key, model=None):
         self.checked.append((provider, key))
         if self.key_check == "reject":
             raise KeyRejected("401: invalid api key")

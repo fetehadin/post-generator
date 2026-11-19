@@ -165,8 +165,8 @@ def test_generate_raises_ai_unavailable_when_the_network_stays_down():
 
 def test_generate_skips_unsupported_provider_and_fails_clearly_when_all_fail():
     models = FakeModels(gen_failures={"only": [500] * 10})
-    client, _ = make(models, chain="mistral:small,google:only")
-    with pytest.raises(AIUnavailable, match="mistral:small unsupported"):
+    client, _ = make(models, chain="cohere:small,google:only")
+    with pytest.raises(AIUnavailable, match="cohere:small unsupported"):
         client.generate("prompt")
 
 

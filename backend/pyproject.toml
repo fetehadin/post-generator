@@ -5,6 +5,7 @@ description = "Voxlace API, importers and AI client"
 requires-python = ">=3.12"
 dependencies = [
     "google-genai>=1.0,<2",
+    "anthropic>=2.0,<3",  # FR-48: only for users who bring their own Claude API key
     "pydantic-settings>=2.4,<3",
     "sqlalchemy>=2.0,<3",
     "psycopg[binary]>=3.2,<4",

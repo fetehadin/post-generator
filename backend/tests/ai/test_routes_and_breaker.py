@@ -109,18 +109,52 @@ def test_a_users_own_key_is_tried_first_and_marked_own():
     assert records[-1].key_source == "own" and records[-1].user_id == USER
 
 
-def test_own_keys_go_through_the_whole_chain_before_the_apps_keys():
+def test_a_failed_own_key_falls_back_to_the_free_pool_with_a_notice():
     client, log, _, _ = build(
-        fail_by_key={"user-key": {"first": [404], "second": [404]}},
+        fail_by_key={"user-key": {"first": [404]}},
         own={USER: {"google": "user-key"}},
     )
     result = client.for_user(USER).generate("p")
     assert result.key_source == "default"
-    assert keys_used(log) == [
-        ("user-key", "first"),
-        ("user-key", "second"),
-        ("app-key", "first"),
-    ]
+    assert result.notice == "Your key failed, used the free model instead."
+    # The user's key once, with its model, then the app's whole chain.
+    assert keys_used(log) == [("user-key", "first"), ("app-key", "first")]
+
+
+def test_the_users_chosen_model_is_used_and_tried_before_any_of_ours():
+    client, log, _, _ = build(own={USER: {"google": ("user-key", "their-model")}})
+    result = client.for_user(USER).generate("p")
+    assert (result.key_source, result.model, result.notice) == ("own", "their-model", None)
+    assert keys_used(log) == [("user-key", "their-model")]
+
+
+def test_a_provider_the_app_has_no_key_for_works_on_the_users_key():
+    sent = []
+
+    def openai(request):
+        sent.append((str(request.url), request.headers["authorization"],
+                     json.loads(request.content)))  # fmt: skip
+        return httpx.Response(200, json={"model": "m", "choices": [{"message": {"content": "hi"}}]})
+
+    client = AIClient(
+        Settings(_env_file=None, gemini_api_key="app", generation_models="google:first"),
+        genai_client=SimpleNamespace(models=Models("app", [])),
+        http=httpx.Client(transport=httpx.MockTransport(openai)),
+        key_store=lambda uid: {"openai": ("sk-user", None)},
+        sleep=lambda _: None,
+    )
+    result = client.for_user(USER).generate("p")
+    assert (result.provider, result.model, result.key_source) == ("openai", "gpt-4.1-mini", "own")
+    url, auth, body = sent[0]
+    assert url == "https://api.openai.com/v1/chat/completions" and auth == "Bearer sk-user"
+    assert "temperature" not in body  # some OpenAI models reject it
+
+
+def test_without_their_own_key_users_get_the_free_pool_exactly_as_before():
+    client, log, _, _ = build()
+    result = client.for_user(USER).generate("p")
+    assert (result.key_source, result.notice) == ("default", None)
+    assert keys_used(log) == [("app-key", "first")]
 
 
 def test_a_refused_own_key_falls_back_and_is_reported_for_marking():
@@ -333,23 +367,11 @@ def test_the_same_topic_is_embedded_once_per_user():
     assert len(records) == 2
 
 
-def test_embeddings_use_the_users_gemini_key_first_with_the_same_model():
+def test_embeddings_never_use_the_users_key():
     client, log, records, _ = build(own={USER: {"google": "user-key"}})
     client.for_user(USER).embed_documents(["a post"])
-    assert keys_used(log, "embed") == [("user-key", "gemini-embedding-2")]
-    assert records[-1].key_source == "own" and records[-1].items == 1
-
-
-def test_embeddings_fall_back_to_the_apps_key_never_to_another_model():
-    client, log, _, _ = build(
-        fail_by_key={"user-key": {"gemini-embedding-2": [403]}},
-        own={USER: {"google": "user-key"}},
-    )
-    client.for_user(USER).embed_documents(["a post"])
-    assert keys_used(log, "embed") == [
-        ("user-key", "gemini-embedding-2"),
-        ("app-key", "gemini-embedding-2"),
-    ]
+    assert keys_used(log, "embed") == [("app-key", "gemini-embedding-2")]
+    assert records[-1].key_source == "default" and records[-1].items == 1
 
 
 def test_embeddings_raise_for_the_queue_when_every_key_fails():
@@ -363,35 +385,43 @@ def test_embeddings_raise_for_the_queue_when_every_key_fails():
 # ---- checking a key before it is saved
 
 
-def test_check_key_google_accepts_a_working_key_without_generating():
+def test_check_key_makes_one_tiny_call_with_the_chosen_model():
     client, log, _, _ = build()
-    client.check_key("google", "user-key")
-    assert [what for what, *_ in log] == ["get"]
+    client.check_key("google", "user-key", "their-model")
+    assert keys_used(log) == [("user-key", "their-model")]
 
 
 @pytest.mark.parametrize(
-    ("code", "error"), [(400, KeyRejected), (403, KeyRejected), (503, KeyCheckUnavailable)]
+    ("error", "expected"),
+    [
+        (400, KeyRejected),
+        (403, KeyRejected),
+        (404, KeyRejected),  # a model this key can't use
+        (api_error(429, "Quota exceeded. Please retry in 20h1m0s."), KeyRejected),
+        (429, KeyCheckUnavailable),  # a per-minute limit: try again
+        (503, KeyCheckUnavailable),
+    ],
 )
-def test_check_key_google_refusals_and_outages(code, error):
-    client, _, _, _ = build(fail_by_key={"user-key": {"get": [code]}})
-    with pytest.raises(error):
+def test_check_key_refusals_and_outages(error, expected):
+    client, _, _, _ = build(fail_by_key={"user-key": {"gemini-flash-latest": [error]}})
+    with pytest.raises(expected):
         client.check_key("google", "user-key")
 
 
 @pytest.mark.parametrize(
     ("status", "error"), [(200, None), (401, KeyRejected), (502, KeyCheckUnavailable)]
 )
-def test_check_key_groq(status, error):
+def test_check_key_on_an_openai_compatible_provider(status, error):
+    def reply(request):
+        if status == 200:
+            return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]})
+        return httpx.Response(status, json={"error": {"message": "x"}})
+
     client = AIClient(
-        Settings(_env_file=None),
-        http=httpx.Client(
-            transport=httpx.MockTransport(
-                lambda r: httpx.Response(status, json={"error": {"message": "x"}})
-            )
-        ),
+        Settings(_env_file=None), http=httpx.Client(transport=httpx.MockTransport(reply))
     )
     if error is None:
-        client.check_key("groq", "gsk_test")
+        client.check_key("mistral", "user-key-000")
     else:
         with pytest.raises(error):
-            client.check_key("groq", "gsk_test")
+            client.check_key("mistral", "user-key-000")

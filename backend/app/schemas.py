@@ -551,18 +551,23 @@ class ClaimIn(BaseModel):
     # third). The route checks each one's size; the list length is checked here.
 
 
-AIProvider = Literal["google", "groq"]
+AIProvider = Literal["google", "groq", "openai", "anthropic", "openrouter", "mistral"]
 
 
 class AIKeyIn(BaseModel):
     """PUT /me/ai-keys/{provider} (FR-48). The key is checked, encrypted and never returned."""
 
     key: str = Field(min_length=1, max_length=300)
+    model: str | None = Field(
+        None, max_length=128, description="Empty = the provider's default (`default_model`)"
+    )
 
 
 class AIKeyOut(BaseModel):
     provider: AIProvider
     last4: str
+    masked: str = Field(description='The key as shown, e.g. "sk-…a9F2"; never the key')
+    model: str | None = Field(description="The model it writes with; null = the default")
     status: Literal["active", "rejected"]
     last_error: str | None
     added_at: datetime
@@ -574,6 +579,7 @@ class AIProviderOut(BaseModel):
     name: str
     key_url: str
     used_for: str
+    default_model: str
 
 
 class AIKeysOut(BaseModel):
