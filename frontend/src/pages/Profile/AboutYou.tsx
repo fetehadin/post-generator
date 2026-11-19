@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import { input } from './fields'
 import {
+  AUDIENCE_KINDS,
+  MAIN_GOALS,
+  PROFESSION_LIST_ID,
+  PROFESSION_SUGGESTIONS,
+} from '../../lib/profession'
+import {
   type Profile,
   type ProfileChange,
   type Project,
@@ -11,7 +17,13 @@ import {
 
 type TextField = Exclude<
   keyof Profile,
-  'language' | 'excluded_hashtags' | 'summary_card' | 'summary_updated_at' | 'projects'
+  | 'language'
+  | 'excluded_hashtags'
+  | 'summary_card'
+  | 'summary_updated_at'
+  | 'projects'
+  | 'audience_kind'
+  | 'main_goal'
 >
 
 /** The About-you questions, grouped the way people think about themselves (FR-17, FR-33). */
@@ -19,6 +31,7 @@ const GROUPS: Array<{ title: string; fields: Array<[TextField, string, string]> 
   {
     title: 'Your work',
     fields: [
+      ['discipline', 'Profession', 'Developer, nurse, designer, teacher…'],
       ['role', 'Role', 'Backend developer, student, founder…'],
       ['seniority', 'Seniority', 'Student, junior, senior…'],
       ['stack', 'Stack and tools', 'Python, FastAPI, Postgres'],
@@ -45,7 +58,6 @@ const GROUPS: Array<{ title: string; fields: Array<[TextField, string, string]> 
       ['hashtag_habit', 'Hashtags', 'Never, two at the end…'],
       ['avoid_list', 'Never say', 'Words, topics or claims to avoid'],
       ['links', 'Links', 'GitHub, portfolio, channel'],
-      ['discipline', 'Field', 'Software, design, research…'],
     ],
   },
 ]
@@ -91,6 +103,8 @@ function AboutForm({ saved }: { saved: Profile }) {
     change.projects = form.projects
       .map((p) => ({ ...p, name: p.name.trim() }))
       .filter((p) => p.name)
+    change.audience_kind = form.audience_kind
+    change.main_goal = form.main_goal
     change.language = form.language
     change.excluded_hashtags = tags
       .split(/[\s,]+/)
@@ -133,10 +147,50 @@ function AboutForm({ saved }: { saved: Profile }) {
                   value={form[name]}
                   onChange={(e) => setForm({ ...form, [name]: e.target.value })}
                   placeholder={hint}
+                  list={name === 'discipline' ? PROFESSION_LIST_ID : undefined}
                   className={input}
                 />
               </label>
             ))}
+            {g.title === 'Your posts' && (
+              <>
+                <label className="text-sm">
+                  Writing mostly for
+                  <select
+                    value={form.audience_kind}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        audience_kind: e.target.value as Profile['audience_kind'],
+                      })
+                    }
+                    className={input}
+                  >
+                    {AUDIENCE_KINDS.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm">
+                  Main goal
+                  <select
+                    value={form.main_goal}
+                    onChange={(e) =>
+                      setForm({ ...form, main_goal: e.target.value as Profile['main_goal'] })
+                    }
+                    className={input}
+                  >
+                    {MAIN_GOALS.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
           </div>
         </fieldset>
       ))}
@@ -296,6 +350,11 @@ function AboutForm({ saved }: { saved: Profile }) {
           </p>
         )}
       </div>
+      <datalist id={PROFESSION_LIST_ID}>
+        {PROFESSION_SUGGESTIONS.map((p) => (
+          <option key={p} value={p} />
+        ))}
+      </datalist>
     </form>
   )
 }

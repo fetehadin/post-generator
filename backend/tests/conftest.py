@@ -117,3 +117,26 @@ def make_user(owner_engine):
     if created:
         with owner_engine.begin() as conn:
             conn.execute(text("DELETE FROM users WHERE id = ANY(:ids)"), {"ids": created})
+
+
+class _FakeLocalModel:
+    """Stands in for the fastembed model in every test: no download, no ONNX. Each text gets a
+    stable 384-dim vector from its characters, so equal texts are equal vectors."""
+
+    def embed(self, texts, batch_size=32):
+        for t in texts:
+            v = [0.0] * 384
+            for i, ch in enumerate(t[:200]):
+                v[(ord(ch) + i) % 384] += 1.0
+            yield v
+
+
+@pytest.fixture(autouse=True)
+def _fake_local_embedder(monkeypatch):
+    from app.ai import local_embed
+
+    fake = local_embed.LocalEmbedder(
+        "intfloat/multilingual-e5-small", 384, backend=_FakeLocalModel()
+    )
+    monkeypatch.setattr(local_embed, "_default", fake)
+    return fake

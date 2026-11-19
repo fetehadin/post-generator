@@ -103,6 +103,8 @@ Returns the post in `GET /posts`'s item shape. Another user's post is `404`.
 
 ### `POST /drafts/generate` → `201`
 
+(19 Nov 2026) Also takes an optional `hook_type` (FR-41) and returns `notices: [string]` (FR-49).
+
 ```jsonc
 // request; checkin_id arrives with check-ins in Phase 4
 { "platform": "telegram", "topic": "Finished the Telegram importer", "checkin_id": null }
@@ -217,6 +219,8 @@ Everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44). Created wi
 - `language`: `"auto"` writes in the same language mix as the user's posts; any other value adds "Write the post in <language>." to the prompt.
 - `excluded_hashtags`: the user's list (lower-case, with `#`), used by every import. The default list until the user edits it.
 - `summary_card`: allowed facts for every draft, next to the day's topic (FR-19). Empty means the prompt is exactly as before.
+
+**Profession, audience and goal (FR-17, FR-41; 19 Nov 2026):** `discipline` is the user's profession (the form calls it "Profession"; existing empty values became `"developer"`). `audience_kind` is one of `""`, `peers`, `clients`, `employers`, `public`; `main_goal` one of `""`, `teach`, `sell`, `hire`, `network`, `announce`. Both are in `GET` and `PUT /profile`. Drafts use them to pick shape examples and to write in that field's words.
 
 ### `PUT /profile`
 
@@ -478,7 +482,7 @@ A thread is one conversation: what the user did today (saved as that day's check
 | `POST /threads` | `{"text": "…", "day"?: "2026-10-22"}` (`day` defaults to today on the user's clock) | `201` a thread |
 | `GET /threads` | | `{"items": [{"id", "title", "platforms": ["telegram"], "updated_at"}]}`, last touched first, 50 at most |
 | `GET /threads/{id}` | | a thread; another user's → `404` |
-| `POST /threads/{id}/generate` | `{"platforms": ["x", "linkedin"]}` (1–3) | `201` a thread with one new card per platform; a platform that couldn't be written is in `failures` and the others still arrive |
+| `POST /threads/{id}/generate` | `{"platforms": ["x", "linkedin"], "hook_type": null}` (1–3; `hook_type` optional, FR-41: `bold_claim`, `mistake_story`, `numbered_list`, `before_after`, `question`, `story`, `how_to`, `announcement`, `observation`) | `201` a thread with one new card per platform; a platform that couldn't be written is in `failures` and the others still arrive; `notices: [{platform, message}]` says what to know about a new card, e.g. "This draft is close to one of the example posts" (FR-49) |
 | `POST /drafts/{id}/convert` | `{"platform": "linkedin"}` | `201` the draft's thread with a new draft for that platform written from this one; the original is unchanged. Same platform → `400 same_platform` |
 | `DELETE /drafts/{id}` | | `204`; only a `discarded` draft → else `409 not_discarded` |
 
