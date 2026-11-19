@@ -73,6 +73,14 @@ ruff check . --fix && ruff format .
 - Users' keys are sealed with `core/secrets.py` (Fernet, keys only in `AI_KEY_ENCRYPTION_KEYS`). Never log, return or export a key.
 - Tests mock the client. No test calls a real AI API.
 
+## Local embeddings and the inspiration pool (`app/ai/local_embed.py`, `services/inspiration.py`)
+
+- `local_embedder()` is one fastembed model per process (ONNX, CPU), loaded in the background at startup (`LOCAL_EMBEDDING_PRELOAD`). `embed_passages(texts)` for stored text, `embed_query(text)` for what we search with; e5 models get `passage: ` / `query: ` added here, nowhere else.
+- The Docker image downloads the model at build time into `/opt/models` (`app/ai/local_models.py`, standalone). Locally the first use downloads it (~470 MB) into fastembed's cache, or `LOCAL_EMBEDDING_CACHE_DIR`.
+- `exemplar_posts` holds the team's 24 templates (`source='template'`) and creators' posts (`source='creator'`), for structure only: never shown to users, never a source of facts or wording.
+- Fill it: `python -m app.dev import-inspiration samples/private/inspiration` (hash-deduplicated), then `python -m app.dev backfill-inspiration` (tags with the free LLM in small batches, then embeds; both skip finished rows, so re-run after a 429 stop).
+- Tests use a fake model (`backend=`); no test downloads one.
+
 ## Importers
 
 - Pure functions: `parse_telegram(data: bytes) -> ParseResult(posts, skipped)`. No DB or network.

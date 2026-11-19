@@ -4,12 +4,14 @@ Interactive docs at http://localhost:8000/docs. Every route lives under /api/v1.
 """
 
 import logging
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.ai.local_embed import local_embedder
 from app.api import (
     ai_keys,
     checkins,
@@ -28,17 +30,31 @@ from app.core import errors
 from app.core.config import get_settings
 from app.services.background import start_retry_loop
 
+logger = logging.getLogger(__name__)
+
 API_PREFIX = "/api/v1"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Start the embedding retry loop with the server, stop it on shutdown (NFR-14)."""
-    interval = get_settings().embedding_retry_seconds
+    cfg = get_settings()
+    interval = cfg.embedding_retry_seconds
     stop = start_retry_loop(interval) if interval > 0 else None
+    if cfg.local_embedding_preload and cfg.app_env != "test":
+        # Load the local model once, in the background: requests can start at once, and the
+        # first one that needs it waits only until it's ready (FR-41).
+        threading.Thread(target=_warm_local_model, name="local-embed-warm", daemon=True).start()
     yield
     if stop is not None:
         stop.set()
+
+
+def _warm_local_model() -> None:
+    try:
+        local_embedder().warm()
+    except Exception:  # missing model files must not stop the API; drafts work without it
+        logger.exception("couldn't load the local embedding model")
 
 
 def create_app() -> FastAPI:

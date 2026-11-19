@@ -8,6 +8,8 @@
     python -m app.dev check-models                  # one tiny prompt per model (daily cron)
     python -m app.dev ai-report [--days 7]          # AI calls per day and purpose (as owner)
     python -m app.dev new-secret-key                # a key for AI_KEY_ENCRYPTION_KEYS
+    python -m app.dev import-inspiration DIR        # creators' posts, for structure only
+    python -m app.dev backfill-inspiration          # tag with the free LLM, embed locally
 
 Everything is stored under one fixed dev user, the same way real users will be.
 """
@@ -133,6 +135,48 @@ def ai_report(days: int) -> None:
         print("  ".join(str(r[c]).ljust(widths[c]) for c in cols))
 
 
+def import_inspiration(folder: Path, per_author: int) -> None:
+    """FR-41: creators' posts into the shared pool, for their structure only. Reads
+    {x,linkedin}/clean/<author>.json (lists of {"text": …}) and telegram/<channel>/result.json.
+    The files are other people's posts: they stay out of git (samples/private/)."""
+    import json
+
+    from app.importers.telegram import parse_telegram
+    from app.services.inspiration import NewPost, add_posts, best_per_author
+
+    posts: list[NewPost] = []
+    for platform in ("x", "linkedin"):
+        for f in sorted((folder / platform / "clean").glob("*.json")):
+            for item in json.loads(f.read_text()):
+                if str(item.get("suspicious", "False")).lower() == "true":
+                    continue  # the cleaner wasn't sure the author wrote it
+                likes = str(item.get("reactions") or item.get("likes") or "0").replace(",", "")
+                reactions = int(likes) if likes.isdigit() else 0
+                posts.append(NewPost(platform, f.stem, item.get("text") or "", reactions))
+    for export in sorted((folder / "telegram").glob("*/result.json")):
+        parsed = parse_telegram(export.read_bytes())
+        author = parsed.source_name or export.parent.name
+        posts += [NewPost("telegram", author, p.text, p.reactions) for p in parsed.posts]
+    chosen = best_per_author(posts, per_author)
+    added = add_posts(chosen)
+    print(
+        f"Read {len(posts)} posts; kept the best {len(chosen)} (up to {per_author} per author); "
+        f"{added} new in the pool."
+    )
+
+
+def backfill_inspiration(tag_batch: int, pause: float, skip_tagging: bool) -> None:
+    from app.services.inspiration import embed_pending, tag_pending
+
+    if not skip_tagging:
+        report = tag_pending(batch=tag_batch, pause=pause)
+        print(f"Tagged {report.tagged}; {report.remaining} still untagged.")
+        if report.stopped_reason:
+            print(f"Stopped early ({report.stopped_reason}). Run again later to continue.")
+    embedded = embed_pending()
+    print(f"Embedded {embedded.embedded} posts with the local model.")
+
+
 def new_secret_key() -> None:
     from app.core.secrets import new_key
 
@@ -167,6 +211,13 @@ def main() -> None:
     rep = sub.add_parser("ai-report", help="AI calls per day, purpose and key (numbers only)")
     rep.add_argument("--days", type=int, default=7)
     sub.add_parser("new-secret-key", help="print a new key for AI_KEY_ENCRYPTION_KEYS")
+    ins = sub.add_parser("import-inspiration", help="creators' posts into the pool (structure)")
+    ins.add_argument("folder", type=Path)
+    ins.add_argument("--per-author", type=int, default=40)
+    bf = sub.add_parser("backfill-inspiration", help="tag (free LLM) and embed (local) the pool")
+    bf.add_argument("--tag-batch", type=int, default=8)
+    bf.add_argument("--pause", type=float, default=2.0, help="seconds between LLM calls")
+    bf.add_argument("--skip-tagging", action="store_true")
     inv = sub.add_parser("invite", help="create an invite code for a tester")
     inv.add_argument("--email", help="only this email can use the code")
     args = parser.parse_args()
@@ -186,6 +237,10 @@ def main() -> None:
         ai_report(args.days)
     elif args.command == "new-secret-key":
         new_secret_key()
+    elif args.command == "import-inspiration":
+        import_inspiration(args.folder, args.per_author)
+    elif args.command == "backfill-inspiration":
+        backfill_inspiration(args.tag_batch, args.pause, args.skip_tagging)
     elif args.command == "invite":
         make_invite(args.email)
 
