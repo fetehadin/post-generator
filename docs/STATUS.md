@@ -1,6 +1,6 @@
 # Status log
 
-A running log so anyone (Nezira especially) can catch up: what was done, where, the result, and what's next. Newest first. Claude updates it at the end of every task.
+A running log so anyone (Nezira especially) can catch up: what was done, where, the result, and what's next. Newest first. Updated at the end of every task.
 
 **Where we are:** Phases 3–6 demos passed on 4 Nov 2026; next is beta prep (Phase 7). Live at https://voxlace.fetehadin.com, deployed on every merge to `main`. The task queue is set by Fetehadin. Nezira is away, so each PR is reviewed by a fresh-context review subagent plus Fetehadin's reading of the summary, and tagged `@Nezira_Worku please post-review` so she reads it when she's back.
 
@@ -34,7 +34,7 @@ A running log so anyone (Nezira especially) can catch up: what was done, where, 
 2. Put it in the server's settings file as `AI_KEY_ENCRYPTION_KEYS`, and keep a copy with the backups.
 3. Restart `api`.
 
-Without the key the feature stays off and says so. Also add the three new lines from `deploy/server-env.template` to your local `.env.example`: Claude can't open that file (OPEN_QUESTIONS Q23).
+Without the key the feature stays off and says so. Also add the three new lines from `deploy/server-env.template` to your local `.env.example` (that file is edited by hand, OPEN_QUESTIONS Q23).
 
 **Not done, on purpose:**
 - One call for all three platforms, and token-budgeted examples: these are prompt changes that need the ten-topic eval.
