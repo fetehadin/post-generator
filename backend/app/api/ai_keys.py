@@ -23,7 +23,7 @@ def _out(row: UserAIKey) -> AIKeyOut:
         model=row.model,
         status=row.status,
         last_error=row.last_error,
-        added_at=row.updated_at,
+        added_at=row.created_at,
         last_used_at=row.last_used_at,
     )
 

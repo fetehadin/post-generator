@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 DOC_PREFIX = "title: none | text: "
 QUERY_PREFIX = "task: search result | query: "
 EMBED_BATCH = 100
-RETRYABLE = {429, 500, 502, 503, 504}
+RETRYABLE = {429, 500, 502, 503, 504, 529}  # 529: Anthropic "overloaded"
 MAX_WAIT = 90.0
 # Gemini says how long to wait: "Please retry in 15.4s", "retry in 22h50m23.6s" (a daily
 # quota) or a RetryInfo retryDelay "15s".
@@ -54,15 +54,9 @@ OPENAI_COMPATIBLE = {
     "openrouter": "https://openrouter.ai/api/v1",
     "mistral": "https://api.mistral.ai/v1",
 }
-GROQ_URL = OPENAI_COMPATIBLE["groq"] + "/chat/completions"
 PROVIDERS = ("google", "groq", "openai", "anthropic", "openrouter", "mistral")
 # Only these accept a sampling temperature for every model we expect people to pick.
 TEMPERATURE_PROVIDERS = {"groq", "openrouter", "mistral", "google"}
-# Claude models whose refusals can be re-run on another Claude model, server-side.
-ANTHROPIC_FALLBACK_MODELS = {
-    "claude-fable-5-2", "claude-fable-5-1", "claude-opus-5-5", "claude-opus-5",
-    "claude-sonnet-5-5",
-}  # fmt: skip
 ANTHROPIC_MAX_TOKENS = 16000
 KEY_CHECK_SECONDS = 30
 OWN_KEY_FAILED = "Your key failed, used the free model instead."
@@ -266,13 +260,15 @@ class AIClient:
         Then the app's own chain: the free pool, exactly as for everyone else."""
         routes = []
         for provider, key, model in own:
-            model = (
-                model
-                or next((m for p, m in chain if p == provider), None)
-                or self.settings.byok_default_model(provider)
+            # Their chosen model; with none, every model our chain uses on that provider (so a
+            # busy one has a backup on their key too), else the provider's default.
+            models = (
+                [model]
+                if model
+                else [m for p, m in chain if p == provider]
+                or [self.settings.byok_default_model(provider)]
             )
-            if model:
-                routes.append(Route(provider, model, key, "own"))
+            routes += [Route(provider, m, key, "own") for m in models if m]
         if allow_default:
             routes += [Route(p, m, self._default_key(p), "default") for p, m in chain]
         return routes
@@ -326,8 +322,8 @@ class AIClient:
     def _embed(
         self, texts: list[str], user_id: uuid.UUID | None, allow_default: bool, purpose: str
     ) -> list[list[float]]:
-        """The fixed embedding model, on the user's Gemini key first, then the app's. The model
-        never changes (rule 3); only whose quota pays for it."""
+        """The fixed embedding model, always on the app's own key (rule 3, FR-48): users'
+        keys are for writing only."""
         started, tally, failures = self._clock(), Tally(), []
         model = self.settings.embedding_model
         # Embeddings always use the app's own key: users' keys are for writing only, so every
@@ -417,6 +413,8 @@ class AIClient:
                 failures.append(f"{route.model}: no {route.provider} key")
             elif paused := self.breaker.paused_for(route.breaker_key):
                 failures.append(f"{route.model} paused {paused:.0f}s after failures")
+                if route.source == "own":
+                    tally.own_failed = True  # their key failed recently: still say so
             else:
                 usable.append(route)
         for i, route in enumerate(usable):
@@ -504,6 +502,8 @@ class AIClient:
             return  # it answered (blank, or declined to say OK): the key and model work
         except (errors.APIError, ProviderError) as e:
             hinted = retry_after(e)
+            if out_of_credit(e):
+                raise KeyRejected(f"it has no credit left ({describe(e)})") from e
             if is_key_problem(e) or e.code in (400, 404, 422):
                 raise KeyRejected(describe(e)) from e
             if e.code == 429 and hinted is not None and hinted > MAX_WAIT:
@@ -566,10 +566,6 @@ class AIClient:
         if self._http is None:
             self._http = httpx.Client(timeout=self.settings.ai_timeout_seconds)
         return self._http
-
-    def _generate_groq(self, model: str, prompt: str, temperature: float, deadline: float,
-                       **kw) -> GenerationResult:  # fmt: skip
-        return self._generate_compatible("groq", model, prompt, temperature, deadline, **kw)
 
     def _generate_compatible(
         self,
@@ -662,7 +658,7 @@ class AIClient:
             tally.attempts += 1
             try:
                 client = self._anthropic(key)
-                if model in ANTHROPIC_FALLBACK_MODELS:
+                if model in self.settings.anthropic_fallback_model_set:
                     resp = client.beta.messages.create(
                         **request,
                         betas=["server-side-fallback-2026-07-01"],
@@ -675,6 +671,8 @@ class AIClient:
                 err = ProviderError(e.status_code, e.message, _retry_after_header(e.response))
             except anthropic.APIConnectionError as e:  # includes timeouts
                 err = ProviderError(503, f"network error ({type(e).__name__})")
+            except anthropic.APIError as e:  # e.g. a reply the SDK couldn't read: move on
+                err = ProviderError(502, f"unreadable reply ({type(e).__name__})")
             else:
                 if resp.stop_reason == "refusal":
                     raise AIUnavailable(f"{model} declined this request")
@@ -762,16 +760,30 @@ def retryable(err: Exception) -> bool:
         return True
     if not isinstance(err, errors.APIError | ProviderError) or err.code not in RETRYABLE:
         return False
+    if out_of_credit(err):
+        return False
     # A wait longer than we'd ever sleep means a daily quota: move on now, don't spin.
     hinted = retry_after(err)
     return hinted is None or hinted <= MAX_WAIT
 
 
-def is_key_problem(err: BaseException) -> bool:
-    """401/403, or Gemini's 400 "API key not valid": the key itself is the problem."""
+def out_of_credit(err: BaseException) -> bool:
+    """402, or a 429 that is about money, not speed (OpenAI's "insufficient_quota",
+    "credit", "billing"): waiting won't help."""
     if not isinstance(err, errors.APIError | ProviderError):
         return False
-    if err.code in (401, 403):
+    message = str(err.message).lower()
+    return err.code == 402 or (
+        err.code == 429 and any(w in message for w in ("insufficient_quota", "credit", "billing"))
+    )
+
+
+def is_key_problem(err: BaseException) -> bool:
+    """401/403, Gemini's 400 "API key not valid", or no credit left: the key itself is the
+    problem, so a user's key is marked "not working" until they replace it."""
+    if not isinstance(err, errors.APIError | ProviderError):
+        return False
+    if err.code in (401, 403) or out_of_credit(err):
         return True
     return err.code == 400 and "api key" in str(err.message).lower()
 

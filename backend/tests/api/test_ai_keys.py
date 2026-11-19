@@ -227,3 +227,13 @@ def test_a_chosen_model_is_checked_saved_and_used_newest_key_first(api):
 def test_a_model_name_with_odd_characters_is_refused(api):
     r = api.put("/api/v1/me/ai-keys/openai", json={"key": "sk-" + "x" * 30, "model": "a b"})
     assert r.status_code == 400 and r.json()["error"]["code"] == "invalid_model"
+
+
+def test_using_a_key_never_changes_which_is_tried_first(api):
+    user = api.state["user"]
+    api.put("/api/v1/me/ai-keys/anthropic", json={"key": "sk-ant-" + "x" * 30})
+    api.put("/api/v1/me/ai-keys/groq", json={"key": "gsk_" + "y" * 40})
+    ai_keys.mark_used(user, "anthropic")  # using the older key...
+    assert list(ai_keys.active_keys(user)) == ["groq", "anthropic"]  # ...doesn't move it up
+    listed = api.get("/api/v1/me/ai-keys").json()["keys"]
+    assert [k["provider"] for k in listed] == ["groq", "anthropic"]

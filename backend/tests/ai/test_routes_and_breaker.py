@@ -111,14 +111,25 @@ def test_a_users_own_key_is_tried_first_and_marked_own():
 
 def test_a_failed_own_key_falls_back_to_the_free_pool_with_a_notice():
     client, log, _, _ = build(
-        fail_by_key={"user-key": {"first": [404]}},
+        fail_by_key={"user-key": {"first": [404], "second": [404]}},
         own={USER: {"google": "user-key"}},
     )
     result = client.for_user(USER).generate("p")
     assert result.key_source == "default"
     assert result.notice == "Your key failed, used the free model instead."
-    # The user's key once, with its model, then the app's whole chain.
-    assert keys_used(log) == [("user-key", "first"), ("app-key", "first")]
+    # With no model chosen, their key tries every model our chain uses on that provider first.
+    assert keys_used(log) == [("user-key", "first"), ("user-key", "second"), ("app-key", "first")]
+
+
+def test_a_paused_own_key_still_gets_the_notice():
+    client, _, _, _ = build(
+        fail_by_key={"user-key": {"first": [401], "second": [401]}},
+        own={USER: {"google": "user-key"}},
+    )
+    client.for_user(USER).generate("p")  # 401: their key is paused for an hour
+    again = client.for_user(USER).generate("p")
+    assert again.key_source == "default"
+    assert again.notice == "Your key failed, used the free model instead."
 
 
 def test_the_users_chosen_model_is_used_and_tried_before_any_of_ours():
@@ -425,3 +436,63 @@ def test_check_key_on_an_openai_compatible_provider(status, error):
     else:
         with pytest.raises(error):
             client.check_key("mistral", "user-key-000")
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        api_error(429, "You exceeded your current quota (insufficient_quota)"),
+        api_error(402, "Insufficient credits"),
+    ],
+)
+def test_a_key_without_credit_is_refused_and_not_retried(error):
+    client, log, records, _ = build(
+        fail_by_key={"user-key": {"first": [error]}},
+        own={USER: {"google": ("user-key", "first")}},
+        chain="google:first",
+    )
+    assert client.for_user(USER).generate("p").key_source == "default"
+    assert keys_used(log).count(("user-key", "first")) == 1  # no retry on an empty wallet
+    assert records[-1].rejected_keys[0][0] == "google"
+    client2, _, _, _ = build(fail_by_key={"user-key": {"first": [error]}})
+    with pytest.raises(KeyRejected, match="no credit"):
+        client2.check_key("google", "user-key", "first")
+
+
+def test_anthropic_overload_is_retried_and_odd_errors_fall_back(monkeypatch):
+    import anthropic
+
+    calls = []
+
+    class FakeMessages:
+        def create(self, **kw):
+            calls.append(kw["model"])
+            if len(calls) == 1:
+                raise anthropic.APIStatusError(
+                    "overloaded",
+                    response=httpx.Response(529, request=httpx.Request("POST", "https://x")),
+                    body=None,
+                )
+            if len(calls) == 2:
+                return SimpleNamespace(
+                    stop_reason="end_turn",
+                    content=[SimpleNamespace(type="text", text="hello from claude")],
+                    usage=SimpleNamespace(input_tokens=10, output_tokens=3),
+                    model="claude-x",
+                )
+            raise anthropic.APIError(
+                "odd reply", request=httpx.Request("POST", "https://x"), body=None
+            )
+
+    fake = SimpleNamespace(messages=FakeMessages(), beta=SimpleNamespace(messages=FakeMessages()))
+    monkeypatch.setattr(anthropic, "Anthropic", lambda **kw: fake)
+    client, log, _, _ = build(own={USER: {"anthropic": ("sk-ant-user", "claude-x")}})
+    result = client.for_user(USER).generate("p")
+    assert (result.provider, result.text, result.key_source) == (
+        "anthropic",
+        "hello from claude",
+        "own",
+    )
+    assert calls == ["claude-x", "claude-x"]  # 529 retried once, then answered
+    fallback = client.for_user(USER).generate("p")  # an unreadable reply: the free pool writes
+    assert fallback.key_source == "default" and fallback.notice

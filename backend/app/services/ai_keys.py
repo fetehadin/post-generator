@@ -37,7 +37,7 @@ PROVIDERS = {
         "google",
         "Google Gemini",
         "https://aistudio.google.com/apikey",
-        "Drafts, revisions and reading your imported posts",
+        "Drafts and revisions",
     ),
     "groq": Provider("groq", "Groq", "https://console.groq.com/keys", "Drafts and revisions"),
     "openai": Provider(
@@ -73,7 +73,9 @@ def list_keys(user_id: uuid.UUID) -> list[UserAIKey]:
     with user_session(user_id) as s:
         return list(
             s.scalars(
-                select(UserAIKey).where(UserAIKey.user_id == user_id).order_by(UserAIKey.provider)
+                select(UserAIKey)
+                .where(UserAIKey.user_id == user_id)
+                .order_by(UserAIKey.created_at.desc())
             )
         )
 
@@ -119,6 +121,7 @@ def save(user_id: uuid.UUID, provider: str, key: str, check, model: str | None =
             row = UserAIKey(user_id=user_id, provider=provider)
             s.add(row)
         row.sealed_key = secrets.seal(key)
+        row.created_at = datetime.now(UTC)  # "added": a replaced key counts as new
         row.last4 = key[-4:]
         row.prefix = key[:3] if len(key) >= 24 else ""  # "sk-…a9F2"; short keys show less
         row.model = model
@@ -147,7 +150,7 @@ def active_keys(user_id: uuid.UUID) -> dict[str, tuple[str, str | None]]:
         rows = s.execute(
             select(UserAIKey.provider, UserAIKey.sealed_key, UserAIKey.model)
             .where(UserAIKey.user_id == user_id, UserAIKey.status == "active")
-            .order_by(UserAIKey.updated_at.desc())
+            .order_by(UserAIKey.created_at.desc())
         ).all()
     keys = {}
     for provider, sealed, model in rows:

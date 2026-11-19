@@ -45,7 +45,7 @@ def embed_pending(
     limit: int = DEFAULT_LIMIT,
     batch_size: int = BATCH,
 ) -> EmbedReport:
-    ai = for_user(ai or default_client(), user_id)  # the user's Gemini key first (FR-48)
+    ai = for_user(ai or default_client(), user_id)  # records the calls under this user
     model = get_settings().embedding_model
     done, reason = 0, None
 
