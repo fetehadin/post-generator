@@ -8,6 +8,13 @@ WORKDIR /app
 COPY pyproject.toml ./
 RUN mkdir app && touch app/__init__.py && pip install . && rm -rf app
 
+# The local embedding model (~470 MB), fetched once into its own layer (FR-41). The script needs
+# only fastembed, so code changes don't download it again.
+ENV LOCAL_EMBEDDING_CACHE_DIR=/opt/models
+COPY app/ai/local_models.py /tmp/local_models.py
+RUN python /tmp/local_models.py intfloat/multilingual-e5-small /opt/models \
+    && chmod -R a+rX /opt/models && rm /tmp/local_models.py
+
 COPY . .
 RUN pip install --no-deps . && useradd --create-home --uid 10001 voxlace
 USER voxlace

@@ -55,6 +55,20 @@ class Settings(BaseSettings):
     # The most one draft may spend across retries and fallback models before the user is told
     # the AI is busy (NFR-3, NFR-4). Each call's timeout is cut to what is left.
     generation_deadline_seconds: int = 40
+    # FR-41, FR-49: the local model for the inspiration pool and the originality check
+    # (fastembed, CPU, free). A different vector space from users' posts (rule 3); changing it
+    # means re-running `python -m app.dev backfill-inspiration`. 384 dims is fixed by the
+    # database column. Alternative: BAAI/bge-small-en-v1.5 (English only, no prefixes).
+    local_embedding_model: str = "intfloat/multilingual-e5-small"
+    local_embedding_dimensions: int = 384
+    local_embedding_cache_dir: str = ""  # Docker: /opt/models, filled at build time
+    local_embedding_threads: int = 2  # the server is shared with other apps
+    local_embedding_preload: bool = True  # load at startup, not on the first draft
+    # How many inspiration posts a draft gets as structure examples.
+    structure_examples: int = 3
+    # FR-49: a draft this similar (cosine) to one of its examples is rewritten once, then flagged.
+    originality_threshold: float = 0.9
+
     # FR-30: per user per UTC day. Drafts count every AI writing call (new drafts and chat
     # revisions); posts count what an import adds, since each new post is embedded once.
     daily_draft_limit: int = 40
@@ -88,7 +102,7 @@ class Settings(BaseSettings):
 
 
 # AI jobs that don't write a post: they can run on a cheaper model.
-LIGHT_PURPOSES = frozenset({"voice_card", "summary"})
+LIGHT_PURPOSES = frozenset({"voice_card", "summary", "tag_inspiration"})
 
 
 def _chain(spec: str) -> list[tuple[str, str]]:

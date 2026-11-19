@@ -112,7 +112,7 @@ flowchart LR
 | C-4 | **X API costs money** ($0.015 per post, $0.20 with a URL), so X is hand-off only. |
 | C-5 | **LinkedIn cannot be pre-filled**, so it is copy + open composer. |
 | C-6 | **No Telegram bot in V1** (decided 22 Oct 2026). Telegram is a hand-off like LinkedIn: copy the text and open the user's channel. Bot publishing (FR-36, FR-43) waits until after V1. |
-| C-7 | **The embedding model is fixed.** Vectors from different models cannot be compared, so there is no embedding fallback. |
+| C-7 | **Embedding models are fixed per vector space.** Vectors from different models cannot be compared, so there is no embedding fallback. Users' posts use Gemini (768 dims); the shared inspiration pool and the originality check use a local model (384 dims). The two spaces are never mixed. |
 | C-8 | **Free AI quota is shared** by every user of the project and resets at midnight Pacific time. |
 | C-9 | **Free-tier Gemini data may be used to improve Google's products.** Users must be told before uploading. |
 
@@ -167,7 +167,7 @@ flowchart LR
 | FR-9 | Each draft shows a live length count using that platform's rule, and blocks copy or publish when over the limit. | Must | Paste a 300-character draft for X; it is flagged. |
 | FR-10 | An edit instruction revises the current draft, and earlier versions stay available. The user can also edit the text by hand. | Must | Ask "shorter"; a new version exists and the old one is viewable. |
 | FR-40 | Drafts are polished in a chat, ChatGPT-style. The assistant knows the user's voice card, profile, platform rules and the day's check-in. Every reply that changes the text appears as a **new full draft** in the thread (and is a new version). It can revise only a selected sentence, write the same post for another platform (a new draft, the original untouched), and asks a question instead of inventing a missing fact. | Must | Ask "mention my other project" with two projects in the profile; it asks which one. Select one sentence and ask "fix this"; only that sentence changes. |
-| FR-41 | The app detects the type of post being drafted (launch, progress, lesson, opinion, humor, tip, event) and adds structure examples from the user's inspiration posts **on the same platform** that are strongest at that type: Telegram drafts learn only from Telegram channels the user admires, X drafts only from X accounts, LinkedIn drafts only from LinkedIn creators. Platforms are never mixed. They shape structure only; voice comes from the user's own posts and facts from FR-19. The editor names the creator it used, and the user can change or turn it off. | Should | Draft a launch for X; the editor shows a launch-strong X creator, never a Telegram channel. No 5-word phrase from any inspiration post appears in the draft. |
+| FR-41 | **Structure from inspiration** (rewritten 19 Nov 2026). A shared pool per platform holds the team's templates and posts by creators, imported for their **structure only** (hook, arc, rhythm, length, ending): never shown to users, never a source of facts, topics or wording. Each post is tagged by the free LLM (hook type, a topic-free structure line, tone, goal, author's field) and embedded with the local model. A draft gets the 3 best examples on its platform: for developers by closeness of topic, for every other field by closeness of structure, so a doctor's draft borrows a shape, not a developer's jargon. Platforms are never mixed. | Should | Draft as a nurse on LinkedIn: the prompt has 3 LinkedIn examples labelled "structure only" and the draft has no developer terms. Run the backfill twice: the second run tags and embeds nothing. |
 | FR-46 | The chat board keeps one thread per conversation: the check-in, the drafts made from it and every revision. Past threads are listed in the sidebar, newest first, and reopen where they stopped. | Must | Generate for two platforms, revise one, reload; the thread shows all three cards in order. |
 | FR-11 | Every draft is labelled AI-generated and has a status the user sets: draft, approved, published, discarded. | Must | Change the status; it persists after reload. |
 | FR-19 | A draft may state facts only from the summary card, the day's check-in, or GitHub items the user approved. | Must | Request a draft with an empty check-in; it invents no metrics or projects. |
@@ -265,6 +265,7 @@ flowchart LR
 - Request `output_dimensionality=768`.
 - Stored posts: `title: none | text: <post>`. Queries: `task: search result | query: <topic>`.
 - One content object per post. A plain list returns **one merged** embedding.
+- The inspiration pool and the originality check use the local model instead (C-7): 384 dims, `passage: <text>` for stored text and `query: <text>` for searches (e5 models).
 
 ---
 
@@ -314,7 +315,7 @@ erDiagram
 | `posting_curves` | platform, audience, weekday, hours (24 scores), source | Study-based activity by local weekday and hour, per platform and audience profession (FR-16, FR-34). Shared seed data. |
 | `uploads` | id, user_id, kind (resume, portfolio), source, cleaned_text, removed (JSON counts), reviewed_at, created_at, updated_at | Cleaned text only; the raw text is never stored. Only reviewed text reaches the AI (FR-21). |
 | `platform_profiles` | platform, char_limit, counting_rule, tone_notes, structure_notes, updated_at | Shared, editable platform rules. |
-| `exemplar_posts` | id, platform, post_type, position, text, created_at | Shared, non-personal inspiration pool per platform, written by the team (never a real person's or user's posts). Used for structure only when a user has fewer than 20 posts on that platform. |
+| `exemplar_posts` | id, platform, post_type, position, text, source (template, creator), author, text_hash, hook_type, structure, tone, goal, source_profession, tagged_at, embedding `vector(384)`, structure_embedding `vector(384)`, embedding_model, created_at | The shared inspiration pool per platform (FR-41): the team's templates and creators' posts, for structure only. Never shown to users. HNSW cosine indexes on both vectors. |
 | `invites` | code, email, used_by, created_at | Who may sign up. |
 | `provider_usage` | id, user_id, provider, model, purpose, status, created_at | Limits and fallback debugging. |
 | `telegram_connections` | user_id, channel_id, verified_at | After V1: the channel the bot may post to (FR-36). |
