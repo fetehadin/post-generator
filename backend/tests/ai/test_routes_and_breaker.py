@@ -322,13 +322,15 @@ def test_thinking_level_is_sent_only_when_set():
 # ---- embeddings
 
 
-def test_the_same_topic_is_embedded_once():
+def test_the_same_topic_is_embedded_once_per_user():
     client, log, records, _ = build()
     a = client.for_user(USER).embed_query("shipped the importer")
-    b = client.for_user(OTHER).embed_query("shipped the importer")
+    b = client.for_user(USER).embed_query("shipped the importer")  # the next platform
     assert a == b
     assert len(keys_used(log, "embed")) == 1
-    assert len(records) == 1
+    client.for_user(OTHER).embed_query("shipped the importer")  # never another user's cache
+    assert len(keys_used(log, "embed")) == 2
+    assert len(records) == 2
 
 
 def test_embeddings_use_the_users_gemini_key_first_with_the_same_model():

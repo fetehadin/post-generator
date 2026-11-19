@@ -257,8 +257,9 @@ class AIClient:
 
     def _embed_query(self, text: str, user_id: uuid.UUID | None, allow_default: bool):
         # One check-in drafted for three platforms embeds the same topic three times; the
-        # model is fixed, so the vector is too, whoever's key made it.
-        cache_key = hashlib.sha256(text.encode()).hexdigest()
+        # model is fixed, so the vector is too. Per user, so a fast answer never hints that
+        # someone else wrote the same words.
+        cache_key = hashlib.sha256(f"{user_id}|{text}".encode()).hexdigest()
         with self._lock:
             hit = self._query_cache.get(cache_key)
             if hit is not None:
