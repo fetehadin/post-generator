@@ -65,11 +65,11 @@ test('a key is pasted as a password, saved, then shown only by its last four', a
   renderKeys()
   const input = await screen.findByLabelText('Your Google Gemini API key')
   expect(input).toHaveAttribute('type', 'password')
-  await userEvent.type(input, 'AIzaSy-test-key-0000wxyz')
+  await userEvent.type(input, 'fake-fake-fake-fake-wxyz')
   await userEvent.click(screen.getAllByRole('button', { name: 'Save key' })[0])
-  expect(sent('PUT /me/ai-keys/google')).toEqual([{ key: 'AIzaSy-test-key-0000wxyz' }])
+  expect(sent('PUT /me/ai-keys/google')).toEqual([{ key: 'fake-fake-fake-fake-wxyz' }])
   expect(await screen.findByText('wxyz')).toBeInTheDocument()
-  expect(screen.queryByText(/AIzaSy-test-key/)).not.toBeInTheDocument()
+  expect(screen.queryByText(/fake-fake/)).not.toBeInTheDocument()
 })
 
 test('a refused key shows why and keeps what was typed', async () => {
