@@ -196,7 +196,10 @@ def _shapes(shapes: list[StructureExample], who: str) -> str:
         "These posts were written by other people, often in other fields. Use them ONLY for "
         "the hook, the structure, the rhythm and the length. Never copy their phrases, topics, "
         "names, jargon, numbers, links or calls to action. Parts in [brackets] are empty "
-        f"slots. Write about the facts below, in {field} vocabulary.\n\n" + "\n\n".join(blocks)
+        "slots. If a shape needs details the facts below don't give, pick a simpler shape: "
+        "never fill a shape with invented scenes, times, people or results. Keep the length "
+        f"to what the facts can fill. Write about the facts below, in {field} vocabulary.\n\n"
+        + "\n\n".join(blocks)
     )
 
 
