@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.ai.client import AIClient, default_client
+from app.ai.client import AIClient, default_client, for_user
 from app.core.config import get_settings
 from app.core.db import user_session
 from app.models import ExemplarPost, SourcePost
@@ -129,6 +129,6 @@ def find_examples(
     k: int = EXAMPLES,
 ) -> list[Example]:
     """Embed the topic (outside any transaction), then search as this user."""
-    query_vector = (ai or default_client()).embed_query(topic)
+    query_vector = for_user(ai or default_client(), user_id).embed_query(topic)
     with user_session(user_id) as s:
         return nearest_posts(s, user_id, platform, query_vector, k=k)

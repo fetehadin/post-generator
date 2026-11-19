@@ -15,7 +15,7 @@ from string import Template
 
 from sqlalchemy import func, select
 
-from app.ai.client import AIClient, AIUnavailable, GenerationResult, default_client
+from app.ai.client import AIClient, AIUnavailable, GenerationResult, default_client, for_user
 from app.checks import invented_numbers, longest_copy
 from app.core.db import user_session
 from app.counting import post_length
@@ -233,10 +233,11 @@ def _rewrite_if_needed(ai, prompt, result, text, topic, examples):
     return retry, second, second_text
 
 
-def _check_limit(user_id: uuid.UUID) -> None:
-    """FR-30, before any AI call. 429 like the AI's own rate limit; the input is kept."""
+def _check_limit(user_id: uuid.UUID) -> bool:
+    """FR-30, before any AI call. 429 like the AI's own rate limit; the input is kept.
+    True: today's limit is used up but the user's own key may go on, on their key only."""
     try:
-        check_drafts(user_id)
+        return check_drafts(user_id)
     except LimitReached as e:
         raise DraftError("daily_limit", e.message, 429) from e
 
@@ -261,8 +262,9 @@ def generate_draft(
             "missing_topic",
             "Write what you did today, or fill in your summary card in Profile first.",
         )
-    _check_limit(user_id)
-    ai = ai or default_client()
+    own_only = _check_limit(user_id)
+    # The user's own keys first, then the app's (FR-48); past the limit, theirs only.
+    ai = for_user(ai or default_client(), user_id, allow_default=not own_only)
 
     with user_session(user_id) as s:
         if checkin_id is not None and s.get(Checkin, checkin_id) is None:  # RLS: own rows only
@@ -367,6 +369,7 @@ def generate_draft(
                 model=result.model,
                 model_version=result.model_version,
                 provider=result.provider,
+                key_source=result.key_source,
             )
         )
         s.flush()

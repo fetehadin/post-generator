@@ -5,6 +5,7 @@ import type { Platform } from '../../api/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { LABEL, PLATFORMS } from '../../lib/platforms'
 import { AboutYou } from './AboutYou'
+import { AIKeys } from './AIKeys'
 import { AccountSettings } from './AccountSettings'
 import { AudiencePanel } from './AudiencePanel'
 import { Chip } from './Chip'
@@ -20,6 +21,7 @@ const TABS = [
   { id: 'audience', label: 'Audience' },
   { id: 'when', label: 'When you post' },
   { id: 'voice', label: 'Voice & posts' },
+  { id: 'ai', label: 'AI keys' },
   { id: 'account', label: 'Account' },
 ] as const
 type TabId = (typeof TABS)[number]['id']
@@ -100,6 +102,14 @@ export function ProfilePage() {
           <div className="mt-4">
             <YourPosts />
           </div>
+        </TabsContent>
+
+        <TabsContent value="ai">
+          <Intro>
+            Optional. Add your own Gemini or Groq key and your drafts use your quota first, with no
+            daily limit from Voxlace. Without one, Voxlace's own keys write your drafts.
+          </Intro>
+          <AIKeys />
         </TabsContent>
 
         <TabsContent value="account">

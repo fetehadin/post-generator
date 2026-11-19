@@ -8,6 +8,8 @@ export type Usage = {
   posts: number
   post_limit: number
   resets_at: string
+  /** FR-48: a working AI key of your own; drafts on it aren't counted. */
+  own_key?: boolean
 }
 
 export function useUsage() {
