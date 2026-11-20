@@ -117,7 +117,7 @@ export function YourPosts() {
           type="button"
           onClick={() => posts.fetchNextPage()}
           disabled={posts.isFetchingNextPage}
-          className="mt-4 min-h-10 rounded-control border border-edge px-4 text-sm"
+          className="mt-4 min-h-10 rounded-full border border-edge px-4 text-sm"
         >
           {posts.isFetchingNextPage ? 'Loading…' : 'Load more'}
         </button>
@@ -137,9 +137,7 @@ function PostRow({ post }: { post: Post }) {
         {post.pinned && ' · Pinned'}
         {post.excluded && ' · Excluded'}
       </p>
-      <p
-        className={`mt-1 line-clamp-4 font-serif whitespace-pre-line ${post.excluded ? 'text-muted' : ''}`}
-      >
+      <p className={`mt-1 line-clamp-4 whitespace-pre-line ${post.excluded ? 'text-muted' : ''}`}>
         {post.text}
       </p>
       <div className="mt-2 flex gap-2">

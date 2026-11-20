@@ -96,7 +96,7 @@ export function ProfilePage() {
             <Intro>Your voice per platform, and the posts it's learned from.</Intro>
             <Link
               to="/import"
-              className="inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm"
+              className="inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm"
             >
               Import posts
             </Link>

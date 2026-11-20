@@ -82,7 +82,7 @@ function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) 
           {kind === 'due' ? `${name} post due now` : `${name} · ${when} passed`}
         </span>
       </p>
-      <p className="mt-1 truncate font-serif text-muted">{firstLine}</p>
+      <p className="mt-1 truncate text-muted">{firstLine}</p>
       {kind === 'missed' && <p className="mt-1 text-danger">Post now or reschedule.</p>}
       {!asked && note && (
         <p role="alert" className="mt-1 text-danger">
@@ -98,14 +98,14 @@ function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) 
               type="button"
               disabled={patch.isPending}
               onClick={now.markPosted}
-              className="min-h-9 rounded-control bg-primary px-3 font-semibold text-on-primary"
+              className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
             >
               Yes, mark as posted
             </button>
             <button
               type="button"
               onClick={now.notYet}
-              className="min-h-9 rounded-control border border-edge px-3 hover:bg-sunken"
+              className="min-h-9 rounded-full border border-edge px-3 hover:bg-sunken"
             >
               Not yet
             </button>
@@ -121,13 +121,13 @@ function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) 
           <button
             type="button"
             onClick={() => void post()}
-            className="min-h-9 rounded-control bg-primary px-3 font-semibold text-on-primary"
+            className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
           >
             {now.label}
           </button>
           {kind === 'missed' && (
             <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger className="min-h-9 rounded-control border border-edge px-3 hover:bg-sunken">
+              <PopoverTrigger className="min-h-9 rounded-full border border-edge px-3 hover:bg-sunken">
                 Reschedule
               </PopoverTrigger>
               <PopoverContent align="end" className="w-80">

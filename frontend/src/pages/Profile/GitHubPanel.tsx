@@ -12,9 +12,9 @@ import {
   useSetMention,
 } from '../../api/github'
 
-const button = 'inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm'
+const button = 'inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm'
 const primary =
-  'inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
+  'inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
 const FREQUENCIES: Array<[GitHubFrequency, string]> = [
   ['daily', 'Every evening, plus a Friday recap when small days add up'],
   ['weekly', 'A weekly recap on Friday'],
