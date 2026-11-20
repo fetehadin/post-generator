@@ -125,6 +125,8 @@ export type ThreadMessage = {
 
 /** A platform that couldn't be written; the others still arrive (POST /threads/{id}/generate). */
 export type GenerateFailure = { platform: Platform; code: string; message: string }
+/** Something to know about a new card, e.g. it is close to an example post (FR-49). */
+export type GenerateNotice = { platform: Platform; message: string }
 
 export type Thread = {
   id: string
@@ -136,6 +138,7 @@ export type Thread = {
   messages: ThreadMessage[]
   drafts: DraftRow[]
   failures?: GenerateFailure[]
+  notices?: GenerateNotice[]
 }
 
 /** POST /drafts/{id}/schedule: approved and on the calendar at the picked (or given) time. */

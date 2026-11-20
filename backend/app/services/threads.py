@@ -141,7 +141,12 @@ def detail(user_id: uuid.UUID, thread_id: uuid.UUID) -> ThreadDetail:
 
 
 def generate(
-    user_id: uuid.UUID, thread_id: uuid.UUID, platforms: list[str], ai: AIClient | None = None
+    user_id: uuid.UUID,
+    thread_id: uuid.UUID,
+    platforms: list[str],
+    ai: AIClient | None = None,
+    hook_type: str | None = None,
+    notices: list[Failure] | None = None,
 ) -> tuple[ThreadDetail, list[Failure]]:
     """One card per platform, from the thread's check-in. A platform that fails (no posts
     yet, the daily limit) doesn't stop the others; it comes back as a failure to show."""
@@ -150,14 +155,17 @@ def generate(
     failures: list[Failure] = []
     for platform in dict.fromkeys(platforms):  # each platform once, in the order asked
         try:
-            generate_draft(
+            result = generate_draft(
                 user_id,
                 platform,
                 topic,
                 ai=ai,
                 checkin_id=current.thread.checkin_id,
                 thread_id=thread_id,
+                hook_type=hook_type,
             )
+            if notices is not None:  # e.g. "close to an example" (FR-49), shown with the card
+                notices += [Failure(platform, "notice", n) for n in result.notices]
         except DraftError as e:
             failures.append(Failure(platform, e.code, e.message))
         except (AIUnavailable, EmbeddingUnavailable):

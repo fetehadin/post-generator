@@ -84,7 +84,10 @@ test('a zone that does not exist is caught before saving', async () => {
   await userEvent.type(zone, 'Addis Ababa')
   expect(screen.getByText(/isn't a time zone/)).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
-  expect(sent('PUT /profile')).toEqual([{ role: 'Dev' }]) // an empty focus isn't sent
+  // An empty focus isn't sent; the profession starts as "developer" (FR-17).
+  expect(sent('PUT /profile')).toEqual([
+    { role: 'Dev', discipline: 'developer', audience_kind: '', main_goal: '' },
+  ])
 })
 
 test('platforms → about you → audience from your zone → import', async () => {
@@ -96,7 +99,15 @@ test('platforms → about you → audience from your zone → import', async () 
   await userEvent.type(screen.getByLabelText('What you do'), 'Backend developer')
   await userEvent.type(screen.getByLabelText(/working on/), 'FastAPI')
   await go()
-  expect(sent('PUT /profile')).toEqual([{ role: 'Backend developer', focus: 'FastAPI' }])
+  expect(sent('PUT /profile')).toEqual([
+    {
+      role: 'Backend developer',
+      discipline: 'developer',
+      audience_kind: '',
+      main_goal: '',
+      focus: 'FastAPI',
+    },
+  ])
   expect(await screen.findByLabelText('Mostly living in the time zone')).toHaveValue(
     'Africa/Addis_Ababa',
   )

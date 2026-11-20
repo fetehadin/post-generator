@@ -7,6 +7,11 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
 Platform = Literal["telegram", "x", "linkedin"]
+# FR-41: how a post opens, as the inspiration pool is tagged.
+HookType = Literal[
+    "bold_claim", "mistake_story", "numbered_list", "before_after", "question", "story",
+    "how_to", "announcement", "observation",
+]  # fmt: skip
 
 
 class HealthOut(BaseModel):
@@ -58,6 +63,7 @@ class GenerateIn(BaseModel):
         "", max_length=4000, description="Empty = write from the summary card (needs one)"
     )
     checkin_id: uuid.UUID | None = None
+    hook_type: HookType | None = Field(None, description="FR-41: shape examples that open this way")
 
 
 class LengthOut(BaseModel):
@@ -76,6 +82,7 @@ class DraftOut(BaseModel):
     examples_used: int
     created_at: datetime
     thread_id: uuid.UUID
+    notices: list[str] = Field(default_factory=list, description="FR-49: e.g. close to an example")
 
 
 class PromptOut(BaseModel):
@@ -147,6 +154,10 @@ class Project(BaseModel):
         return v.strip() if isinstance(v, str) else v
 
 
+AudienceKind = Literal["", "peers", "clients", "employers", "public"]
+MainGoal = Literal["", "teach", "sell", "hire", "network", "announce"]
+
+
 class ProfileOut(BaseModel):
     """GET /profile: everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44)."""
 
@@ -160,7 +171,9 @@ class ProfileOut(BaseModel):
     avoid_list: str
     voice_words: str
     links: str
-    discipline: str
+    discipline: str = Field(description="Their profession, e.g. developer, nurse, designer")
+    audience_kind: AudienceKind
+    main_goal: MainGoal
     usual_hours: str
     language: str = Field(description='"auto" = the same language mix as their posts')
     excluded_hashtags: list[str]
@@ -190,6 +203,8 @@ class ProfileIn(BaseModel):
     voice_words: str | None = Field(None, max_length=500)
     links: str | None = Field(None, max_length=2000)
     discipline: str | None = Field(None, max_length=500)
+    audience_kind: AudienceKind | None = None
+    main_goal: MainGoal | None = None
     usual_hours: str | None = Field(None, max_length=500)
     language: str | None = Field(None, min_length=2, max_length=32)
     excluded_hashtags: list[str] | None = Field(None, max_length=200)
@@ -382,6 +397,9 @@ class ThreadIn(BaseModel):
 
 class ThreadGenerateIn(BaseModel):
     platforms: list[Platform] = Field(min_length=1, max_length=3)
+    hook_type: HookType | None = Field(
+        None, description="FR-41: only shape examples that open this way; empty = any"
+    )
 
 
 class ConvertIn(BaseModel):
@@ -423,6 +441,11 @@ class GenerateFailureOut(BaseModel):
     message: str
 
 
+class GenerateNoticeOut(BaseModel):
+    platform: Platform
+    message: str
+
+
 class ThreadOut(BaseModel):
     id: uuid.UUID
     title: str
@@ -434,6 +457,9 @@ class ThreadOut(BaseModel):
     drafts: list[DraftRowOut] = Field(description="Each draft's current state, oldest first")
     failures: list[GenerateFailureOut] = Field(
         default_factory=list, description="Platforms that couldn't be written (generate only)"
+    )
+    notices: list[GenerateNoticeOut] = Field(
+        default_factory=list, description="Things to know about a new card (generate only)"
     )
 
 
