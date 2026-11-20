@@ -11,7 +11,7 @@ import {
 const input =
   'mt-1 block min-h-10 w-full rounded-control border border-edge bg-surface px-3 text-sm'
 const button =
-  'inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm disabled:text-muted'
+  'inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm disabled:text-muted'
 
 /** "Removed 1 email and 2 phone numbers", so the user sees what was taken out (FR-21). */
 export function removedNote(removed: Upload['removed']): string {
@@ -145,7 +145,7 @@ function UploadCard({ upload, onTakenOut }: { upload: Upload; onTakenOut: () => 
         id={`upload-${upload.id}`}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        className="mt-3 block max-h-96 min-h-32 w-full resize-y rounded-control border border-edge bg-surface p-3 font-serif text-sm leading-[1.6]"
+        className="mt-3 block max-h-96 min-h-32 w-full resize-y rounded-control border border-edge bg-surface p-3 text-sm leading-[1.6]"
       />
       <div className="mt-3 flex flex-wrap items-center gap-3">
         {changed && (
@@ -170,7 +170,7 @@ function UploadCard({ upload, onTakenOut }: { upload: Upload; onTakenOut: () => 
           className={
             upload.reviewed
               ? button
-              : 'inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
+              : 'inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
           }
         >
           {upload.reviewed ? 'Stop using it' : 'I checked it: use in my summary card'}

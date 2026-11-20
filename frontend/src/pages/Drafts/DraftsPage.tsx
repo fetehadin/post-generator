@@ -28,9 +28,9 @@ const TABS: Array<{ status: DraftStatus; label: string; empty: string }> = [
   { status: 'discarded', label: 'Discarded', empty: 'Nothing discarded.' },
 ]
 const button =
-  'inline-flex min-h-9 items-center rounded-control border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
+  'inline-flex min-h-9 items-center rounded-full border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
 const primary =
-  'inline-flex min-h-9 items-center rounded-control bg-primary px-3 text-sm font-semibold text-on-primary disabled:opacity-50'
+  'inline-flex min-h-9 items-center rounded-full bg-primary px-3 text-sm font-semibold text-on-primary disabled:opacity-50'
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
 
@@ -230,7 +230,7 @@ function DraftItem({ draft, onDiscarded }: { draft: DraftRow; onDiscarded: () =>
         </span>
         <span className="rounded-full border border-thread px-2 text-thread">AI draft</span>
       </p>
-      <p className="line-clamp-3 font-serif text-lg leading-writing whitespace-pre-line">
+      <p className="line-clamp-3 text-md leading-writing whitespace-pre-line">
         {lines.slice(0, 3).join('\n')}
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 text-sm">

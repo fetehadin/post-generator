@@ -101,7 +101,7 @@ function DialogFooter({
         <DialogPrimitive.Close asChild>
           <button
             type="button"
-            className="min-h-10 rounded-control border border-edge px-4 text-sm hover:bg-sunken"
+            className="min-h-10 rounded-full border border-edge px-4 text-sm hover:bg-sunken"
           >
             Close
           </button>

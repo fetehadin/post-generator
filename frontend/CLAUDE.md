@@ -7,7 +7,7 @@ React + Vite + TypeScript · React Router · TanStack Query · Tailwind CSS · s
 - **Read `docs/DESIGN.md` before building or changing any screen.** It has the principles, screen specs, tokens, states and copy rules.
 - Build screens with `/design-screen <screen>`; it plans, screenshots and runs the `design-reviewer` subagent.
 - Only design tokens (CSS variables in DESIGN.md §5) for color, type and spacing. No hard-coded hex values or font sizes.
-- The user's writing uses the serif; the interface uses the sans. Platform previews use the platform's own font stack.
+- Inter for all text, including the user's writing; JetBrains Mono (`font-mono`) for code, keys and repo names. Platform previews use the platform's own font stack.
 - Button text states the consequence ("Publish to Telegram now"); the toast repeats the verb ("Published").
 - Screenshots go in `frontend/screenshots/` (git-ignored).
 

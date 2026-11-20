@@ -263,7 +263,7 @@ function AboutForm({ saved }: { saved: Profile }) {
           <button
             type="button"
             onClick={() => setForm({ ...form, projects: [...form.projects, NEW_PROJECT] })}
-            className="mt-2 inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm"
+            className="mt-2 inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm"
           >
             Add a project
           </button>
@@ -308,7 +308,7 @@ function AboutForm({ saved }: { saved: Profile }) {
             type="button"
             onClick={writeCard}
             disabled={busy}
-            className="inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm disabled:text-muted"
+            className="inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm disabled:text-muted"
           >
             {summary.isPending
               ? 'Writing…'
@@ -329,7 +329,7 @@ function AboutForm({ saved }: { saved: Profile }) {
           value={form.summary_card}
           onChange={(e) => setForm({ ...form, summary_card: e.target.value })}
           placeholder="Answer a few questions above, then let Voxlace write this, or write it yourself."
-          className="mt-3 block min-h-32 w-full resize-y rounded-control border border-edge bg-surface p-3 font-serif text-md leading-[1.7] [field-sizing:content]"
+          className="mt-3 block min-h-32 w-full resize-y rounded-control border border-edge bg-surface p-3 text-md leading-[1.7] [field-sizing:content]"
         />
       </section>
 
@@ -337,7 +337,7 @@ function AboutForm({ saved }: { saved: Profile }) {
         <button
           type="submit"
           disabled={busy}
-          className="inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
+          className="inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
         >
           {save.isPending ? 'Saving…' : 'Save profile'}
         </button>
