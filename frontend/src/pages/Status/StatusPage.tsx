@@ -1,4 +1,5 @@
 import { useHealth } from '../../api/health'
+import { Wordmark } from '../../components/Logo'
 
 function Part({ name, value }: { name: string; value: string | undefined }) {
   const ok = value === 'ok'
@@ -18,7 +19,9 @@ export function StatusPage() {
 
   return (
     <main className="mx-auto max-w-md px-4 py-16">
-      <h1 className="text-xl font-semibold">Voxlace</h1>
+      <h1>
+        <Wordmark className="h-6 w-auto text-ink" />
+      </h1>
       <p className="mt-1 text-muted">System status</p>
 
       <section aria-live="polite" className="mt-8 rounded-panel border border-line bg-surface px-4">
