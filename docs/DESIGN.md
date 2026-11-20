@@ -240,6 +240,20 @@ Neither Latin face has Ethiopic letters, so the browser takes each Amharic chara
 
 Headings 22px and up use `--tracking-tight` (−0.02em). Interface line-height is 1.5; writing line-height is 1.7. **Weights: 400 and 600 only.**
 
+### Logo
+
+**Chosen 20 Nov 2026: black and white.** The "talking o" wordmark (`voxlace` in Outfit Bold, outlined, the o drawn as a speech bubble) and the bubble-o mark, both in **one colour**: ink in light mode and paper in dark mode (`currentColor`, via `components/Logo.tsx`). The teal-o version stays in `design/brand/` for later, but isn't used.
+
+| Where | What |
+|---|---|
+| Sidebar, phone header, login, guest and status pages | `<Wordmark />` (20–28px high); the collapsed sidebar shows `<LogoMark />` |
+| Browser tab | `public/favicon.svg`: white bubble-o on an ink rounded square |
+| iPhone home screen | `public/apple-touch-icon.png`, 180px, full square |
+| Link previews (X, LinkedIn, Telegram) | `public/og-image.png`, 1200×630: paper wordmark on ink |
+| GitHub app logo | `design/brand/assets/voxlace-logo-ink-512.png` |
+
+Rules: never set "voxlace" in a font; use the component. Keep space around it equal to one o. Don't recolour part of it.
+
 ### Space and shape
 
 - 4px grid: `--space-1` to `--space-12` = 4, 8, 12, 16, 24, 32, 48.

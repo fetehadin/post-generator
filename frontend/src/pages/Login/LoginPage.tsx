@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { authMessage, supabase } from '../../lib/auth'
+import { Wordmark } from '../../components/Logo'
 
 type Mode = 'login' | 'signup' | 'forgot'
 
@@ -115,7 +116,7 @@ export function LoginPage() {
   const action = signup ? 'Create account' : forgot ? 'Send reset link' : 'Log in'
   return (
     <main className="mx-auto max-w-md px-4 py-16">
-      <p className="text-xl font-semibold tracking-tight">Voxlace</p>
+      <Wordmark className="h-7 w-auto text-ink" />
       <h1 className="mt-6 text-2xl font-semibold tracking-tight">{title}</h1>
       <form
         className="mt-8 flex flex-col gap-3"
