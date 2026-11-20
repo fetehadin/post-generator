@@ -166,7 +166,8 @@ def test_streaks_and_first_activity_count():
 
 def test_secrets_are_scrubbed():
     assert scrub("token ghp_" + "a" * 36 + " leaked") == "token [removed] leaked"
-    assert scrub("api_key=abcd1234efgh") == "api_key=[removed]"
+    fake = "api_key=" + "x" * 12  # built, so it never looks like a real key in the repo
+    assert scrub(fake) == "api_key=[removed]"
     assert scrub("Add login flow (#12)") == "Add login flow (#12)"
 
 
