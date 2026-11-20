@@ -23,6 +23,8 @@ const empty: Profile = {
   voice_words: '',
   links: '',
   discipline: '',
+  audience_kind: '',
+  main_goal: '',
   usual_hours: '',
   language: 'auto',
   excluded_hashtags: ['#family', '#me'],

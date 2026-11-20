@@ -10,10 +10,11 @@ examples, and don't carry over their offers, links or calls to action (a free PD
 
 $examples$inspiration
 
-## Facts you may use
+$who## Facts you may use
 Use ONLY these facts. Never invent numbers, names, results, projects, dates or opinions that are
-not written here. Offers, links and promises count as facts too. If a detail is missing, leave
-it out rather than guessing.
+not written here. Offers, links and promises count as facts too. Never add scenes or colour that
+isn't here either: no times of day, places, people, pets, tools, products, events, plans or next
+steps. If a detail is missing, leave it out rather than guessing; a short fact makes a short post.
 
 $facts
 

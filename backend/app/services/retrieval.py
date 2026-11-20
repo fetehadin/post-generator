@@ -11,7 +11,7 @@ import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.ai.client import AIClient, default_client, for_user
@@ -110,15 +110,113 @@ def post_counts(user_id: uuid.UUID, platform: str) -> PostCounts:
 
 
 def inspiration(user_id: uuid.UUID, platform: str) -> list[str]:
-    """The shared inspiration pool for a platform, in its set order (migration 0010)."""
+    """The team's templates for a platform, in their set order (migration 0010): the fallback
+    when no structure examples can be found (no local model, an empty pool)."""
     with user_session(user_id) as s:
         return list(
             s.scalars(
                 select(ExemplarPost.text)
-                .where(ExemplarPost.platform == platform)
+                .where(ExemplarPost.platform == platform, ExemplarPost.source == "template")
                 .order_by(ExemplarPost.position)
             )
         )
+
+
+# FR-41: words that mean "a developer". Anyone else gets examples matched by structure, so a
+# nurse's draft borrows a dev post's shape, not its jargon.
+DEV_WORDS = (
+    "develop", "engineer", "programm", "coder", "software", "devops", "sre", "data scien",
+    "machine learning", "ml ", "ai ", "frontend", "front-end", "backend", "back-end",
+    "full stack", "fullstack", "full-stack", "web dev", "mobile dev", "tech lead", "cto",
+)  # fmt: skip
+
+
+CANDIDATES = 12  # nearest posts considered before picking the k examples
+MIN_SHAPE_CHARS = 80
+
+
+def is_developer(profession: str) -> bool:
+    p = f" {profession.lower()} "
+    return any(w in p for w in DEV_WORDS)
+
+
+@dataclass(frozen=True)
+class StructureExample:
+    id: uuid.UUID
+    text: str
+    hook_type: str | None
+    structure: str | None
+    embedding: list[float]
+
+
+def structure_examples(
+    platform: str,
+    idea: str,
+    profession: str,
+    goal: str = "",
+    hook_type: str | None = None,
+    k: int | None = None,
+    embedder=None,
+) -> list[StructureExample]:
+    """FR-41: the k best inspiration posts on this platform for this idea. Developers: closest
+    by topic (the post itself). Everyone else: closest by shape (its topic-free structure line),
+    asked as "a <goal> post: <idea>", so the topic of dev posts can't pull them in."""
+    from app.ai.local_embed import local_embedder
+
+    embedder = embedder or local_embedder()
+    k = k or get_settings().structure_examples
+    dev = is_developer(profession)
+    query = idea if dev else f"a {goal or 'useful'} post: {idea}"
+    vector = embedder.embed_query(query[:2000])
+    column = ExemplarPost.embedding if dev else ExemplarPost.structure_embedding
+    filters = [
+        ExemplarPost.platform == platform,
+        ExemplarPost.embedding_model == embedder.model_name,  # never compare across models
+        column.is_not(None),
+        # A post worth learning from: tagged with a real hook, and long enough to have a shape.
+        ExemplarPost.hook_type.is_not(None),
+        ExemplarPost.hook_type != "other",
+        func.length(ExemplarPost.text) >= MIN_SHAPE_CHARS,
+    ]
+    if hook_type:
+        filters.append(ExemplarPost.hook_type == hook_type)
+    distance = column.cosine_distance(vector).label("distance")
+    with user_session(uuid.UUID(int=0)) as s:
+        # pgvector 0.8: keep scanning the HNSW index until enough rows pass the filters.
+        s.execute(text("SET LOCAL hnsw.iterative_scan = relaxed_order"))
+        rows = s.execute(
+            select(
+                ExemplarPost.id,
+                ExemplarPost.text,
+                ExemplarPost.hook_type,
+                ExemplarPost.structure,
+                ExemplarPost.embedding,
+                ExemplarPost.goal,
+                ExemplarPost.author,
+                ExemplarPost.source,
+                distance,
+            )
+            .where(*filters)
+            .order_by(distance)
+            .limit(CANDIDATES)
+        ).all()
+    # Of the closest few: creators' real posts before templates, the user's goal first, then
+    # the closest; at most one post per author, so three examples show three styles.
+    rows = sorted(rows, key=lambda r: (r.source == "template", bool(goal) and r.goal != goal,
+                                       r.distance))  # fmt: skip
+    picked, authors = [], set()
+    for r in rows:
+        if r.author and r.author in authors:
+            continue
+        authors.add(r.author)
+        picked.append(r)
+        if len(picked) == k:
+            break
+    rows = picked
+    return [
+        StructureExample(r.id, r.text, r.hook_type, r.structure, [float(x) for x in r.embedding])
+        for r in rows
+    ]
 
 
 def find_examples(

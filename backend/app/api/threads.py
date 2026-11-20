@@ -72,8 +72,11 @@ def generate(
 ) -> ThreadOut:
     """One draft card per platform. A platform that can't be written comes back in
     `failures`; the others still arrive."""
+    notices: list[threads.Failure] = []
     try:
-        detail, failures = threads.generate(user_id, thread_id, body.platforms, ai=ai)
+        detail, failures = threads.generate(
+            user_id, thread_id, body.platforms, ai=ai, hook_type=body.hook_type, notices=notices
+        )
     except DraftError as e:
         raise _fail(e) from e
-    return thread_out(detail, failures)
+    return thread_out(detail, failures, notices)

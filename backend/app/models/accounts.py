@@ -61,6 +61,9 @@ class Profile(CreatedAt, Base):
     voice_words: Mapped[str] = mapped_column(Text, default="", server_default="")
     links: Mapped[str] = mapped_column(Text, default="", server_default="")
     discipline: Mapped[str] = mapped_column(Text, default="", server_default="")
+    # Who they write for and why (FR-17): shape the words a draft uses, not its facts.
+    audience_kind: Mapped[str] = mapped_column(String(16), default="", server_default="")
+    main_goal: Mapped[str] = mapped_column(String(16), default="", server_default="")
     usual_hours: Mapped[str] = mapped_column(Text, default="", server_default="")
     language: Mapped[str] = mapped_column(String(32), default="auto", server_default="auto")
     excluded_hashtags: Mapped[list[str] | None] = mapped_column(ARRAY(Text))

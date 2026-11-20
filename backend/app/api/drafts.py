@@ -75,7 +75,14 @@ def generate(
     ai: AIClient = Depends(get_ai),
 ) -> DraftOut:
     try:
-        r = generate_draft(user_id, body.platform, body.topic, ai=ai, checkin_id=body.checkin_id)
+        r = generate_draft(
+            user_id,
+            body.platform,
+            body.topic,
+            ai=ai,
+            checkin_id=body.checkin_id,
+            hook_type=body.hook_type,
+        )
     except DraftError as e:
         raise _fail(e) from e
     except (AIUnavailable, EmbeddingUnavailable) as e:
@@ -91,6 +98,7 @@ def generate(
         examples_used=len(r.examples),
         created_at=r.created_at,
         thread_id=r.thread_id,
+        notices=list(r.notices),
     )
 
 

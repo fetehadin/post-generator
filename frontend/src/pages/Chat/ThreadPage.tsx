@@ -3,7 +3,14 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { useDeleteCheckin, usePatchCheckin } from '../../api/checkins'
 import { useReviseDraft } from '../../api/drafts'
 import { useGenerateInThread, useThread } from '../../api/threads'
-import type { DraftRow, GenerateFailure, Platform, Thread, ThreadMessage } from '../../api/types'
+import type {
+  DraftRow,
+  GenerateFailure,
+  GenerateNotice,
+  Platform,
+  Thread,
+  ThreadMessage,
+} from '../../api/types'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Icon } from '../../components/Icon'
 import { PlatformMark } from '../../components/PlatformMark'
@@ -50,6 +57,7 @@ function ThreadView({ thread }: { thread: Thread }) {
   const [selection, setSelection] = useState('')
   const [revising, setRevising] = useState<DraftRow | null>(null)
   const [announce, setAnnounce] = useState('')
+  const [notices, setNotices] = useState<GenerateNotice[]>([])
   const composer = useRef<HTMLDivElement>(null)
   // With one draft in the thread, replies go to it (§4.1) until the user closes the box.
   const selected =
@@ -161,6 +169,25 @@ function ThreadView({ thread }: { thread: Thread }) {
           </li>
         )}
       </ol>
+      {notices.length > 0 && (
+        <div
+          role="status"
+          className="mt-3 flex flex-col gap-1 rounded-panel border border-line p-3"
+        >
+          {notices.map((n, i) => (
+            <p key={i} className="text-sm text-signal">
+              {LABEL[n.platform]}: {n.message}
+            </p>
+          ))}
+          <button
+            type="button"
+            onClick={() => setNotices([])}
+            className="self-start text-sm text-muted underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <div
         ref={composer}
         className="sticky bottom-16 mt-auto border-t border-line bg-paper py-3 md:bottom-0"
@@ -170,7 +197,10 @@ function ThreadView({ thread }: { thread: Thread }) {
             thread={thread}
             canClose
             onClose={() => setPicking(false)}
-            onDone={() => setPicking(false)}
+            onDone={(n) => {
+              setNotices(n)
+              setPicking(false)
+            }}
           />
         ) : selected ? (
           <ReplyBox
@@ -316,7 +346,7 @@ function PlatformPicker({
   thread: Thread
   canClose: boolean
   onClose: () => void
-  onDone: () => void
+  onDone: (notices: GenerateNotice[]) => void
 }) {
   const [chosen, setChosen] = useState<Platform[]>(savedPlatforms)
   const [failures, setFailures] = useState<GenerateFailure[]>([])
@@ -340,7 +370,7 @@ function PlatformPicker({
           setFailures(failed)
           // Only what failed is offered again, so a retry never duplicates a draft.
           if (failed.length) setChosen(failed.map((f) => f.platform))
-          else onDone()
+          else onDone(t.notices ?? [])
         },
       },
     )
