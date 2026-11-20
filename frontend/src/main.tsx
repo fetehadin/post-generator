@@ -1,3 +1,4 @@
+import { GitHubCallbackPage } from './pages/GitHub/GitHubCallbackPage'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -64,6 +65,7 @@ const router = createBrowserRouter([
       { path: '/profile', element: <ProfilePage /> },
       { path: '/voice', element: <Navigate to="/profile" replace /> },
       { path: '/status', element: <StatusPage /> },
+      { path: '/github/callback', element: <GitHubCallbackPage /> },
     ],
   },
 ])

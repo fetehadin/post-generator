@@ -3,3 +3,5 @@
 1984231b1701299e4e187219382952fd96bb0544:backend/tests/api/test_auth.py:generic-api-key:22
 # A made-up key in the first version of the AI keys panel test (PR #68); the test now uses an obviously fake value.
 c0c987752d800dca8552e9af1377e80fb8e155fd:frontend/src/pages/Profile/AIKeys.test.tsx:generic-api-key:70
+# A made-up key in the scrubber test of PR #72; the test now builds an obviously fake value.
+7ec86428448d1cd2234e3c79b474fb2a015d905a:backend/tests/db/test_github.py:generic-api-key:169

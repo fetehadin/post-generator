@@ -524,6 +524,33 @@ When a draft becomes `published`, its text is also saved as one of the user's ow
 
 ---
 
+## GitHub → daily dev drafts (FR-14)
+
+Optional; off on a server without `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` (`enabled: false`).
+
+| Method and path | Body | Answer |
+|---|---|---|
+| `GET /github` | | `{enabled, private_enabled, connected, login, private_repos, frequency, repos: [{id, full_name, private, mention_ok}], digests: [{id, day, kind, status, score, reason, angle, thread_id, based_on: [string]}]}`; the last 10 digests |
+| `POST /github/connect` | | `{url}`: GitHub's authorize page (no scopes, signed `state` for this user, 10 minutes) |
+| `POST /github/callback` | `{code, state}` | `GitHubOut`. `400 bad_state` when the state is expired or another user's; `400 github_refused` |
+| `POST /github/install` | | `{url}`: install the GitHub App. `409 not_connected` before connecting |
+| `POST /github/installation` | `{installation_id, state}` | `GitHubOut`; the app's repos are added, private ones with `mention_ok: false`. `403 not_your_installation` when it's on another GitHub account |
+| `PATCH /github/repos/{id}` | `{mention_ok}` | `GitHubOut` |
+| `PUT /github/settings` | `{frequency: "daily" \| "weekly" \| "highlights"}` | `GitHubOut` |
+| `POST /github/digests/{id}/draft` | | "Want to post anyway?": drafts from a quiet day's items. `409 nothing_to_post`, `409 already_drafted` |
+| `DELETE /github` | | `204`; token, installation link, repos, items and digests deleted. `404 not_connected` |
+| `POST /webhooks/github` | GitHub's payload | No login: `X-Hub-Signature-256` must match `GITHUB_WEBHOOK_SECRET` (else `401 bad_signature`). `202` at once; `push`, `pull_request`, `release`, `installation` are stored in the background |
+
+- **Digest `status`:** `nothing` (below the threshold or judged not worth it; `reason` says why), `suggested` (`thread_id` has the drafts), `skipped` (worth it, but no platform could be drafted).
+- **Suggestions run hourly** on the API's own background job; each user is checked at `GITHUB_SUGGEST_HOUR` on their own clock, once a day. Nothing is ever posted.
+- **Registering the GitHub side:**
+  - an **OAuth App**: callback URL `https://<domain>/github/callback`;
+  - a **GitHub App**:
+    - setup URL `https://<domain>/github/callback`, with "Redirect on update" on;
+    - webhook URL `https://<domain>/api/v1/webhooks/github` with a secret;
+    - permissions: Contents, Pull requests and Metadata read-only;
+    - events: Push, Pull request, Release.
+
 ## Later phases (shape to be agreed at the start of each phase)
 
 | Phase | Method and path | Purpose |
