@@ -58,3 +58,14 @@ EDGE_SECRET=
 BACKUP_REMOTE=
 # Where dumps are kept on the server (14 days); the deploy user must be able to write here.
 BACKUP_DIR=/home/deploy/backups/voxlace
+
+# FR-14: GitHub → daily dev drafts (optional; empty = off). docs/API.md says how to register.
+# OAuth App (no scopes; callback https://<domain>/github/callback):
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+# GitHub App for private repos (read-only Contents, Pull requests, Metadata; webhooks):
+GITHUB_APP_ID=
+GITHUB_APP_SLUG=
+# The app's private key (PEM) on one line, with \n for each line break.
+GITHUB_APP_PRIVATE_KEY=
+GITHUB_WEBHOOK_SECRET=

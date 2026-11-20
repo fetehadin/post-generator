@@ -81,6 +81,13 @@ ruff check . --fix && ruff format .
 - Fill it: `python -m app.dev import-inspiration samples/private/inspiration` (hash-deduplicated), then `python -m app.dev backfill-inspiration` (tags with the free LLM in small batches, then embeds; both skip finished rows, so re-run after a 429 stop).
 - Tests use a fake model (`backend=`); no test downloads one.
 
+## GitHub → daily dev drafts (`services/github.py`, FR-14)
+
+- Optional: off without `GITHUB_CLIENT_ID`/`SECRET`. OAuth (no scopes) proves the account; the GitHub App adds private repos. A signed `state` (10 minutes) ties every GitHub round trip to the logged-in user; an installation is linked only when its account id is the user's.
+- GitHub calls live in `services/github_api.py` (httpx, read-only); tests pass a fake. Only the user's own commits/PRs/releases are stored, never diffs, scrubbed by `services/github_scrub.py`.
+- Webhooks (`/webhooks/github`) are checked with `X-Hub-Signature-256` and handled in a background thread. They and the hourly job find users through the narrow functions `user_for_github_installation()` and `github_connected_users()` (ids only), then work as that user under RLS.
+- `score()` is pure (stage 1, no AI); `judge()` is one small AI call (stage 2, purpose `github_judge`, on the user's key first). Only `mention_ok` repos reach the AI or a draft.
+
 ## Importers
 
 - Pure functions: `parse_telegram(data: bytes) -> ParseResult(posts, skipped)`. No DB or network.

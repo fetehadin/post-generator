@@ -173,7 +173,7 @@ flowchart LR
 | FR-11 | Every draft is labelled AI-generated and has a status the user sets: draft, approved, published, discarded. | Must | Change the status; it persists after reload. |
 | FR-19 | A draft may state facts only from the summary card, the day's check-in, or GitHub items the user approved. | Must | Request a draft with an empty check-in; it invents no metrics or projects. |
 | FR-31 | Draft generation tries an ordered list of models from configuration, moves to the next when one is unavailable, rate-limited or removed, and records which model wrote each draft. | Must | Disable the first model; the draft arrives and names the second. |
-| FR-14 | GitHub context lists today's commits and pull request titles, and the user can exclude items before they enter the prompt. | Should | Exclude one commit; it is absent from the prompt log. |
+| FR-14 | **GitHub → daily dev drafts** (rewritten 20 Nov 2026; optional). Connect with GitHub OAuth (no scopes, public activity; never a typed username), and optionally the Voxlace GitHub App for private repos (read-only: contents, pull requests, metadata). Each repo has "OK to mention publicly", on for public and off for private repos; a repo that isn't OK is never named, sent to the AI or used. Public activity is synced each evening (commits API + PR search); private activity arrives by signed webhooks. Only the user's own commits, PRs and releases are kept, never code diffs, with secrets scrubbed. Stage 1 scores the day with rules (noise dropped; merged PRs, described PRs, releases, new repos, feature verbs, themes, first activity and streaks add points; weights and thresholds in settings) and below the threshold says "Nothing worth posting today" with no AI call. Stage 2 asks the AI for `{worth_posting, reason, angle}`; worth it → drafts in a thread "Suggested from your GitHub" at the user's evening hour in their time zone, listing what they're based on. Frequency: daily (with a Friday recap of small wins), weekly, or highlights only. "Want to post anyway?" on quiet days. Discarded suggestions are counted. Disconnect removes the token, the installation link and all GitHub data. Never posts by itself. | Should | Connect, push a typo fix: "Nothing worth posting today", no AI call. Merge a described PR: an evening thread with drafts and its PR listed. A private repo stays out until allowed. Disconnect: no GitHub rows remain. |
 
 ### 3.4 Calendar, scheduling and publishing
 
@@ -374,7 +374,7 @@ Seed values for `platform_profiles`, as of October 2026.
 | 4 — Drafting workflow | FR-6, FR-8, FR-10, FR-11, FR-19, FR-40, FR-46, FR-12 |
 | 5 — Calendar, posting times and reminders | FR-13, FR-16, FR-34, FR-35, FR-42, FR-45, NFR-14, NFR-16 |
 | 6 — SaaS hardening and deploy | FR-30, FR-31, FR-32, FR-38, NFR-1, NFR-3, NFR-4, NFR-10, NFR-11, NFR-17 |
-| 7 — Private beta | FR-15, FR-41, FR-48, FR-49, NFR-19, NFR-20, success metrics |
+| 7 — Private beta | FR-14, FR-15, FR-41, FR-48, FR-49, NFR-19, NFR-20, success metrics |
 | Stretch | FR-14 |
 | After V1 | FR-36, FR-43 (Telegram bot) |
 

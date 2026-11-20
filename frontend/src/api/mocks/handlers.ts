@@ -603,6 +603,18 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
     return new Response(null, { status: 204 })
   }
 
+  if (path === '/github')
+    return json(200, {
+      enabled: true,
+      private_enabled: true,
+      connected: false,
+      login: null,
+      private_repos: false,
+      frequency: 'daily',
+      repos: [],
+      digests: [],
+    })
+
   if (path === '/me/usage') {
     const today = new Date().toISOString().slice(0, 10)
     return json(200, {

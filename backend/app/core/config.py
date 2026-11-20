@@ -79,6 +79,25 @@ class Settings(BaseSettings):
     # FR-49: a draft this similar (cosine) to one of its examples is rewritten once, then flagged.
     originality_threshold: float = 0.9
 
+    # FR-14: GitHub → daily dev drafts (optional; empty = off). An OAuth App with no scopes
+    # (public activity) and a GitHub App for private repos: Contents, Pull requests and
+    # Metadata read-only, webhooks for push, pull_request and release. See docs/API.md.
+    github_client_id: str = ""
+    github_client_secret: str = ""
+    github_app_id: str = ""
+    github_app_slug: str = ""  # github.com/apps/<slug>
+    github_app_private_key: str = ""  # PEM; "\n" in one line is fine
+    github_webhook_secret: str = ""
+    github_suggest_hour: int = 19  # suggestions appear at this hour, the user's own clock
+    # Stage 1 (no LLM): weights per signal and the score a day/week needs to reach the LLM.
+    github_score_weights: str = (
+        "merged_pr:5,described_pr:2,opened_pr:1,release:5,new_repo:4,feature:2,theme:2,"
+        "milestone:3,streak:3,commit:1"
+    )
+    github_threshold_daily: int = 6
+    github_threshold_weekly: int = 8
+    github_threshold_highlights: int = 10
+
     # FR-30: per user per UTC day. Drafts count every AI writing call (new drafts and chat
     # revisions); posts count what an import adds, since each new post is embedded once.
     daily_draft_limit: int = 40
@@ -105,6 +124,23 @@ class Settings(BaseSettings):
         return _chain(self.generation_models)
 
     @property
+    def github_enabled(self) -> bool:
+        return bool(self.github_client_id and self.github_client_secret)
+
+    @property
+    def github_app_enabled(self) -> bool:
+        return bool(self.github_app_id and self.github_app_private_key and self.github_app_slug)
+
+    @property
+    def github_weights(self) -> dict[str, int]:
+        out = {}
+        for part in self.github_score_weights.split(","):
+            name, _, value = part.partition(":")
+            if name.strip() and value.strip().lstrip("-").isdigit():
+                out[name.strip()] = int(value)
+        return out
+
+    @property
     def anthropic_fallback_model_set(self) -> set[str]:
         return {m.strip() for m in self.anthropic_fallback_models.split(",") if m.strip()}
 
@@ -122,7 +158,7 @@ class Settings(BaseSettings):
 
 
 # AI jobs that don't write a post: they can run on a cheaper model.
-LIGHT_PURPOSES = frozenset({"voice_card", "summary", "tag_inspiration"})
+LIGHT_PURPOSES = frozenset({"voice_card", "summary", "tag_inspiration", "github_judge"})
 
 
 def _chain(spec: str) -> list[tuple[str, str]]:
