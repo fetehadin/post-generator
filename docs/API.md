@@ -103,6 +103,8 @@ Returns the post in `GET /posts`'s item shape. Another user's post is `404`.
 
 ### `POST /drafts/generate` → `201`
 
+(19 Nov 2026) Also takes an optional `hook_type` (FR-41) and returns `notices: [string]` (FR-49).
+
 ```jsonc
 // request; checkin_id arrives with check-ins in Phase 4
 { "platform": "telegram", "topic": "Finished the Telegram importer", "checkin_id": null }
@@ -217,6 +219,8 @@ Everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44). Created wi
 - `language`: `"auto"` writes in the same language mix as the user's posts; any other value adds "Write the post in <language>." to the prompt.
 - `excluded_hashtags`: the user's list (lower-case, with `#`), used by every import. The default list until the user edits it.
 - `summary_card`: allowed facts for every draft, next to the day's topic (FR-19). Empty means the prompt is exactly as before.
+
+**Profession, audience and goal (FR-17, FR-41; 19 Nov 2026):** `discipline` is the user's profession (the form calls it "Profession"; existing empty values became `"developer"`). `audience_kind` is one of `""`, `peers`, `clients`, `employers`, `public`; `main_goal` one of `""`, `teach`, `sell`, `hire`, `network`, `announce`. Both are in `GET` and `PUT /profile`. Drafts use them to pick shape examples and to write in that field's words.
 
 ### `PUT /profile`
 
@@ -405,8 +409,10 @@ Copies an earlier version as the newest one ("Restored v2"). Only while `draft`.
 Today's use against the daily limits (FR-30), per UTC day:
 
 ```json
-{ "drafts": 12, "draft_limit": 40, "posts": 412, "post_limit": 3000, "resets_at": "2026-10-23T00:00:00Z" }
+{ "drafts": 12, "draft_limit": 40, "posts": 412, "post_limit": 3000, "resets_at": "2026-10-23T00:00:00Z", "own_key": false }
 ```
+
+- `own_key` (FR-48): the user has a working AI key of their own. Drafts written on it aren't counted in `drafts`; past the limit, a user with a key keeps drafting on their key only.
 
 - `drafts` counts every AI writing call: new drafts and chat revisions. At the limit, `POST /drafts/generate` and `POST /drafts/{id}/revise` return `429 daily_limit` (the user's text is in their own request, so nothing is lost).
 - `posts` counts posts added by imports today (each is embedded once). An import that would add more new posts than are left returns `429 daily_limit` and saves nothing. Re-importing known posts costs nothing.
@@ -418,7 +424,31 @@ Everything the user gave Voxlace or made with it, as one JSON download (FR-38): 
 
 ### `DELETE /me`
 
-Body `{"confirm": "delete"}` (any case) → `204`. Deletes the user's row and, by cascade, every row they own: posts and embeddings, imports, profile, uploads, voice cards, check-ins, drafts, versions, chat and prompt logs (FR-38, NFR-10). Anything else in `confirm` → `400 confirm_required`. The Supabase login stays; without data or an invite it can't use the app.
+Body `{"confirm": "delete"}` (any case) → `204`. Deletes the user's row and, by cascade, every row they own: posts and embeddings, imports, profile, uploads, voice cards, check-ins, drafts, versions, chat, prompt logs, AI keys and the AI call log (FR-38, NFR-10). Anything else in `confirm` → `400 confirm_required`. The Supabase login stays; without data or an invite it can't use the app.
+
+### Your own AI keys (FR-48, NFR-19)
+
+#### `GET /me/ai-keys`
+
+`providers`: `google`, `groq`, `openai`, `anthropic`, `openrouter`, `mistral`, each as `{id, name, key_url, used_for, default_model}`. `keys`: the user's keys, newest first, as `{provider, last4, masked, model, status, last_error, added_at, last_used_at}`, where `masked` looks like `"sk-…a9F2"` and `model: null` means `default_model`.
+
+- `enabled` is `false` when the server has no `AI_KEY_ENCRYPTION_KEYS`; the UI then says the feature is off.
+- The key itself is never returned. `status: "rejected"` means the provider refused it on a real call; it's skipped until replaced.
+
+#### `PUT /me/ai-keys/{provider}` → `200`
+
+Body `{"key": "…", "model": "…" | null}`. The key is checked with **one tiny test call** ("Reply OK") on that model, then stored encrypted, replacing any earlier key for that provider.
+
+- `400 invalid_key`: not shaped like a key, or the provider refused the key or the model, or its quota is used up. The message says the provider's reason. Nothing is stored.
+- `400 invalid_model`: the model name has characters no model uses.
+- `503 key_check_unavailable`: the provider couldn't be reached, or a per-minute limit hit. Try again.
+- `503 keys_disabled`; `404 unknown_provider`.
+
+**How keys are used:** a draft tries the user's keys first (newest first, each with its model), then Voxlace's free chain. When a user's key fails and the free chain writes the draft, the draft response's `notices` says "Your key failed, used the free model instead." Embeddings always use Voxlace's own key and model (C-7).
+
+#### `DELETE /me/ai-keys/{provider}` → `204`
+
+`404 not_found` when there's no key for that provider. Deleting the account removes keys too; the export lists `ai_keys` as `{provider, last4, status}` only.
 
 ### `GET /drafts/stats`
 
@@ -443,7 +473,7 @@ A thread is one conversation: what the user did today (saved as that day's check
 | `POST /threads` | `{"text": "…", "day"?: "2026-10-22"}` (`day` defaults to today on the user's clock) | `201` a thread |
 | `GET /threads` | | `{"items": [{"id", "title", "platforms": ["telegram"], "updated_at"}]}`, last touched first, 50 at most |
 | `GET /threads/{id}` | | a thread; another user's → `404` |
-| `POST /threads/{id}/generate` | `{"platforms": ["x", "linkedin"]}` (1–3) | `201` a thread with one new card per platform; a platform that couldn't be written is in `failures` and the others still arrive |
+| `POST /threads/{id}/generate` | `{"platforms": ["x", "linkedin"], "hook_type": null}` (1–3; `hook_type` optional, FR-41: `bold_claim`, `mistake_story`, `numbered_list`, `before_after`, `question`, `story`, `how_to`, `announcement`, `observation`) | `201` a thread with one new card per platform; a platform that couldn't be written is in `failures` and the others still arrive; `notices: [{platform, message}]` says what to know about a new card, e.g. "This draft is close to one of the example posts" (FR-49) |
 | `POST /drafts/{id}/convert` | `{"platform": "linkedin"}` | `201` the draft's thread with a new draft for that platform written from this one; the original is unchanged. Same platform → `400 same_platform` |
 | `DELETE /drafts/{id}` | | `204`; only a `discarded` draft → else `409 not_discarded` |
 
@@ -493,6 +523,33 @@ Asked by the app every minute (FR-35, FR-42). Nothing is ever sent from the serv
 When a draft becomes `published`, its text is also saved as one of the user's own posts (`origin: "voxlace"`) and embedded by the background retry, so future drafts learn from it.
 
 ---
+
+## GitHub → daily dev drafts (FR-14)
+
+Optional; off on a server without `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` (`enabled: false`).
+
+| Method and path | Body | Answer |
+|---|---|---|
+| `GET /github` | | `{enabled, private_enabled, connected, login, private_repos, frequency, repos: [{id, full_name, private, mention_ok}], digests: [{id, day, kind, status, score, reason, angle, thread_id, based_on: [string]}]}`; the last 10 digests |
+| `POST /github/connect` | | `{url}`: GitHub's authorize page (no scopes, signed `state` for this user, 10 minutes) |
+| `POST /github/callback` | `{code, state}` | `GitHubOut`. `400 bad_state` when the state is expired or another user's; `400 github_refused` |
+| `POST /github/install` | | `{url}`: install the GitHub App. `409 not_connected` before connecting |
+| `POST /github/installation` | `{installation_id, state}` | `GitHubOut`; the app's repos are added, private ones with `mention_ok: false`. `403 not_your_installation` when it's on another GitHub account |
+| `PATCH /github/repos/{id}` | `{mention_ok}` | `GitHubOut` |
+| `PUT /github/settings` | `{frequency: "daily" \| "weekly" \| "highlights"}` | `GitHubOut` |
+| `POST /github/digests/{id}/draft` | | "Want to post anyway?": drafts from a quiet day's items. `409 nothing_to_post`, `409 already_drafted` |
+| `DELETE /github` | | `204`; token, installation link, repos, items and digests deleted. `404 not_connected` |
+| `POST /webhooks/github` | GitHub's payload | No login: `X-Hub-Signature-256` must match `GITHUB_WEBHOOK_SECRET` (else `401 bad_signature`). `202` at once; `push`, `pull_request`, `release`, `installation` are stored in the background |
+
+- **Digest `status`:** `nothing` (below the threshold or judged not worth it; `reason` says why), `suggested` (`thread_id` has the drafts), `skipped` (worth it, but no platform could be drafted).
+- **Suggestions run hourly** on the API's own background job; each user is checked at `GITHUB_SUGGEST_HOUR` on their own clock, once a day. Nothing is ever posted.
+- **Registering the GitHub side:**
+  - an **OAuth App**: callback URL `https://<domain>/github/callback`;
+  - a **GitHub App**:
+    - setup URL `https://<domain>/github/callback`, with "Redirect on update" on;
+    - webhook URL `https://<domain>/api/v1/webhooks/github` with a secret;
+    - permissions: Contents, Pull requests and Metadata read-only;
+    - events: Push, Pull request, Release.
 
 ## Later phases (shape to be agreed at the start of each phase)
 

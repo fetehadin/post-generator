@@ -7,6 +7,14 @@ import { useSaveProfile } from '../../api/profile'
 import type { AudienceProfession, Platform } from '../../api/types'
 import { LABEL, PLATFORMS } from '../../lib/platforms'
 import { cn } from '../../lib/utils'
+import {
+  AUDIENCE_KINDS,
+  type AudienceKind,
+  MAIN_GOALS,
+  type MainGoal,
+  PROFESSION_LIST_ID,
+  PROFESSION_SUGGESTIONS,
+} from '../../lib/profession'
 import { markWelcomed } from '../../lib/welcome'
 import { isZone } from '../../lib/zones'
 
@@ -37,6 +45,9 @@ export function WelcomePage() {
   const [step, setStep] = useState(0)
   const [platforms, setPlatforms] = useState<Platform[]>([])
   const [role, setRole] = useState('')
+  const [job, setJob] = useState('developer')
+  const [audienceKind, setAudienceKind] = useState<AudienceKind>('')
+  const [mainGoal, setMainGoal] = useState<MainGoal>('')
   const [focus, setFocus] = useState('')
   const [profession, setProfession] = useState<AudienceProfession>('developers')
   // The account's zone (sent on first use), else this device's. Read at render, not
@@ -146,7 +157,13 @@ export function WelcomePage() {
             e.preventDefault()
             // Only what was typed, so an empty field never erases a saved focus.
             profile.mutate(
-              { role: role.trim(), ...(focus.trim() && { focus: focus.trim() }) },
+              {
+                role: role.trim(),
+                discipline: job.trim() || 'developer',
+                audience_kind: audienceKind,
+                main_goal: mainGoal,
+                ...(focus.trim() && { focus: focus.trim() }),
+              },
               { onSuccess: () => setStep(2) },
             )
           }}
@@ -156,6 +173,52 @@ export function WelcomePage() {
             Drafts only say what you tell Voxlace. Two lines are enough.
           </p>
           <label className="mt-6 block text-sm">
+            Your profession
+            <input
+              className={input}
+              value={job}
+              required
+              list={PROFESSION_LIST_ID}
+              placeholder="Developer, nurse, designer, teacher…"
+              onChange={(e) => setJob(e.target.value)}
+            />
+          </label>
+          <datalist id={PROFESSION_LIST_ID}>
+            {PROFESSION_SUGGESTIONS.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm">
+              Writing mostly for
+              <select
+                className={input}
+                value={audienceKind}
+                onChange={(e) => setAudienceKind(e.target.value as AudienceKind)}
+              >
+                {AUDIENCE_KINDS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm">
+              Main goal
+              <select
+                className={input}
+                value={mainGoal}
+                onChange={(e) => setMainGoal(e.target.value as MainGoal)}
+              >
+                {MAIN_GOALS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="mt-4 block text-sm">
             What you do
             <input
               className={input}
@@ -180,7 +243,11 @@ export function WelcomePage() {
             </p>
           )}
           <div className="mt-8 flex gap-3">
-            <button type="submit" className={primary} disabled={!role.trim() || profile.isPending}>
+            <button
+              type="submit"
+              className={primary}
+              disabled={!role.trim() || !job.trim() || profile.isPending}
+            >
               {profile.isPending ? 'Saving…' : 'Continue'}
             </button>
             <button type="button" className={secondary} onClick={() => setStep(0)}>

@@ -15,6 +15,7 @@ from difflib import SequenceMatcher
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import distinct_on
+from sqlalchemy.orm import object_session
 
 from app.core.db import user_session
 from app.counting import post_length
@@ -203,6 +204,10 @@ def _move(d: Draft, status: str, current: DraftDetail, new_text: str | None) -> 
         d.published_at = datetime.now(UTC)
     elif status in ("draft", "discarded"):
         d.scheduled_for = None  # back to editing or thrown away: off the calendar
+        if status == "discarded":  # FR-14: count discarded GitHub suggestions
+            from app.services.github import count_discard
+
+            count_discard(object_session(d), d.thread_id)
     d.status = status
 
 

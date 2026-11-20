@@ -188,7 +188,9 @@ const profile: Profile = {
   avoid_list: '',
   voice_words: '',
   links: '',
-  discipline: '',
+  discipline: 'developer',
+  audience_kind: '',
+  main_goal: '',
   usual_hours: '',
   language: 'auto',
   excluded_hashtags: ['#family', '#me'],
@@ -203,6 +205,26 @@ const profile: Profile = {
 }
 
 const uploads: Upload[] = []
+const aiKeys = new Map<string, Record<string, unknown>>()
+const AI_PROVIDERS = [
+  ['groq', 'Groq', 'https://console.groq.com/keys', 'openai/gpt-oss-120b'],
+  ['google', 'Google Gemini', 'https://aistudio.google.com/apikey', 'gemini-flash-latest'],
+  ['openai', 'OpenAI', 'https://platform.openai.com/api-keys', 'gpt-4.1-mini'],
+  [
+    'anthropic',
+    'Anthropic (Claude)',
+    'https://platform.claude.com/settings/keys',
+    'claude-opus-5-5',
+  ],
+  ['openrouter', 'OpenRouter', 'https://openrouter.ai/settings/keys', 'openrouter/auto'],
+  ['mistral', 'Mistral', 'https://console.mistral.ai/api-keys', 'mistral-small-latest'],
+].map(([id, name, key_url, default_model]) => ({
+  id,
+  name,
+  key_url,
+  default_model,
+  used_for: 'Drafts and revisions',
+}))
 const imports = new Map<string, ImportJob>()
 const posts: Post[] = [
   'Ship log: fixed the timezone bug. Everything is UTC in the database now and only converted at the edges.',
@@ -547,6 +569,51 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
       ...info,
     })
   }
+
+  const keyMatch = path.match(/^\/me\/ai-keys\/(google|groq|openai|anthropic|openrouter|mistral)$/)
+  if (path === '/me/ai-keys')
+    return json(200, {
+      enabled: true,
+      providers: AI_PROVIDERS,
+      keys: [...aiKeys.values()].reverse(),
+    })
+  if (keyMatch && init?.method === 'PUT') {
+    const { key, model } = JSON.parse(String(init.body)) as { key: string; model: string | null }
+    if (key.trim().length < 20)
+      return json(400, {
+        error: { code: 'invalid_key', message: "That doesn't look like an API key." },
+      })
+    const k = key.trim()
+    const saved = {
+      provider: keyMatch[1],
+      last4: k.slice(-4),
+      masked: `${k.slice(0, 3)}…${k.slice(-4)}`,
+      model: model || null,
+      status: 'active',
+      last_error: null,
+      added_at: new Date().toISOString(),
+      last_used_at: null,
+    }
+    aiKeys.delete(keyMatch[1])
+    aiKeys.set(keyMatch[1], saved)
+    return json(200, saved)
+  }
+  if (keyMatch && init?.method === 'DELETE') {
+    aiKeys.delete(keyMatch[1])
+    return new Response(null, { status: 204 })
+  }
+
+  if (path === '/github')
+    return json(200, {
+      enabled: true,
+      private_enabled: true,
+      connected: false,
+      login: null,
+      private_repos: false,
+      frequency: 'daily',
+      repos: [],
+      digests: [],
+    })
 
   if (path === '/me/usage') {
     const today = new Date().toISOString().slice(0, 10)

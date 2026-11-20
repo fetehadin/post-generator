@@ -13,7 +13,7 @@ from string import Template
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
-from app.ai.client import AIClient, default_client
+from app.ai.client import AIClient, default_client, for_user
 from app.core.db import user_session
 from app.importers.common import DEFAULT_EXCLUDED_HASHTAGS
 from app.models import Profile, SourcePost
@@ -33,7 +33,9 @@ FIELDS = {
     "avoid_list": "Things to avoid",
     "voice_words": "Words that describe their voice",
     "links": "Links",
-    "discipline": "Discipline",
+    "discipline": "Profession",
+    "audience_kind": "Writing mostly for",
+    "main_goal": "Main goal of posting",
     "usual_hours": "When they usually post",
     "seniority": "Seniority",
     "facts": "Facts they are happy to share",
@@ -112,7 +114,7 @@ def write_summary(user_id: uuid.UUID, ai: AIClient | None = None) -> Profile:
             )
             .limit(SAMPLE_POSTS)
         ).all()
-    result = (ai or default_client()).generate(
+    result = for_user(ai or default_client(), user_id).generate(
         summary_prompt(profile, list(posts), reviewed_texts(user_id)), purpose="summary"
     )
     return update_profile(user_id, {"summary_card": result.text.strip()})

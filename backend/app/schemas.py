@@ -7,6 +7,11 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, Field, field_validator
 
 Platform = Literal["telegram", "x", "linkedin"]
+# FR-41: how a post opens, as the inspiration pool is tagged.
+HookType = Literal[
+    "bold_claim", "mistake_story", "numbered_list", "before_after", "question", "story",
+    "how_to", "announcement", "observation",
+]  # fmt: skip
 
 
 class HealthOut(BaseModel):
@@ -58,6 +63,7 @@ class GenerateIn(BaseModel):
         "", max_length=4000, description="Empty = write from the summary card (needs one)"
     )
     checkin_id: uuid.UUID | None = None
+    hook_type: HookType | None = Field(None, description="FR-41: shape examples that open this way")
 
 
 class LengthOut(BaseModel):
@@ -76,6 +82,7 @@ class DraftOut(BaseModel):
     examples_used: int
     created_at: datetime
     thread_id: uuid.UUID
+    notices: list[str] = Field(default_factory=list, description="FR-49: e.g. close to an example")
 
 
 class PromptOut(BaseModel):
@@ -120,6 +127,9 @@ class UsageOut(BaseModel):
     posts: int
     post_limit: int
     resets_at: datetime
+    own_key: bool = Field(
+        False, description="FR-48: the user has a working AI key; its drafts aren't counted"
+    )
 
 
 class DeleteMeIn(BaseModel):
@@ -144,6 +154,10 @@ class Project(BaseModel):
         return v.strip() if isinstance(v, str) else v
 
 
+AudienceKind = Literal["", "peers", "clients", "employers", "public"]
+MainGoal = Literal["", "teach", "sell", "hire", "network", "announce"]
+
+
 class ProfileOut(BaseModel):
     """GET /profile: everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44)."""
 
@@ -157,7 +171,9 @@ class ProfileOut(BaseModel):
     avoid_list: str
     voice_words: str
     links: str
-    discipline: str
+    discipline: str = Field(description="Their profession, e.g. developer, nurse, designer")
+    audience_kind: AudienceKind
+    main_goal: MainGoal
     usual_hours: str
     language: str = Field(description='"auto" = the same language mix as their posts')
     excluded_hashtags: list[str]
@@ -187,6 +203,8 @@ class ProfileIn(BaseModel):
     voice_words: str | None = Field(None, max_length=500)
     links: str | None = Field(None, max_length=2000)
     discipline: str | None = Field(None, max_length=500)
+    audience_kind: AudienceKind | None = None
+    main_goal: MainGoal | None = None
     usual_hours: str | None = Field(None, max_length=500)
     language: str | None = Field(None, min_length=2, max_length=32)
     excluded_hashtags: list[str] | None = Field(None, max_length=200)
@@ -379,6 +397,9 @@ class ThreadIn(BaseModel):
 
 class ThreadGenerateIn(BaseModel):
     platforms: list[Platform] = Field(min_length=1, max_length=3)
+    hook_type: HookType | None = Field(
+        None, description="FR-41: only shape examples that open this way; empty = any"
+    )
 
 
 class ConvertIn(BaseModel):
@@ -420,6 +441,11 @@ class GenerateFailureOut(BaseModel):
     message: str
 
 
+class GenerateNoticeOut(BaseModel):
+    platform: Platform
+    message: str
+
+
 class ThreadOut(BaseModel):
     id: uuid.UUID
     title: str
@@ -431,6 +457,9 @@ class ThreadOut(BaseModel):
     drafts: list[DraftRowOut] = Field(description="Each draft's current state, oldest first")
     failures: list[GenerateFailureOut] = Field(
         default_factory=list, description="Platforms that couldn't be written (generate only)"
+    )
+    notices: list[GenerateNoticeOut] = Field(
+        default_factory=list, description="Things to know about a new card (generate only)"
     )
 
 
@@ -520,3 +549,99 @@ class ClaimIn(BaseModel):
     receipts: list[str] = Field(min_length=1, max_length=6)
     # Each receipt holds a prompt (a few KB; Amharic is 3 bytes a character, base64 adds a
     # third). The route checks each one's size; the list length is checked here.
+
+
+AIProvider = Literal["google", "groq", "openai", "anthropic", "openrouter", "mistral"]
+
+
+class AIKeyIn(BaseModel):
+    """PUT /me/ai-keys/{provider} (FR-48). The key is checked, encrypted and never returned."""
+
+    key: str = Field(min_length=1, max_length=300)
+    model: str | None = Field(
+        None, max_length=128, description="Empty = the provider's default (`default_model`)"
+    )
+
+
+class AIKeyOut(BaseModel):
+    provider: AIProvider
+    last4: str
+    masked: str = Field(description='The key as shown, e.g. "sk-…a9F2"; never the key')
+    model: str | None = Field(description="The model it writes with; null = the default")
+    status: Literal["active", "rejected"]
+    last_error: str | None
+    added_at: datetime
+    last_used_at: datetime | None
+
+
+class AIProviderOut(BaseModel):
+    id: AIProvider
+    name: str
+    key_url: str
+    used_for: str
+    default_model: str
+
+
+class AIKeysOut(BaseModel):
+    """GET /me/ai-keys: whether the feature is on, the providers, and the user's keys."""
+
+    enabled: bool
+    providers: list[AIProviderOut]
+    keys: list[AIKeyOut]
+
+
+GitHubFrequency = Literal["daily", "weekly", "highlights"]
+
+
+class GitHubRepoOut(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    private: bool
+    mention_ok: bool = Field(description="May drafts name this repo and its details?")
+
+
+class GitHubDigestOut(BaseModel):
+    id: uuid.UUID
+    day: date
+    kind: Literal["daily", "weekly"]
+    status: Literal["nothing", "suggested", "skipped"]
+    score: int
+    reason: str
+    angle: str | None
+    thread_id: uuid.UUID | None = Field(description="The suggested drafts, when there are some")
+    based_on: list[str] = Field(description="The commits, PRs and releases it used")
+
+
+class GitHubOut(BaseModel):
+    """GET /github (FR-14)."""
+
+    enabled: bool = Field(description="Connecting GitHub is switched on for this app")
+    private_enabled: bool = Field(description="The GitHub App for private repos is set up")
+    connected: bool
+    login: str | None
+    private_repos: bool = Field(description="The GitHub App is installed for this user")
+    frequency: GitHubFrequency
+    repos: list[GitHubRepoOut]
+    digests: list[GitHubDigestOut]
+
+
+class GitHubLinkOut(BaseModel):
+    url: str
+
+
+class GitHubCallbackIn(BaseModel):
+    code: str = Field(min_length=1, max_length=200)
+    state: str = Field(min_length=1, max_length=2000)
+
+
+class GitHubInstallationIn(BaseModel):
+    installation_id: int = Field(gt=0)
+    state: str = Field(min_length=1, max_length=2000)
+
+
+class GitHubSettingsIn(BaseModel):
+    frequency: GitHubFrequency
+
+
+class GitHubRepoIn(BaseModel):
+    mention_ok: bool

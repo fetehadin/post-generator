@@ -4,6 +4,7 @@ from app.schemas import (
     CardOut,
     DraftRowOut,
     GenerateFailureOut,
+    GenerateNoticeOut,
     LengthOut,
     ThreadMessageOut,
     ThreadOut,
@@ -32,7 +33,9 @@ def row_out(r: library.DraftRow) -> DraftRowOut:
     )
 
 
-def thread_out(t: ThreadDetail, failures: list[Failure] = ()) -> ThreadOut:
+def thread_out(
+    t: ThreadDetail, failures: list[Failure] = (), notices: list[Failure] = ()
+) -> ThreadOut:
     return ThreadOut(
         id=t.thread.id,
         title=t.thread.title,
@@ -63,4 +66,5 @@ def thread_out(t: ThreadDetail, failures: list[Failure] = ()) -> ThreadOut:
             GenerateFailureOut(platform=f.platform, code=f.code, message=f.message)
             for f in failures
         ],
+        notices=[GenerateNoticeOut(platform=n.platform, message=n.message) for n in notices],
     )

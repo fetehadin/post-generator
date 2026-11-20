@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | **Product** | Voxlace (working name) |
-| **Version** | 1.3 — Telegram as a hand-off, chat board, posting times |
-| **Date** | 22 October 2026 |
+| **Version** | 1.4 — your own AI keys, AI call log |
+| **Date** | 19 November 2026 |
 | **Authors** | Fetehadin Negash, Nezira |
 | **Status** | Locked. Changes go through a pull request that edits this file. |
 
@@ -112,7 +112,7 @@ flowchart LR
 | C-4 | **X API costs money** ($0.015 per post, $0.20 with a URL), so X is hand-off only. |
 | C-5 | **LinkedIn cannot be pre-filled**, so it is copy + open composer. |
 | C-6 | **No Telegram bot in V1** (decided 22 Oct 2026). Telegram is a hand-off like LinkedIn: copy the text and open the user's channel. Bot publishing (FR-36, FR-43) waits until after V1. |
-| C-7 | **The embedding model is fixed.** Vectors from different models cannot be compared, so there is no embedding fallback. |
+| C-7 | **Embedding models are fixed per vector space.** Vectors from different models cannot be compared, so there is no embedding fallback. Users' posts use Gemini (768 dims); the shared inspiration pool and the originality check use a local model (384 dims). The two spaces are never mixed. |
 | C-8 | **Free AI quota is shared** by every user of the project and resets at midnight Pacific time. |
 | C-9 | **Free-tier Gemini data may be used to improve Google's products.** Users must be told before uploading. |
 
@@ -167,12 +167,13 @@ flowchart LR
 | FR-9 | Each draft shows a live length count using that platform's rule, and blocks copy or publish when over the limit. | Must | Paste a 300-character draft for X; it is flagged. |
 | FR-10 | An edit instruction revises the current draft, and earlier versions stay available. The user can also edit the text by hand. | Must | Ask "shorter"; a new version exists and the old one is viewable. |
 | FR-40 | Drafts are polished in a chat, ChatGPT-style. The assistant knows the user's voice card, profile, platform rules and the day's check-in. Every reply that changes the text appears as a **new full draft** in the thread (and is a new version). It can revise only a selected sentence, write the same post for another platform (a new draft, the original untouched), and asks a question instead of inventing a missing fact. | Must | Ask "mention my other project" with two projects in the profile; it asks which one. Select one sentence and ask "fix this"; only that sentence changes. |
-| FR-41 | The app detects the type of post being drafted (launch, progress, lesson, opinion, humor, tip, event) and adds structure examples from the user's inspiration posts **on the same platform** that are strongest at that type: Telegram drafts learn only from Telegram channels the user admires, X drafts only from X accounts, LinkedIn drafts only from LinkedIn creators. Platforms are never mixed. They shape structure only; voice comes from the user's own posts and facts from FR-19. The editor names the creator it used, and the user can change or turn it off. | Should | Draft a launch for X; the editor shows a launch-strong X creator, never a Telegram channel. No 5-word phrase from any inspiration post appears in the draft. |
+| FR-41 | **Structure from inspiration** (rewritten 19 Nov 2026). A shared pool per platform holds the team's templates and posts by creators, imported for their **structure only** (hook, arc, rhythm, length, ending): never shown to users, never a source of facts, topics or wording. Each post is tagged by the free LLM (hook type, a topic-free structure line, tone, goal, author's field) and embedded with the local model. A draft gets the 3 best examples on its platform: for developers by closeness of topic, for every other field by closeness of structure, so a doctor's draft borrows a shape, not a developer's jargon. Platforms are never mixed. | Should | Draft as a nurse on LinkedIn: the prompt has 3 LinkedIn examples labelled "structure only" and the draft has no developer terms. Run the backfill twice: the second run tags and embeds nothing. |
+| FR-49 | **Originality check** (19 Nov 2026). After a draft is written, it is embedded with the local model and compared with its shape examples. Above the similarity threshold (`ORIGINALITY_THRESHOLD`, default 0.9 cosine), it is rewritten once with the example named; the less similar version is kept, and if it is still above the threshold the draft is shown with a notice. The lexical check (6+ copied words, invented numbers) still runs first. | Should | Return an example's meaning in other words: one rewrite follows and the log keeps its prompt; return it again: the card has the notice. |
 | FR-46 | The chat board keeps one thread per conversation: the check-in, the drafts made from it and every revision. Past threads are listed in the sidebar, newest first, and reopen where they stopped. | Must | Generate for two platforms, revise one, reload; the thread shows all three cards in order. |
 | FR-11 | Every draft is labelled AI-generated and has a status the user sets: draft, approved, published, discarded. | Must | Change the status; it persists after reload. |
 | FR-19 | A draft may state facts only from the summary card, the day's check-in, or GitHub items the user approved. | Must | Request a draft with an empty check-in; it invents no metrics or projects. |
 | FR-31 | Draft generation tries an ordered list of models from configuration, moves to the next when one is unavailable, rate-limited or removed, and records which model wrote each draft. | Must | Disable the first model; the draft arrives and names the second. |
-| FR-14 | GitHub context lists today's commits and pull request titles, and the user can exclude items before they enter the prompt. | Should | Exclude one commit; it is absent from the prompt log. |
+| FR-14 | **GitHub → daily dev drafts** (rewritten 20 Nov 2026; optional). Connect with GitHub OAuth (no scopes, public activity; never a typed username), and optionally the Voxlace GitHub App for private repos (read-only: contents, pull requests, metadata). Each repo has "OK to mention publicly", on for public and off for private repos; a repo that isn't OK is never named, sent to the AI or used. Public activity is synced each evening (commits API + PR search); private activity arrives by signed webhooks. Only the user's own commits, PRs and releases are kept, never code diffs, with secrets scrubbed. Stage 1 scores the day with rules (noise dropped; merged PRs, described PRs, releases, new repos, feature verbs, themes, first activity and streaks add points; weights and thresholds in settings) and below the threshold says "Nothing worth posting today" with no AI call. Stage 2 asks the AI for `{worth_posting, reason, angle}`; worth it → drafts in a thread "Suggested from your GitHub" at the user's evening hour in their time zone, listing what they're based on. Frequency: daily (with a Friday recap of small wins), weekly, or highlights only. "Want to post anyway?" on quiet days. Discarded suggestions are counted. Disconnect removes the token, the installation link and all GitHub data. Never posts by itself. | Should | Connect, push a typo fix: "Nothing worth posting today", no AI call. Merge a described PR: an evening thread with drafts and its PR listed. A private repo stays out until allowed. Disconnect: no GitHub rows remain. |
 
 ### 3.4 Calendar, scheduling and publishing
 
@@ -199,6 +200,7 @@ flowchart LR
 | FR-37 | Before any upload, a new user sees a short privacy notice and must accept it. | Must | Skip the notice; uploads are blocked. |
 | FR-38 | A user can export and delete all their data. | Must | Delete; every post, draft, profile and upload row is gone. |
 | FR-47 | **Guest mode** (decided 5 Nov 2026): without logging in, anyone can write what they did, get a draft per platform, revise it and copy it. Nothing of theirs is stored on the server: the drafts stay in their browser with a signed receipt (the draft, its exact prompt and model). Approving, scheduling, importing and history ask them to log in, and at login their guest drafts become one chat in the account, with the prompt logs rule 9 needs. Guests are limited per visitor (hashed IP) and in total per day. | Must | Draft as a guest: no draft, check-in or prompt row exists. Log in: the drafts appear as one chat with their prompts. A changed receipt is refused. |
+| FR-48 | **Your own AI keys** (decided 19 Nov 2026, widened 20 Nov 2026): optional; a user may add an API key from Groq, Google Gemini, OpenAI, Anthropic, OpenRouter or Mistral in Profile, and pick a model (empty = a default per provider, from settings). The form says a ChatGPT Plus / Claude Pro / Gemini subscription is not an API key and links to each provider's key page. The key is checked with one tiny call before saving, stored encrypted, shown only masked ("sk-…a9F2"), never exported, and deleted for good on removal. Drafts, revisions and cards try the user's keys first (newest first), then the free chain; when the user's key fails, the draft says "Your key failed, used the free model instead." Drafts on the user's key don't count towards the daily limit (FR-30); past the limit, a user with a key drafts on their key only. Embeddings always use Voxlace's key and model (C-7). | Should | Save a wrong key: refused with the reason, nothing stored. Save a working key: the next draft's log says `own`. Revoke it: the next draft says the key failed and comes from the free model. User B never sees or uses A's key. |
 | FR-15 | The app records, for each draft, whether it was published and how much it was edited, and shows a weekly publish rate. | Should (recording is Must) | Publish two of four drafts; the page shows 50%. |
 
 ---
@@ -225,6 +227,8 @@ flowchart LR
 | NFR-16 | Time | All times are stored in UTC and shown in the user's time zone. | Change the user's time zone; calendar times shift, stored values do not. |
 | NFR-17 | Recoverability | The database is backed up nightly to storage off the server, and a restore has been tested. | Restore last night's backup into a fresh container; row counts match. |
 | NFR-18 | Security | The server accepts SSH by key only, exposes only ports 80/443/SSH, and Postgres is not reachable from the internet. | Port scan from outside shows only 22, 80, 443. |
+| NFR-19 | Security | Secrets users give the app (their AI keys) are encrypted at rest with keys held only in the server environment, never logged, and never returned by the API. Rotation keeps old rows readable. | A database dump contains no readable key; the API and logs never show one. |
+| NFR-20 | Observability | Every AI call (generate or embed, users' and guests') is logged with its purpose, model, key source, attempts, time and token counts, never its text. A model that keeps failing is skipped for a while instead of slowing every request (circuit breaker). | `python -m app.dev ai-report` lists the last week's calls; with the first model down, a draft no longer waits on it. |
 
 ---
 
@@ -262,6 +266,7 @@ flowchart LR
 - Request `output_dimensionality=768`.
 - Stored posts: `title: none | text: <post>`. Queries: `task: search result | query: <topic>`.
 - One content object per post. A plain list returns **one merged** embedding.
+- The inspiration pool and the originality check use the local model instead (C-7): 384 dims, `passage: <text>` for stored text and `query: <text>` for searches (e5 models).
 
 ---
 
@@ -300,7 +305,9 @@ erDiagram
 | `threads` | id, user_id, title, checkin_id, created_at, updated_at | One chat on the chat board (FR-46). |
 | `drafts` | id, user_id, thread_id, source_draft_id, checkin_id, platform, topic, status, scheduled_for, published_at, created_at | One row per post in progress. `source_draft_id` links a version written for another platform. |
 | `draft_versions` | id, draft_id, text, instruction, model, created_at | Every revision. |
-| `prompt_logs` | id, draft_id, draft_version_id, prompt, model, provider, created_at | Exact prompt behind each draft and each revision. |
+| `prompt_logs` | id, draft_id, draft_version_id, prompt, model, provider, key_source (own, default), created_at | Exact prompt behind each draft and each revision, and whose key wrote it. |
+| `user_ai_keys` | user_id, provider (google, groq), sealed_key, last4, status (active, rejected), last_error, last_used_at, created_at, updated_at | The user's own AI keys, encrypted (FR-48, NFR-19). |
+| `ai_calls` | id, user_id (null for guests), purpose, kind (generate, embed), ok, provider, model, model_version, key_source, error, attempts, routes_tried, latency_ms, prompt_tokens, output_tokens, thinking_tokens, items, created_at | One row per AI call, no text (NFR-20). Users read only their own; the team reads all as the table owner. |
 | `draft_messages` | id, thread_id, draft_id, role (user, assistant), text, draft_version_id, created_at | The thread's conversation (FR-40, FR-46). |
 | `inspiration_posts` | id, user_id, creator, platform, text, post_type, likes, posted_at, embedding | Posts from creators the user admires, **per platform** (a Telegram channel only inspires Telegram drafts); structure examples only (FR-41). Never shown to other users. |
 | `reminder_settings` | user_id, days, local_time, enabled | Check-in reminders, shown in the app (FR-42). |
@@ -309,7 +316,7 @@ erDiagram
 | `posting_curves` | platform, audience, weekday, hours (24 scores), source | Study-based activity by local weekday and hour, per platform and audience profession (FR-16, FR-34). Shared seed data. |
 | `uploads` | id, user_id, kind (resume, portfolio), source, cleaned_text, removed (JSON counts), reviewed_at, created_at, updated_at | Cleaned text only; the raw text is never stored. Only reviewed text reaches the AI (FR-21). |
 | `platform_profiles` | platform, char_limit, counting_rule, tone_notes, structure_notes, updated_at | Shared, editable platform rules. |
-| `exemplar_posts` | id, platform, post_type, position, text, created_at | Shared, non-personal inspiration pool per platform, written by the team (never a real person's or user's posts). Used for structure only when a user has fewer than 20 posts on that platform. |
+| `exemplar_posts` | id, platform, post_type, position, text, source (template, creator), author, text_hash, hook_type, structure, tone, goal, source_profession, tagged_at, embedding `vector(384)`, structure_embedding `vector(384)`, embedding_model, created_at | The shared inspiration pool per platform (FR-41): the team's templates and creators' posts, for structure only. Never shown to users. HNSW cosine indexes on both vectors. |
 | `invites` | code, email, used_by, created_at | Who may sign up. |
 | `provider_usage` | id, user_id, provider, model, purpose, status, created_at | Limits and fallback debugging. |
 | `telegram_connections` | user_id, channel_id, verified_at | After V1: the channel the bot may post to (FR-36). |
@@ -367,7 +374,7 @@ Seed values for `platform_profiles`, as of October 2026.
 | 4 — Drafting workflow | FR-6, FR-8, FR-10, FR-11, FR-19, FR-40, FR-46, FR-12 |
 | 5 — Calendar, posting times and reminders | FR-13, FR-16, FR-34, FR-35, FR-42, FR-45, NFR-14, NFR-16 |
 | 6 — SaaS hardening and deploy | FR-30, FR-31, FR-32, FR-38, NFR-1, NFR-3, NFR-4, NFR-10, NFR-11, NFR-17 |
-| 7 — Private beta | FR-15, success metrics |
+| 7 — Private beta | FR-14, FR-15, FR-41, FR-48, FR-49, NFR-19, NFR-20, success metrics |
 | Stretch | FR-14 |
 | After V1 | FR-36, FR-43 (Telegram bot) |
 
@@ -377,6 +384,7 @@ Seed values for `platform_profiles`, as of October 2026.
 
 | Version | Date | Change |
 |---|---|---|
+| 1.4 | 19 Nov 2026 | New FR-48 (your own AI keys), NFR-19 (secrets encrypted at rest), NFR-20 (AI call log and circuit breaker). New tables `user_ai_keys`, `ai_calls`; `prompt_logs` gains `key_source`. FR-30's limit counts only drafts on the app's keys. |
 | 1.3 | 22 Oct 2026 | No Telegram bot in V1: Telegram is copy + open channel (C-6, FR-12, FR-35; FR-36 and FR-43 move after V1), and reminders live in the app (FR-42). Chat board threads with a new draft card per revision (FR-40, new FR-46). Posting times move into V1: best hours from audience places and profession (FR-16, FR-34) and the app picks the hour on approve (new FR-45). Resume and portfolio import move into V1 (FR-20, FR-21, NFR-12). FR-23 rules change through migrations. Groq is the fallback provider. NFR-14 is now the background embedding retry. New tables `threads`, `posting_curves`; `profiles`, `platform_settings`, `drafts`, `draft_messages`, `reminder_settings`, `uploads` change. |
 | 1.2 | 17 Oct 2026 | Added FR-40 (chat panel on each draft), FR-41 (inspiration picked by post type), FR-42 (daily check-in reminders), FR-43 (reply to the bot = check-in), FR-44 (excluded hashtags, best-1,000 import cap). New tables `imports`, `draft_messages`, `inspiration_posts`, `reminder_settings`; `source_posts` gains `origin`, `import_id`, `embedding_model`. Decisions behind them: OPEN_QUESTIONS Q2, Q3, Q5, Q24–Q27. |
 | 1.1 | 14 Oct 2026 | Hosting moved to the team's Contabo VPS: always-on worker replaces the external cron; Supabase used for login only; added NFR-17 (backups) and NFR-18 (server hardening). |

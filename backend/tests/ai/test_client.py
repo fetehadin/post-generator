@@ -165,8 +165,8 @@ def test_generate_raises_ai_unavailable_when_the_network_stays_down():
 
 def test_generate_skips_unsupported_provider_and_fails_clearly_when_all_fail():
     models = FakeModels(gen_failures={"only": [500] * 10})
-    client, _ = make(models, chain="mistral:small,google:only")
-    with pytest.raises(AIUnavailable, match="mistral:small unsupported"):
+    client, _ = make(models, chain="cohere:small,google:only")
+    with pytest.raises(AIUnavailable, match="cohere:small unsupported"):
         client.generate("prompt")
 
 
@@ -423,14 +423,25 @@ def make_timed(models, deadline=40, chain="google:first,google:second"):
     return client, clock
 
 
-def test_retries_stop_at_the_deadline_and_the_next_model_is_tried():
-    # first: 429 forever, with 60% of 40 s = 24 s. Waits 2+4+8 = 14 s; the next 16 s would
-    # pass 24 s, so move on; second (the last model) has the 26 s that are left.
+def test_a_failing_model_gets_two_tries_while_a_backup_waits():
+    # first: 429 forever. With a backup left it gets 2 tries (one 2 s wait), not 5, so the
+    # user isn't kept waiting on a model that is down; second answers at once.
     models = FakeModels(gen_failures={"first": [429] * 10})
     client, clock = make_timed(models, deadline=40)
     assert client.generate("prompt").model == "second"
-    assert models.gen_calls == ["first"] * 4 + ["second"]
-    assert clock.now == 14
+    assert models.gen_calls == ["first"] * 2 + ["second"]
+    assert clock.now == 2
+
+
+def test_retries_on_the_last_model_stop_at_the_deadline():
+    # Only one model: it gets every try, until the next wait would pass the 40 s deadline.
+    # Waits 2+4+8+16 = 30 s; the next 32 s would pass 40 s, so it gives up.
+    models = FakeModels(gen_failures={"first": [429] * 10})
+    client, clock = make_timed(models, deadline=40, chain="google:first")
+    with pytest.raises(AIUnavailable):
+        client.generate("prompt")
+    assert models.gen_calls == ["first"] * 5
+    assert clock.now == 30
 
 
 def test_past_the_deadline_the_rest_of_the_chain_is_not_tried():

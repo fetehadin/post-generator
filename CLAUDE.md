@@ -63,8 +63,10 @@ Run the checks for every part you touched before saying a task is done.
 ## Non-negotiable rules
 
 1. **User isolation.** Every user-owned table has `user_id`. Every query filters by the current user, and RLS enforces it too. Never accept `user_id` from the request body; take it from the verified token.
-2. **AI calls go through `backend/app/ai/client.py` only.** No other module imports a provider SDK. Model names come from settings, never hard-coded.
-3. **Embeddings are fixed.** `gemini-embedding-2`, 768 dimensions. Stored posts use `title: none | text: <post>`, queries use `task: search result | query: <text>`. One content object per post: a plain list returns one merged vector. Never fall back to another embedding model; queue and retry instead.
+2. **AI calls go through `backend/app/ai/client.py` only.** No other module imports a provider SDK. Model names come from settings, never hard-coded. The local embedding model is the one exception: it runs in our process, through `backend/app/ai/local_embed.py` only.
+3. **Two embedding spaces, never mixed** (decided 19 Nov 2026). Every vector column says which model made it, and a query is only compared with vectors from the same model. Never fall back to another embedding model; queue and retry instead.
+   - **Users' own posts:** `gemini-embedding-2`, 768 dimensions. Stored posts use `title: none | text: <post>`, queries use `task: search result | query: <text>`. One content object per post: a plain list returns one merged vector.
+   - **The shared inspiration pool and the originality check:** the local model in `LOCAL_EMBEDDING_MODEL` (fastembed, CPU, free; default `intfloat/multilingual-e5-small`, 384 dimensions, `passage: ` / `query: ` prefixes). Changing it means `python -m app.dev backfill-inspiration` re-embeds the pool.
 4. **Never publish without approval.** Nothing is handed off to any platform unless the draft's status is `approved` by the user. V1 never posts by itself.
 5. **No passwords, no scraping.** Never ask for social platform passwords. Only the user's own exports and official tokens.
 6. **Times are UTC** in the database and API. Convert to the user's time zone only in the UI.

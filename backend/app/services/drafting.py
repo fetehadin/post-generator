@@ -15,8 +15,10 @@ from string import Template
 
 from sqlalchemy import func, select
 
-from app.ai.client import AIClient, AIUnavailable, GenerationResult, default_client
+from app.ai.client import AIClient, AIUnavailable, GenerationResult, default_client, for_user
+from app.ai.local_embed import cosine
 from app.checks import invented_numbers, longest_copy
+from app.core.config import get_settings
 from app.core.db import user_session
 from app.counting import post_length
 from app.models import (
@@ -29,7 +31,14 @@ from app.models import (
     Thread,
 )
 from app.services.profile import get_profile
-from app.services.retrieval import Example, find_examples, inspiration, post_counts
+from app.services.retrieval import (
+    Example,
+    StructureExample,
+    find_examples,
+    inspiration,
+    post_counts,
+    structure_examples,
+)
 from app.services.usage import LimitReached, check_drafts
 from app.services.voice import effective_limit, voice_card
 
@@ -64,6 +73,8 @@ class DraftResult:
     model_version: str | None
     examples: list[Example]
     created_at: datetime
+    # Things the user should know about this draft, shown with it (FR-48, FR-49).
+    notices: tuple[str, ...] = ()
 
 
 def build_prompt(
@@ -76,6 +87,8 @@ def build_prompt(
     adapt_from: str | None = None,
     adapt_approved: bool = False,
     pool: list[str] | None = None,
+    shapes: list[StructureExample] | None = None,
+    who: str = "",
 ) -> str:
     blocks = []
     if voice.strip():
@@ -90,7 +103,8 @@ def build_prompt(
         platform_name=PLATFORM_NAMES[profile.platform],
         example_count=len(examples),
         examples="\n\n".join(blocks) or "(none yet)",
-        inspiration=_inspiration(profile.platform, pool or []),
+        inspiration=_shapes(shapes, who) if shapes else _inspiration(profile.platform, pool or []),
+        who=_who_block(who),
         facts=_facts(topic, about, language, adapt_from, adapt_approved),
         char_limit=profile.char_limit,
         counting_note=COUNTING_NOTES.get(profile.counting_rule, profile.counting_rule),
@@ -121,6 +135,71 @@ def _inspiration(platform: str, pool: list[str]) -> str:
         "[brackets] are empty slots, not facts: fill them only from the facts below, or leave "
         "them out. Never use their wording or topics, and never add a call to action, an "
         "event, a link or an offer from them.\n\n" + posts
+    )
+
+
+AUDIENCES = {
+    "peers": "peers in their own field",
+    "clients": "clients and customers",
+    "employers": "employers and recruiters",
+    "public": "a general audience",
+}
+GOALS = {
+    "teach": "teach something useful",
+    "sell": "show what they offer",
+    "hire": "find people to work with",
+    "network": "connect with people",
+    "announce": "share news",
+}
+
+
+def who_is_writing(profession: str, audience_kind: str = "", goal: str = "") -> str:
+    """One plain line about the writer (FR-17, FR-41), or "" when nothing is known."""
+    profession = " ".join(profession.split())[:120]
+    if not profession:
+        return ""
+    line = f"They are a {profession}"
+    if audience_kind in AUDIENCES:
+        line += f", writing mostly for {AUDIENCES[audience_kind]}"
+    if goal in GOALS:
+        line += f", to {GOALS[goal]}"
+    return line + "."
+
+
+def _who_block(who: str) -> str:
+    if not who:
+        return ""
+    return (
+        f"## Who is writing\n{who} Use the words people in their field use with that "
+        "audience. Never borrow another field's jargon.\n\n"
+    )
+
+
+def _shapes(shapes: list[StructureExample], who: str) -> str:
+    """FR-41: other people's posts, for structure only. Each is labelled with its hook and its
+    shape, so the model copies the pattern, not the words."""
+    blocks = []
+    for i, s in enumerate(shapes):
+        label = " · ".join(
+            x
+            for x in (
+                s.hook_type and f"hook: {s.hook_type.replace('_', ' ')}",
+                s.structure and f"shape: {s.structure}",
+            )
+            if x
+        )
+        text = s.text if len(s.text) <= EXAMPLE_MAX_CHARS else s.text[:EXAMPLE_MAX_CHARS] + "…"
+        blocks.append(f"[{chr(65 + i)}]" + (f" ({label})" if label else "") + f"\n{text}")
+    field = "their field's" if who else "plain"
+    return (
+        "\n\n## Shape examples (not their voice, not their field)\n"
+        "These posts were written by other people, often in other fields. Use them ONLY for "
+        "the hook, the structure, the rhythm and the length. Never copy their phrases, topics, "
+        "names, jargon, numbers, links or calls to action. Parts in [brackets] are empty "
+        "slots. If a shape needs details the facts below don't give, pick a simpler shape: "
+        "never fill a shape with invented scenes, times, people or results. Keep the length "
+        f"to what the facts can fill. Write about the facts below, in {field} vocabulary.\n\n"
+        + "\n\n".join(blocks)
     )
 
 
@@ -233,10 +312,70 @@ def _rewrite_if_needed(ai, prompt, result, text, topic, examples):
     return retry, second, second_text
 
 
-def _check_limit(user_id: uuid.UUID) -> None:
-    """FR-30, before any AI call. 429 like the AI's own rate limit; the input is kept."""
+TOO_CLOSE = "This draft is close to one of the example posts. Consider rewording it."
+
+
+def _find_shapes(platform, idea, about, hook_type, embedder) -> list[StructureExample]:
+    """Never stops a draft: with no local model or an empty pool, there are just none."""
+    if not idea.strip():
+        return []
     try:
-        check_drafts(user_id)
+        return structure_examples(
+            platform, idea, about.discipline, about.main_goal, hook_type, embedder=embedder
+        )
+    except Exception:
+        logger.exception("couldn't find structure examples; drafting without them")
+        return []
+
+
+def _closest(embedder, text: str, shapes: list[StructureExample]) -> tuple[int, float]:
+    vector = embedder.embed_passages([text])[0]
+    scores = [cosine(vector, s.embedding) for s in shapes]
+    best = max(range(len(scores)), key=scores.__getitem__)
+    return best, scores[best]
+
+
+def _check_originality(ai, prompt, result, text, shapes, embedder):
+    """FR-49: embed the draft and compare it with its shape examples. Too close: ask once
+    more, naming the example; keep the less similar draft. Still too close: flag it (True).
+    The local model failing never stops a draft."""
+    shapes = [s for s in shapes if s.embedding]
+    if not shapes:
+        return prompt, result, text, False
+    from app.ai.local_embed import local_embedder
+
+    embedder = embedder or local_embedder()
+    threshold = get_settings().originality_threshold
+    try:
+        i, score = _closest(embedder, text, shapes)
+    except Exception:
+        logger.exception("originality check failed; keeping the draft")
+        return prompt, result, text, False
+    if score < threshold:
+        return prompt, result, text, False
+    # Scores only, never text (CLAUDE.md, security and privacy).
+    logger.info("draft too close to a shape example (%.3f); asking once more", score)
+    retry = (
+        prompt + "\n\n## Fix your first try\n"
+        f"- It follows shape example [{chr(65 + i)}] too closely. Keep only its kind of hook "
+        "and structure; say everything in your own words, about the facts above."
+    )
+    try:
+        second = ai.generate(retry, purpose="draft_originality")
+        second_text = clean_output(second.text)
+        _, second_score = _closest(embedder, second_text, shapes)
+    except Exception:
+        return prompt, result, text, True
+    if not second_text or second_score >= score:
+        return prompt, result, text, True
+    return retry, second, second_text, second_score >= threshold
+
+
+def _check_limit(user_id: uuid.UUID) -> bool:
+    """FR-30, before any AI call. 429 like the AI's own rate limit; the input is kept.
+    True: today's limit is used up but the user's own key may go on, on their key only."""
+    try:
+        return check_drafts(user_id)
     except LimitReached as e:
         raise DraftError("daily_limit", e.message, 429) from e
 
@@ -251,6 +390,8 @@ def generate_draft(
     adapt_from: str | None = None,
     source_draft_id: uuid.UUID | None = None,
     adapt_approved: bool = False,
+    hook_type: str | None = None,
+    embedder=None,
 ) -> DraftResult:
     """Write one draft and put it in a thread as a card (FR-46): in `thread_id`, or in a new
     thread of its own when none is given."""
@@ -261,8 +402,9 @@ def generate_draft(
             "missing_topic",
             "Write what you did today, or fill in your summary card in Profile first.",
         )
-    _check_limit(user_id)
-    ai = ai or default_client()
+    own_only = _check_limit(user_id)
+    # The user's own keys first, then the app's (FR-48); past the limit, theirs only.
+    ai = for_user(ai or default_client(), user_id, allow_default=not own_only)
 
     with user_session(user_id) as s:
         if checkin_id is not None and s.get(Checkin, checkin_id) is None:  # RLS: own rows only
@@ -290,9 +432,13 @@ def generate_draft(
         if counts.usable
         else []
     )
-    # Fewer than 20 posts here: the shared inspiration pool shapes the structure (FR-5).
-    pool = inspiration(user_id, platform) if counts.thin else []
-    if not examples and not pool:
+    # FR-41: 3 posts from the shared pool, for their structure only; for a non-developer,
+    # matched by shape so the topic of dev posts can't leak in. Without the local model or an
+    # embedded pool, a thin history falls back to the team's templates, as before (FR-5).
+    who = who_is_writing(about.discipline, about.audience_kind, about.main_goal)
+    shapes = _find_shapes(platform, topic or about.summary_card[:1000], about, hook_type, embedder)
+    pool = inspiration(user_id, platform) if counts.thin and not shapes else []
+    if not examples and not pool and not shapes:
         raise DraftError(
             "no_posts",
             f"No {name} posts are ready yet. Import your export first, "
@@ -309,8 +455,11 @@ def generate_draft(
         adapt_from,
         adapt_approved,
         pool,
+        shapes,
+        who,
     )
     result: GenerationResult = ai.generate(prompt, purpose="draft")
+    key_notice = result.notice  # FR-48: e.g. "Your key failed, used the free model instead."
     text = clean_output(result.text)
     if not text:
         raise AIUnavailable("the model returned nothing")  # 503; nothing is saved
@@ -318,8 +467,14 @@ def generate_draft(
     # source draft is model output: a number it made up must not count as a fact (rule 10).
     facts = f"{topic}\n{about.summary_card}\n{adapt_from if adapt_approved else ''}"
     # Inspiration sentences must not be copied either.
-    copy_sources = examples + [Example(uuid.uuid4(), t, 0.0, False) for t in pool]
+    copy_sources = examples + [
+        Example(uuid.uuid4(), t, 0.0, False) for t in pool + [s.text for s in shapes]
+    ]
     prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, facts, copy_sources)
+    notices: list[str] = [key_notice] if key_notice else []
+    prompt, result, text, close = _check_originality(ai, prompt, result, text, shapes, embedder)
+    if close:
+        notices.append(TOO_CLOSE)
     length = post_length(text, profile.counting_rule)
     # Q31: the prompt keeps asking for the short limit; Premium only raises the block (FR-9).
     limit = effective_limit(user_id, profile)
@@ -367,6 +522,7 @@ def generate_draft(
                 model=result.model,
                 model_version=result.model_version,
                 provider=result.provider,
+                key_source=result.key_source,
             )
         )
         s.flush()
@@ -384,6 +540,7 @@ def generate_draft(
         model_version=result.model_version,
         examples=examples,
         created_at=created_at,
+        notices=tuple(notices),
     )
 
 

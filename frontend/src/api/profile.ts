@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { AudienceKind, MainGoal } from '../lib/profession'
 import { api } from './client'
 
 /** One of the user's projects; only the name is required (FR-17, FR-40). */
@@ -21,7 +22,10 @@ export type Profile = {
   avoid_list: string
   voice_words: string
   links: string
+  /** Their profession (FR-17): drafts use this field's words, never another's (FR-41). */
   discipline: string
+  audience_kind: AudienceKind
+  main_goal: MainGoal
   usual_hours: string
   language: string
   excluded_hashtags: string[]

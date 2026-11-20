@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from string import Template
 
-from app.ai.client import AIClient, AIUnavailable, default_client
+from app.ai.client import AIClient, AIUnavailable, default_client, for_user
 from app.core.db import user_session
 from app.models import Draft, DraftMessage, PlatformProfile, PromptLog, Thread
 from app.services.drafting import (
@@ -72,7 +72,7 @@ def revise(
         raise DraftError("missing_instruction", "Tell it what to change.")
     current = detail(user_id, draft_id)
     d = current.draft
-    _check_limit(user_id)
+    own_only = _check_limit(user_id)
     if d.status != "draft":
         raise DraftError("not_editable", "Move it back to draft before you change the text.", 409)
     selection = (selection or "").strip() or None
@@ -93,7 +93,8 @@ def revise(
         voice_card(user_id, d.platform),
         selection,
     )
-    result = (ai or default_client()).generate(prompt, purpose="revise")  # outside any transaction
+    ai = for_user(ai or default_client(), user_id, allow_default=not own_only)  # FR-48
+    result = ai.generate(prompt, purpose="revise")  # outside any transaction
     answer = clean_output(result.text)
     if not answer or answer.upper() == QUESTION:
         raise AIUnavailable("the model returned nothing")  # 503; nothing is saved
@@ -141,6 +142,7 @@ def revise(
                 model=result.model,
                 model_version=result.model_version,
                 provider=result.provider,
+                key_source=result.key_source,
             )
         )
     return detail(user_id, draft_id)

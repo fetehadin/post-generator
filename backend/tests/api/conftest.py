@@ -3,7 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.ai.client import AIUnavailable, GenerationResult
+from app.ai.client import AIUnavailable, GenerationResult, KeyCheckUnavailable, KeyRejected
 from app.api.deps import get_ai
 from app.core.auth import Identity, current_user, identity
 from app.main import create_app
@@ -14,6 +14,15 @@ DIMS = 768
 class FakeAI:
     def __init__(self, fail_generate: bool = False):
         self.fail_generate = fail_generate
+        self.key_check = "ok"  # "ok" | "reject" | "down", for PUT /me/ai-keys
+        self.checked: list[tuple[str, str]] = []
+
+    def check_key(self, provider, key, model=None):
+        self.checked.append((provider, key))
+        if self.key_check == "reject":
+            raise KeyRejected("401: invalid api key")
+        if self.key_check == "down":
+            raise KeyCheckUnavailable("network error (ConnectError)")
 
     def embed_documents(self, texts):
         # Distinct directions per text, so search doesn't treat them as near-copies.

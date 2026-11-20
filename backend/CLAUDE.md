@@ -64,9 +64,29 @@ ruff check . --fix && ruff format .
 ## AI client (`app/ai/client.py`)
 
 - `embed_documents(texts) -> list[list[float]]` and `embed_query(text) -> list[float]`: apply the required prefixes, request 768 dims, one content object per text, batch in groups, retry 429/5xx with backoff.
-- `generate(prompt, purpose) -> GenerationResult(text, model, provider)`: walk `settings.generation_models` in order; move on when a model errors, is rate-limited or is missing. Record each attempt in `provider_usage`.
-- Never fall back for embeddings. Raise `EmbeddingUnavailable`; the import job retries later.
+- `generate(prompt, purpose) -> GenerationResult(text, model, provider, key_source, tokens…)`: walk the chain (`settings.chain_for(purpose)`: small jobs may use `GENERATION_MODELS_LIGHT`); move on when a model errors, is rate-limited or is missing.
+- **Routes and keys (FR-48):** a route is one model with one key. `ai.for_user(user_id)` (or `for_user(ai, user_id)` in services, which leaves test fakes alone) tries the user's own keys through the whole chain, then the app's keys. `allow_default=False` keeps a user past the daily limit on their own key only. Services must bind the user; the bare client acts as a guest.
+- **Circuit breaker (`ai/breaker.py`):** a route that fails 3 calls in a row, or says how long it is down (daily quota, rejected key, removed model), is skipped for a while. While a backup remains a route gets 2 tries, the last route all of them. `check_models` ignores the breaker.
+- **Every logical call is recorded** to `ai_calls` (purpose, model, key source, attempts, time, tokens; never text) through the recorder `default_client()` wires to `services/ai_calls.py`. A refused own key is marked `rejected` there. `python -m app.dev ai-report` reads it as the owner.
+- `embed_query` caches vectors by text (same model, same vector), so one topic is embedded once for three platforms.
+- Never fall back to another embedding model. Only whose key pays changes. Raise `EmbeddingUnavailable`; the import job retries later.
+- Users' keys are sealed with `core/secrets.py` (Fernet, keys only in `AI_KEY_ENCRYPTION_KEYS`). Never log, return or export a key.
 - Tests mock the client. No test calls a real AI API.
+
+## Local embeddings and the inspiration pool (`app/ai/local_embed.py`, `services/inspiration.py`)
+
+- `local_embedder()` is one fastembed model per process (ONNX, CPU), loaded in the background at startup (`LOCAL_EMBEDDING_PRELOAD`). `embed_passages(texts)` for stored text, `embed_query(text)` for what we search with; e5 models get `passage: ` / `query: ` added here, nowhere else.
+- The Docker image downloads the model at build time into `/opt/models` (`app/ai/local_models.py`, standalone). Locally the first use downloads it (~470 MB) into fastembed's cache, or `LOCAL_EMBEDDING_CACHE_DIR`.
+- `exemplar_posts` holds the team's 24 templates (`source='template'`) and creators' posts (`source='creator'`), for structure only: never shown to users, never a source of facts or wording.
+- Fill it: `python -m app.dev import-inspiration samples/private/inspiration` (hash-deduplicated), then `python -m app.dev backfill-inspiration` (tags with the free LLM in small batches, then embeds; both skip finished rows, so re-run after a 429 stop).
+- Tests use a fake model (`backend=`); no test downloads one.
+
+## GitHub → daily dev drafts (`services/github.py`, FR-14)
+
+- Optional: off without `GITHUB_CLIENT_ID`/`SECRET`. OAuth (no scopes) proves the account; the GitHub App adds private repos. A signed `state` (10 minutes) ties every GitHub round trip to the logged-in user; an installation is linked only when its account id is the user's.
+- GitHub calls live in `services/github_api.py` (httpx, read-only); tests pass a fake. Only the user's own commits/PRs/releases are stored, never diffs, scrubbed by `services/github_scrub.py`.
+- Webhooks (`/webhooks/github`) are checked with `X-Hub-Signature-256` and handled in a background thread. They and the hourly job find users through the narrow functions `user_for_github_installation()` and `github_connected_users()` (ids only), then work as that user under RLS.
+- `score()` is pure (stage 1, no AI); `judge()` is one small AI call (stage 2, purpose `github_judge`, on the user's key first). Only `mention_ok` repos reach the AI or a draft.
 
 ## Importers
 
