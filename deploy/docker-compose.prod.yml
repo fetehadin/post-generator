@@ -45,6 +45,16 @@ services:
       GUEST_DAILY_DRAFTS: ${GUEST_DAILY_DRAFTS:-12}
       GUEST_DAILY_TOTAL: ${GUEST_DAILY_TOTAL:-300}
       EDGE_SECRET: ${EDGE_SECRET:-}
+      GENERATION_MODELS_LIGHT: ${GENERATION_MODELS_LIGHT:-}
+      # FR-48: encrypts users' own AI keys; empty turns the AI keys tab off.
+      AI_KEY_ENCRYPTION_KEYS: ${AI_KEY_ENCRYPTION_KEYS:-}
+      # FR-14: GitHub → daily dev drafts; empty turns it off. The private key is one line with \n.
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_SLUG: ${GITHUB_APP_SLUG:-}
+      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:-}
     expose:
       - "8000"
     depends_on:
