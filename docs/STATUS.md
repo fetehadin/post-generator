@@ -1,8 +1,46 @@
 # Status log
 
-A running log so anyone (Nezira especially) can catch up: what was done, where, the result, and what's next. Newest first. Updated at the end of every task.
+A running log so either of us can catch up: what was done, where, the result, and what's next. Newest first. Updated at the end of every task.
 
-**Where we are:** Phases 3–6 demos passed on 4 Nov 2026; next is beta prep (Phase 7). Live at https://voxlace.fetehadin.com, deployed on every merge to `main`. The task queue is set by Fetehadin. Nezira is away, so each PR is reviewed by a fresh-context review subagent plus Fetehadin's reading of the summary, and tagged `@Nezira_Worku please post-review` so she reads it when she's back.
+**Where we are:** Phase 7, private beta prep. Phases 3–6 demos passed on 4 Nov 2026. Live at https://voxlace.fetehadin.com, deployed on every merge to `main`. Since 10 Nov anyone with the link can try it as a guest or sign up without an invite. Since 19 Nov Nezira is a full partner (GitHub `Jennah198`, write access, server SSH), so each PR is reviewed by the other person, as BUILD_PLAN §2 says.
+
+---
+
+## 2026-11-20: Six AI providers, inspiration for structure, GitHub drafts, the logo (#67–#73)
+
+**Result: all merged and live.** Each deploy passed its health check.
+
+| PR | What | Requirement |
+|---|---|---|
+| #68 | Your own AI key (Gemini, Groq), circuit breaker, `ai_calls` log of every AI call (no text) | FR-48, NFR-19, NFR-20 |
+| #69 | Local embeddings (fastembed `intfloat/multilingual-e5-small`, 384 dims, CPU, free) for the shared inspiration pool. Creators' posts are used **for structure only**, never their words. 675 creator posts + 24 templates loaded and tagged on the server | FR-41 |
+| #70 | Structure examples picked by profession and goal; originality check (a draft ≥ 0.9 cosine to an example is rewritten once, then flagged); profession, audience and goal in Profile. Prompt fix for rule 10: no invented scenes, plans or sign-offs. Ten-topic eval: 9/10 before, 10/10 after | FR-41, FR-49, FR-19 |
+| #71 | AI keys from six providers (Google, Groq, OpenAI, Anthropic, OpenRouter, Mistral), your own model choice, your key tried first, then the free models with a notice | FR-48 |
+| #72 | GitHub → suggested drafts: connect GitHub (OAuth, no scopes) and optionally install the GitHub App for private repos (read-only). Rule-based score first, a small AI judge only above the threshold, an evening digest in your time zone, secrets scrubbed | FR-14 |
+| #67 | The black-and-white "talking o" logo: favicon, app icon, link preview, sidebar, login (DESIGN.md §5) | — |
+| #73 | The production compose file now passes `AI_KEY_ENCRYPTION_KEYS`, `GENERATION_MODELS_LIGHT` and `GITHUB_*` to the API | FR-48, FR-14 |
+
+**Found on the way:** the production compose file lists every setting by hand, so the AI keys tab was off on the live site even with the key on the server (#73 fixed it). When you add a setting, add it to `deploy/docker-compose.prod.yml` and `deploy/server-env.template` too.
+
+**Rules changed:** CLAUDE.md rule 3 now has two embedding spaces, never mixed: Gemini for users' own posts, the local model for the inspiration pool and the originality check.
+
+**GitHub setup (done 20 Nov):** OAuth App (callback `/github/callback`) and GitHub App `voxlace` (App ID 5845221; Contents, Pull requests, Metadata read-only; events push, pull_request, release; webhook `/api/v1/webhooks/github`). All secrets are in the server's settings file. Checked live: the app key signs in to GitHub, and a re-sent webhook ping was accepted (202). The app's `.pem` is kept outside the repo; if it's lost, make a new key under the app's Credentials → Key pairs and delete the old one.
+
+**Still open:**
+- First real run: connect GitHub and install the app from Profile → GitHub, then check the evening digest.
+- Real-key checks for OpenAI, Anthropic, OpenRouter and Mistral (only the request shapes are tested); `gpt-4.1-mini` as OpenAI's default is unverified.
+- Phase 7: feedback on drafts, weekly beta report, the success bar, tester export guide.
+- Ops before inviting testers: an off-server backup target (`BACKUP_REMOTE`), Supabase Site URL, invites to Supabase and Cloudflare, "Protect main" approvals back to 1.
+- 50 old commits on `main` had an AI attribution trailer; history was rewritten on 19 Nov to remove it. Anyone with an old clone should re-clone or `git fetch && git reset --hard origin/main` on `main`.
+
+---
+
+## 2026-11-10: Open to anyone with the link; Nezira's access
+
+**Result: anyone can try Voxlace without an account, and anyone can sign up without an invite.**
+- Merged #65 (guest mode, FR-47; open sign-up, FR-28). Deploy passed.
+- **Checked live:** a guest draft from a plain `curl` returned an X draft; the server has `GUEST_SIGNING_KEY` and `EDGE_SECRET`; `INVITE_ONLY` is off; the Worker `voxlace-edge` has `EDGE_SECRET`, so each visitor is counted by their own address; new users confirm their email first.
+- **Nezira (`Jennah198`):** GitHub write access (the most a personal-account repo gives) and her SSH key logs in to the server as `deploy`. Host and paths are in `deploy/README.md`.
 
 ---
 
