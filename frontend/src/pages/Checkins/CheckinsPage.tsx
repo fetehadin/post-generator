@@ -67,20 +67,20 @@ function CheckinRow({ checkin }: { checkin: Checkin }) {
             maxLength={4000}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="mt-1 block min-h-20 w-full rounded-control border border-edge bg-surface p-2 font-serif [field-sizing:content]"
+            className="mt-1 block min-h-20 w-full rounded-control border border-edge bg-surface p-2 [field-sizing:content]"
           />
           <div className="mt-2 flex gap-2">
             <button
               type="submit"
               disabled={patch.isPending || !text.trim()}
-              className="min-h-9 rounded-control bg-primary px-3 text-sm font-semibold text-on-primary"
+              className="min-h-9 rounded-full bg-primary px-3 text-sm font-semibold text-on-primary"
             >
               Save
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="min-h-9 rounded-control border border-edge px-3 text-sm hover:bg-sunken"
+              className="min-h-9 rounded-full border border-edge px-3 text-sm hover:bg-sunken"
             >
               Cancel
             </button>
@@ -88,7 +88,7 @@ function CheckinRow({ checkin }: { checkin: Checkin }) {
         </form>
       ) : (
         <div className="flex items-start gap-2">
-          <p className="flex-1 font-serif whitespace-pre-wrap">{checkin.text}</p>
+          <p className="flex-1 whitespace-pre-wrap">{checkin.text}</p>
           <button
             type="button"
             onClick={() => setEditing(true)}

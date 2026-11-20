@@ -56,7 +56,7 @@ export function ApprovePanel({ draft, mode, onSave, onCancel, pending }: Props) 
           type="button"
           disabled={!when || pending}
           onClick={() => onSave({ ...approve, scheduled_for: fromLocalInput(when) })}
-          className="inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:bg-sunken disabled:text-muted"
+          className="inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:bg-sunken disabled:text-muted"
         >
           {mode === 'approve' ? 'Approve and schedule' : 'Save the new time'}
         </button>
@@ -65,7 +65,7 @@ export function ApprovePanel({ draft, mode, onSave, onCancel, pending }: Props) 
             type="button"
             disabled={pending}
             onClick={() => onSave({ status: 'approved' })}
-            className="inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm"
+            className="inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm"
           >
             Approve without a time
           </button>
@@ -75,7 +75,7 @@ export function ApprovePanel({ draft, mode, onSave, onCancel, pending }: Props) 
             type="button"
             disabled={pending}
             onClick={() => onSave({ scheduled_for: null })}
-            className="inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm"
+            className="inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm"
           >
             Take it off the calendar
           </button>

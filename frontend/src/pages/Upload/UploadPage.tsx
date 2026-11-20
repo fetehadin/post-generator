@@ -151,7 +151,7 @@ export function UploadPage() {
         <button
           type="submit"
           disabled={!file || tooBig || create.isPending}
-          className="mt-6 inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
+          className="mt-6 inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
         >
           {create.isPending ? 'Reading your posts…' : 'Import posts'}
         </button>
@@ -206,7 +206,7 @@ function Result({ job, premiumHint }: { job: ImportJob; premiumHint: boolean | n
             <p className="font-semibold">Your voice is ready.</p>
             <Link
               to="/"
-              className="mt-4 inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary"
+              className="mt-4 inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary"
             >
               Write your first post
             </Link>

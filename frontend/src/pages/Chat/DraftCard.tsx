@@ -22,9 +22,9 @@ import { dateIn, formatShort, formatWhen, localToUtc } from '../../lib/time'
 import { Preview } from '../Editor/Preview'
 
 const button =
-  'min-h-9 rounded-control border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
+  'min-h-9 rounded-full border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
 const primary =
-  'min-h-9 rounded-control bg-primary px-3 text-sm font-semibold text-on-primary disabled:opacity-50'
+  'min-h-9 rounded-full bg-primary px-3 text-sm font-semibold text-on-primary disabled:opacity-50'
 
 /** An older version, folded to its first line (DESIGN.md §4.1). Opens to read or restore. */
 export function FoldedCard({ card, draft }: { card: ThreadCard; draft: DraftRow }) {
@@ -42,14 +42,12 @@ export function FoldedCard({ card, draft }: { card: ThreadCard; draft: DraftRow 
       >
         <PlatformMark platform={draft.platform} />
         <span className="flex-none">{name}</span>
-        {!open && <span className="min-w-0 truncate font-serif">{firstLine}</span>}
+        {!open && <span className="min-w-0 truncate">{firstLine}</span>}
         <Icon name={open ? 'chevron-down' : 'chevron-right'} className="ml-auto size-4" />
       </button>
       {open && (
         <div className="px-4 pb-3">
-          <p className="font-serif text-md leading-writing whitespace-pre-wrap text-ink">
-            {card.text}
-          </p>
+          <p className="text-md leading-writing whitespace-pre-wrap text-ink">{card.text}</p>
           {draft.status !== 'published' && (
             <button
               type="button"
@@ -149,14 +147,14 @@ export function DraftCard({
     <article
       aria-label={label}
       className={cn(
-        'rounded-panel border bg-surface p-4',
+        'rounded-panel border bg-surface p-5',
         selected ? 'border-primary' : 'border-line',
       )}
     >
       <header className="flex flex-wrap items-center gap-2 text-sm">
         <PlatformMark platform={draft.platform} />
         <span className="font-semibold">{label}</span>
-        <span className="rounded-full border border-line px-2 text-xs text-muted">
+        <span className="rounded-full bg-sunken px-2 py-0.5 text-xs text-muted">
           {STATUS_LABEL[draft.status]}
         </span>
         <div className="ml-auto flex items-center gap-1">
@@ -239,7 +237,7 @@ export function DraftCard({
             id={`edit-${draft.id}`}
             value={edited}
             onChange={(e) => setEdited(e.target.value)}
-            className="block w-full resize-y rounded-control border border-edge bg-surface p-3 font-serif text-lg leading-writing [field-sizing:content]"
+            className="block w-full resize-y rounded-control border border-edge bg-surface p-3 text-md leading-writing [field-sizing:content]"
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <LengthCounter text={edited} rule={RULES[draft.platform]} limit={card.length.limit} />
@@ -260,7 +258,7 @@ export function DraftCard({
           <Preview platform={draft.platform} text={card.text} name={name} />
         </div>
       ) : (
-        <p ref={textRef} className="mt-3 font-serif text-lg leading-writing whitespace-pre-wrap">
+        <p ref={textRef} className="mt-3 text-md leading-writing whitespace-pre-wrap">
           {card.text}
         </p>
       )}

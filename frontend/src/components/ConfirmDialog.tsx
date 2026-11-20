@@ -10,7 +10,7 @@ import {
 } from './ui/dialog'
 
 const button =
-  'inline-flex min-h-9 items-center rounded-control border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
+  'inline-flex min-h-9 items-center rounded-full border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
 
 /**
  * Ask before something that can't be undone (DESIGN.md §8: say what happens). The trigger

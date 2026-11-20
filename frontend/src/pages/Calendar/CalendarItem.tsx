@@ -123,7 +123,7 @@ function ItemDetails({
   const [when, setWhen] = useState(() => toLocalInput(draft.scheduled_for!))
   const error = patch.error ?? schedule.error ?? now.patch.error
   const quiet =
-    'min-h-9 rounded-control border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
+    'min-h-9 rounded-full border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -138,7 +138,7 @@ function ItemDetails({
           </span>
         )}
       </p>
-      <p className="line-clamp-5 font-serif leading-writing whitespace-pre-line">{draft.text}</p>
+      <p className="line-clamp-5 leading-writing whitespace-pre-line">{draft.text}</p>
       <p className="text-xs text-muted">
         Voxlace never posts by itself: at this time it reminds you, and Post now copies the text and
         opens {LABEL[draft.platform]}.
@@ -168,7 +168,7 @@ function ItemDetails({
           <button
             type="submit"
             disabled={patch.isPending}
-            className="min-h-9 rounded-control bg-primary px-3 font-semibold text-on-primary"
+            className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
           >
             Move
           </button>
@@ -195,7 +195,7 @@ function ItemDetails({
               type="button"
               disabled={now.patch.isPending}
               onClick={now.markPosted}
-              className="min-h-9 rounded-control bg-primary px-3 font-semibold text-on-primary"
+              className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
             >
               Yes, mark as posted
             </button>
@@ -216,7 +216,7 @@ function ItemDetails({
               <button
                 type="button"
                 onClick={() => void now.post()}
-                className="min-h-9 rounded-control bg-primary px-3 font-semibold text-on-primary"
+                className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
               >
                 {now.label}
               </button>

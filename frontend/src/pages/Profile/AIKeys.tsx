@@ -8,7 +8,7 @@ import {
   useSaveAIKey,
 } from '../../api/aiKeys'
 
-const button = 'inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm'
+const button = 'inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm'
 const field =
   'mt-1 block min-h-10 w-full rounded-control border border-edge bg-surface px-3 text-sm'
 const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
@@ -209,7 +209,7 @@ function AddKey({ providers, saved }: { providers: Provider[]; saved: AIKey[] })
       <button
         type="submit"
         disabled={!key.trim() || save.isPending}
-        className="inline-flex min-h-10 items-center self-start rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
+        className="inline-flex min-h-10 items-center self-start rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
       >
         {save.isPending ? 'Checking the key…' : 'Check and save'}
       </button>

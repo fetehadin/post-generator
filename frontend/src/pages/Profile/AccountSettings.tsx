@@ -4,7 +4,7 @@ import { downloadExport, useDeleteAccount, useUsage } from '../../api/account'
 import { supabase } from '../../lib/auth'
 
 const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' })
-const button = 'inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm'
+const button = 'inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm'
 
 /** Profile → Settings: today's usage (FR-30), export and delete (FR-38), status, log out. */
 export function AccountSettings() {

@@ -80,7 +80,7 @@ function VoiceBody({ info, label }: { info: PlatformInfo; label: string }) {
           type="button"
           onClick={() => save.mutate(card)}
           disabled={busy || card === info.voice_card}
-          className="inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
+          className="inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
         >
           {save.isPending ? 'Saving…' : 'Save voice card'}
         </button>
@@ -89,7 +89,7 @@ function VoiceBody({ info, label }: { info: PlatformInfo; label: string }) {
           onClick={() => write.mutate()}
           disabled={busy || s.post_count === 0 || card !== info.voice_card}
           title={card !== info.voice_card ? 'Save your edits first' : undefined}
-          className="inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm disabled:text-muted"
+          className="inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm disabled:text-muted"
         >
           {write.isPending
             ? 'Writing…'

@@ -55,7 +55,7 @@ export function GuestPage() {
           <Link
             to="/login"
             state={{ mode: 'signup' }}
-            className="min-h-10 rounded-control bg-primary px-4 py-2 font-semibold text-on-primary"
+            className="min-h-10 rounded-full bg-primary px-4 py-2 font-semibold text-on-primary"
           >
             Create account
           </Link>
@@ -93,7 +93,7 @@ export function GuestPage() {
             rows={3}
             maxLength={4000}
             placeholder="What you built, fixed or learned…"
-            className="block w-full resize-none bg-transparent px-1 font-serif text-lg leading-writing outline-none [field-sizing:content] placeholder:text-muted"
+            className="block w-full resize-none bg-transparent px-1 text-md leading-writing outline-none [field-sizing:content] placeholder:text-muted"
           />
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             <div role="group" aria-label="Which platforms?" className="flex flex-wrap gap-2">
@@ -117,7 +117,7 @@ export function GuestPage() {
             <button
               type="submit"
               disabled={empty || !platforms.length || write.isPending}
-              className="min-h-10 rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:opacity-50"
+              className="min-h-10 rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:opacity-50"
             >
               {write.isPending
                 ? 'Writing…'
@@ -196,7 +196,7 @@ function GuestCard({ draft, onChange }: { draft: GuestDraft; onChange: (d: Guest
           />
         </span>
       </header>
-      <p className="mt-3 font-serif text-lg leading-writing whitespace-pre-wrap">{draft.text}</p>
+      <p className="mt-3 text-md leading-writing whitespace-pre-wrap">{draft.text}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {QUICK.map((q) => (
           <button
@@ -230,7 +230,7 @@ function GuestCard({ draft, onChange }: { draft: GuestDraft; onChange: (d: Guest
         <button
           type="submit"
           disabled={!ask.trim() || revise.isPending}
-          className="min-h-10 rounded-control border border-edge px-4 text-sm hover:bg-sunken disabled:opacity-50"
+          className="min-h-10 rounded-full border border-edge px-4 text-sm hover:bg-sunken disabled:opacity-50"
         >
           {revise.isPending ? 'Changing…' : 'Change'}
         </button>
@@ -245,14 +245,14 @@ function GuestCard({ draft, onChange }: { draft: GuestDraft; onChange: (d: Guest
         <button
           type="button"
           onClick={() => void copy()}
-          className="min-h-10 rounded-control border border-edge px-4 text-sm hover:bg-sunken"
+          className="min-h-10 rounded-full border border-edge px-4 text-sm hover:bg-sunken"
         >
           {copied ? 'Copied' : 'Copy text'}
         </button>
         <Link
           to="/login"
           state={{ mode: 'signup' }}
-          className="min-h-10 rounded-control bg-primary px-4 py-2 text-sm font-semibold text-on-primary"
+          className="min-h-10 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-on-primary"
         >
           Save, approve and schedule: create an account
         </Link>

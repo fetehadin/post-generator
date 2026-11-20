@@ -45,7 +45,7 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 
 **Decided by the product owner, 22 Oct 2026** (replaces the 21 Oct layout).
 
-**Left sidebar** (a floating card, inset from the window edge), top to bottom:
+**Left sidebar** (flat and full height, on `--sidebar`), top to bottom:
 - the wordmark and the **theme toggle** (sun/moon: light ⇄ dark);
 - **Chat**: "New chat", then past threads, newest first (like ChatGPT's history);
 - **Drafts**: opens to **X · LinkedIn · Telegram**, each a list of that platform's drafts;
@@ -132,7 +132,7 @@ The home screen is a ChatGPT-style thread with one question at the top.
 ```
 
 - **Save** keeps the check-in. **Generate** asks "Which platforms?" in the thread (three toggles, remembering the last choice), then posts one card per platform.
-- **Cards are the drafts.** A card shows the platform, version, the draft in serif, the length counter and "AI draft". Click a card to reply to it: the box shows **Replying to: X draft**. With one draft in the thread, replies go to it.
+- **Cards are the drafts.** A card shows the platform, version, the draft text, the length counter and "AI draft". Click a card to reply to it: the box shows **Replying to: X draft**. With one draft in the thread, replies go to it.
 - **Every reply that changes the text is a new full card** (v2, v3…), like ChatGPT's answers. Older cards stay above, folded to their first line. A question from the assistant appears as a plain message.
 - **Quick changes** (Shorter, Punchier, More casual, Add a hook) sit above the box when a card is selected. Selecting a sentence in a card scopes the next change to it.
 - **Card actions:** Approve; Copy and open (approved cards only: nothing is handed off before Approve, CLAUDE.md rule 4); ⋯ → Make an X / LinkedIn / Telegram version (a new card, FR-40), Edit by hand, Discard.
@@ -166,24 +166,22 @@ Invite → privacy → pick platforms → role and focus → audience profession
 
 ## 5. Visual direction
 
-**Decided 22 Oct 2026 (v3), by the product owner:** ScholarXIV's own colors and style, light and dark only ([`design/REFERENCE_SCHOLARXIV.md`](../design/REFERENCE_SCHOLARXIV.md)). This replaces v2's warm paper, teal primary and the mixed theme. The tokens live in `frontend/src/index.css`.
+**Decided 20 Nov 2026 (v4), by the product owner:** a ChatGPT-style chat look, light and dark only. This replaces v3 (ScholarXIV's zinc palette, Archivo and the serif, 22 Oct 2026). We take ChatGPT's layout and feel, never its name, logo or icons. The tokens live in `frontend/src/index.css`.
 
-**Concept: "a quiet, cool page."**
-- A monochrome zinc base; color only carries meaning.
-- The primary button is near-black and flips to near-white in dark, as on ScholarXIV.
-- The user's words are set in a serif, so the draft is the one bold thing on screen.
-- Teal survives only as a small mark for the AI: the "AI draft" label and the focus ring.
-
-What we take from ScholarXIV: zinc neutrals, white / `#171717` backgrounds, the black/white primary flip, borders instead of shadows, a floating navigation card, a right panel (we now use one for notifications), an empty screen that asks first, quick 150 ms motion.
-
-What stays ours: a serif for the user's writing, the teal AI mark, Ethiopic-ready fonts.
+**Concept: "a calm chat."**
+- Neutral greys; color only carries meaning.
+- A flat, full-height sidebar in a slightly different grey from the page; no floating card.
+- What the user typed sits in a soft right-aligned bubble; the drafts answer below it.
+- One rounded pill composer with a round send button.
+- Buttons are pills. The primary button is near-black and flips to white in dark.
+- Teal stays as a small mark for the AI only: the "AI draft" label, links and the focus ring.
 
 ### Themes
 
 | Theme | What it is | When |
 |---|---|---|
-| Light | White page, zinc greys, near-black primary | Default when the system is light |
-| Dark | `#171717` off-black, never pure black; primary flips to near-white | Default when the system is dark |
+| Light | White page, `#F9F9F9` sidebar, near-black primary | Default when the system is light |
+| Dark | Near-black `#0A0A0A` page, pure black `#000000` sidebar (changed 20 Nov 2026: `#212121` read as grey); primary flips to white | Default when the system is dark |
 
 - The toggle (sun/moon) sits in the sidebar header and switches light ⇄ dark.
 - The choice is saved per browser; the system preference is the first default.
@@ -193,15 +191,18 @@ What stays ours: a serif for the user's writing, the teal AI mark, Ethiopic-read
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--paper` | `#FFFFFF` | `#171717` | App background |
-| `--surface` | `#FFFFFF` | `#1C1C1C` | Cards, the composer, panels |
-| `--sunken` | `#F4F4F5` | `#262626` | Folded cards, chips, inactive tabs, current nav item |
-| `--line` | `#E4E4E7` | `#2E2E2E` | Dividers and card borders (decorative) |
-| `--edge` | `#8A8A93` | `#7A7A82` | Outlines of inputs and buttons (≥ 3:1) |
-| `--ink` | `#09090B` | `#FAFAFA` | Main text |
-| `--ink-2` | `#52525B` | `#A1A1AA` | Secondary text, meta lines, placeholders |
-| `--primary` | `#18181B` | `#FAFAFA` | **Primary buttons**, selected chips |
-| `--on-primary` | `#FAFAFA` | `#18181B` | Text on primary buttons |
+| `--paper` | `#FFFFFF` | `#0A0A0A` | App background |
+| `--surface` | `#FFFFFF` | `#0A0A0A` | Cards and panels (with a `--line` border) |
+| `--sidebar` | `#F9F9F9` | `#000000` | Sidebar and mobile tab bar |
+| `--bubble` | `#F4F4F4` | `#1F1F1F` | The user's message bubble |
+| `--composer` | `#FFFFFF` | `#171717` | The message box |
+| `--sunken` | `#ECECEC` | `#1C1C1C` | Hover and current nav item, chips, status badges |
+| `--line` | `#E5E5E5` | `#262626` | Dividers and card borders (decorative) |
+| `--edge` | `#8F8F8F` | `#8E8E8E` | Outlines of inputs and buttons (≥ 3:1) |
+| `--ink` | `#0D0D0D` | `#ECECEC` | Main text |
+| `--ink-2` | `#5D5D5D` | `#A3A3A3` | Secondary text, meta lines, placeholders |
+| `--primary` | `#0D0D0D` | `#FFFFFF` | **Primary buttons**, the send button, selected chips |
+| `--on-primary` | `#FFFFFF` | `#0D0D0D` | Text on primary buttons |
 | `--thread` | `#2B6B5B` | `#72C4AE` | The AI mark only: "AI draft" label, focus ring, links |
 | `--signal` | `#8F5508` | `#E3A64C` | Near the limit, "still learning", due now |
 | `--danger` | `#B42318` | `#F2806F` | Over the limit, errors, missed, delete |
@@ -210,35 +211,35 @@ What stays ours: a serif for the user's writing, the teal AI mark, Ethiopic-read
 
 | Pair | Light | Dark |
 |---|---|---|
-| `--ink` on `--paper` / `--surface` / `--sunken` | 19.9 / 19.9 / 18.1 | 17.2 / 16.3 / 14.5 |
-| `--ink-2` on `--paper` / `--surface` / `--sunken` | 7.7 / 7.7 / 7.0 | 7.0 / 6.6 / 5.9 |
-| `--thread` on `--paper` / `--surface` / `--sunken` | 6.3 / 6.3 / 5.7 | 8.7 / 8.3 / 7.4 |
-| `--signal` on `--paper` / `--surface` | 6.1 / 6.1 | 8.4 / 8.0 |
-| `--danger` on `--paper` / `--surface` | 6.6 / 6.6 | 6.9 / 6.6 |
-| `--on-primary` on `--primary` (primary button) | 17.0 | 17.0 |
-| `--edge` on `--paper` / `--surface` (input outlines) | 3.4 / 3.4 | 4.2 / 4.0 |
+| `--ink` on `--paper` / `--sidebar` / `--bubble` / `--sunken` | 19.4 / 18.5 / 17.7 / 16.5 | 16.8 / 17.8 / 14.0 / 14.4 |
+| `--ink-2` on `--paper` / `--sidebar` / `--bubble` / `--sunken` | 6.6 / 6.3 / 6.0 / 5.6 | 7.8 / 8.3 / 6.5 / 6.8 |
+| `--thread` on `--paper` / `--sunken` | 6.3 / 5.3 | 9.6 / 8.3 |
+| `--signal` on `--paper` / `--sunken` | 6.1 / 5.1 | 9.3 / 8.0 |
+| `--danger` on `--paper` / `--bubble` | 6.6 / 6.0 | 7.6 / 6.4 |
+| `--on-primary` on `--primary` (primary button) | 19.4 | 19.4 |
+| `--edge` on `--paper` / `--composer` (input outlines) | 3.2 / 3.2 | 6.0 / 5.5 |
 
 ### Type
 
 | Role | Typeface | Fallback for Amharic (FR-24) | Notes |
 |---|---|---|---|
-| Interface | **Archivo** 400/600 (chosen by the product owner, 19 Oct 2026: the ScholarXIV face) | **Noto Sans Ethiopic** | Labels, buttons, navigation. Sentence case. |
-| The user's writing | **Source Serif 4** 400/600 | **Noto Serif Ethiopic** | Editor, check-ins, draft cards, source posts: 18px, line-height 1.7, at most 68 characters a line |
+| Everything: interface and the user's writing | **Inter** 400/600 (chosen 20 Nov 2026) | **Noto Sans Ethiopic** | One family, like ChatGPT. Sentence case. |
+| Code, keys, repo names | **JetBrains Mono** 400 | — | `font-mono`, and every `code` / `pre` / `kbd` by default |
 | Platform previews | The platform's own system stack (+ Noto Sans Ethiopic) | same | So the preview looks like the real post |
-| Numbers in counters | Interface font with `tabular-nums` | — | Digits don't jump while typing |
+| Numbers in counters | Inter with `tabular-nums` | — | Digits don't jump while typing |
 
-Neither Latin face has Ethiopic letters, so the browser takes each Amharic character from the Noto Ethiopic fallback named right after it. Both Noto faces match the x-height and weight closely, and the prototypes test this with an Amharic line. All four fonts are OFL-licensed and **self-hosted** in the app through `@fontsource` packages, so user pages make no third-party font requests.
+Inter has no Ethiopic letters, so the browser takes each Amharic character from Noto Sans Ethiopic, named right after it. All three fonts are OFL-licensed and **self-hosted** through `@fontsource` packages, so user pages make no third-party font requests.
 
 | Token | Size | Use |
 |---|---|---|
-| `--text-xs` | 13px | Meta lines, badges, hints |
+| `--text-xs` | 13px | Meta lines, badges, hints, sidebar section titles |
 | `--text-sm` | 14px | Buttons, navigation, labels |
-| `--text-md` | 16px | Interface body |
-| `--text-lg` | 18px | The user's writing |
-| `--text-xl` | 22px | Brand, panel titles |
-| `--text-2xl` | 30px | Page questions ("What did you work on today?") |
+| `--text-md` | 16px | Interface body **and the user's writing** (messages, drafts, check-ins), line-height 1.65 |
+| `--text-lg` | 18px | Sidebar wordmark |
+| `--text-xl` | 22px | Chat titles, panel titles |
+| `--text-2xl` | 30px | Page questions ("What did you do today?") |
 
-Headings 22px and up use `--tracking-tight` (−0.02em). Interface line-height is 1.5; writing line-height is 1.7. **Weights: 400 and 600 only.**
+Headings 22px and up use `--tracking-tight` (−0.02em). Interface line-height is 1.5; writing line-height is 1.65 (`leading-writing`). **Weights: 400 and 600 only.**
 
 ### Logo
 
@@ -257,34 +258,16 @@ Rules: never set "voxlace" in a font; use the component. Keep space around it eq
 ### Space and shape
 
 - 4px grid: `--space-1` to `--space-12` = 4, 8, 12, 16, 24, 32, 48.
-- Radius: `--radius-control` 8px (buttons, inputs, nav items), `--radius-panel` 12px (cards, panels, composer), `--radius-pill` (chips, send button, status badges).
-- **Borders separate, shadows float.** Cards and panels get a 1px `--line` border. Only menus, dialogs and toasts use `--shadow-float`. Focused inputs and buttons get a 2px `--thread` ring.
+- Radius: `--radius-control` 10px (inputs, nav items), `--radius-panel` 16px (cards, panels), `--radius-composer` 28px (the message box), `rounded-3xl` for the user's bubble, **pills for every button**, chips and badges.
+- **Borders separate, shadows float.** Cards and panels get a 1px `--line` border. The composer gets the faint `--shadow-composer`; menus, dialogs and toasts use `--shadow-float`. Focused inputs and buttons get a 2px `--thread` ring.
 - **Bars never hide focus** (WCAG 2.4.11): pages with a sticky composer or action bar set `scroll-padding-bottom` to the bars' height.
-- Layout: a floating sidebar card `--sidebar-width` 264px, inset 12px → icon rail `72px` below 1024px → bottom tab bar below 768px. A **right panel** of 300px for notifications and missed posts from 1280px up; below that it's a bell. One centered column, `--column` 720px.
+- Layout: a flat sidebar 260px on `--sidebar`, full height, no border → 64px icon rail when collapsed → bottom tab bar below 768px. A **right panel** of 300px for notifications and missed posts from 1280px up; below that it's a bell. One centered column, `--column` 720px. The new-chat question and its composer sit centered, about a fifth of the way down.
 
 ### Motion
 
 - `--duration` 150ms with `--ease` `cubic-bezier(0.2, 0, 0, 1)`, for color and background only.
 - The one signature moment is the draft text streaming in (§10).
 - `prefers-reduced-motion` sets the duration to 0.
-
-### Side by side: their measured values → ours
-
-| Property | ScholarXIV (measured) | Voxlace |
-|---|---|---|
-| Interface font | Archivo (app), Inter (docs) | **Archivo** + Noto Sans Ethiopic (same face by choice; identity comes from palette, serif and layout) |
-| Content font | Same sans | Source Serif 4 + Noto Serif Ethiopic (the user's ink) |
-| Background light / dark | `#FFFFFF` / `#171717` | the same |
-| Neutral hue | Cool zinc (hue 240) | the same |
-| Primary button | Near-black `hsl(240 5.9% 10%)`, flips to white in dark | the same (`--primary`) |
-| Accent | Almost none; green status dot, green docs nav | A small teal `--thread` for the AI label and focus only |
-| Border | `#E4E4E7`, 1px | `--line #E4E4E7` decorative, `--edge #8A8A93` for controls (≥ 3:1) |
-| Radius controls / cards | 6px / 12px | 8px / 12px, pills for chips |
-| Shadows | None, except floating tabs | None, except menus, dialogs and toasts |
-| Reading text | 16px / 1.7, max 808px | 18px serif / 1.7, max 68ch |
-| Headings | 36px/500, −0.9px tracking | 30px/600, −0.02em |
-| Motion | 150ms `cubic-bezier(0.4,0,0.2,1)`, color + shadow | 150ms `cubic-bezier(0.2,0,0,1)`, color only |
-| Themes | Light, dark (`html.dark`) | Light, dark (`html[data-theme]`) |
 
 ---
 
@@ -417,7 +400,7 @@ Run before every UI pull request (the `design-reviewer` agent uses this list):
 - [ ] Nothing about sources, models or scores on drafts; the "AI draft" tag is under the draft in the editor (FR-11)
 - [ ] Loading, empty, error and over-limit states designed, not just the happy path
 - [ ] Only tokens from §5; no hard-coded colors or one-off font sizes
-- [ ] User's writing in the serif; interface in the sans; sentence case
+- [ ] Inter for all text, JetBrains Mono for code; sentence case
 - [ ] Contrast passes (4.5:1 text, 3:1 UI); status not shown by color alone
 - [ ] Keyboard: every action reachable, focus visible and not covered
 - [ ] Targets at least 24×24px; drag has a click alternative
