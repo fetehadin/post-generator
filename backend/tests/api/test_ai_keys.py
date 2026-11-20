@@ -33,7 +33,11 @@ def test_saving_checks_the_key_stores_it_sealed_and_shows_only_the_last_four(api
 
     listed = api.get("/api/v1/me/ai-keys").json()
     assert listed["enabled"] is True
-    assert {p["id"] for p in listed["providers"]} == {"google", "groq"}
+    assert {p["id"] for p in listed["providers"]} == {
+        "google", "groq", "openai", "anthropic", "openrouter", "mistral",
+    }  # fmt: skip
+    assert listed["keys"][0]["masked"] == "AIz…wxyz"
+    assert all(p["default_model"] for p in listed["providers"])
     assert [k["provider"] for k in listed["keys"]] == ["google"]
     assert KEY not in str(listed)
 
@@ -59,7 +63,7 @@ def test_obviously_wrong_keys_are_refused_before_asking_anyone(api, bad):
 
 
 def test_unknown_provider_is_404(api):
-    assert api.put("/api/v1/me/ai-keys/openai", json={"key": KEY}).status_code == 404
+    assert api.put("/api/v1/me/ai-keys/cohere", json={"key": KEY}).status_code == 404
 
 
 def test_feature_off_without_an_encryption_key(api, monkeypatch):
@@ -87,14 +91,19 @@ def test_another_user_never_sees_or_uses_your_key(api, make_user):
     assert api.get("/api/v1/me/ai-keys").json()["keys"] == []
     assert ai_keys.active_keys(other) == {}
     assert api.delete("/api/v1/me/ai-keys/google").status_code == 404
-    assert ai_keys.active_keys(me) == {"google": KEY}
+    assert ai_keys.active_keys(me) == {"google": (KEY, None)}
 
 
 def test_export_names_the_key_but_never_contains_it(api):
     api.put("/api/v1/me/ai-keys/google", json={"key": KEY})
     exported = api.get("/api/v1/me/export")
     assert exported.status_code == 200
-    assert {"provider": "google", "last4": "wxyz", "status": "active"} in exported.json()["ai_keys"]
+    assert {
+        "provider": "google",
+        "last4": "wxyz",
+        "model": None,
+        "status": "active",
+    } in exported.json()["ai_keys"]
     assert KEY not in exported.text
 
 
@@ -200,3 +209,31 @@ def test_key_rows_are_unreadable_without_the_owner(owner_engine):
     """No user set: the app role sees no keys at all (fails closed)."""
     with user_session(uuid.UUID(int=0)) as s:
         assert s.scalars(select(UserAIKey)).all() == []
+
+
+def test_a_chosen_model_is_checked_saved_and_used_newest_key_first(api):
+    user = api.state["user"]
+    r = api.put(
+        "/api/v1/me/ai-keys/anthropic", json={"key": "sk-ant-" + "x" * 30, "model": "claude-x"}
+    )
+    assert r.status_code == 200, r.text
+    assert (r.json()["model"], r.json()["masked"]) == ("claude-x", "sk-…xxxx")
+    api.put("/api/v1/me/ai-keys/groq", json={"key": "gsk_" + "y" * 40})
+    keys = ai_keys.active_keys(user)
+    assert list(keys) == ["groq", "anthropic"]  # the newest key is tried first
+    assert keys["anthropic"][1] == "claude-x"
+
+
+def test_a_model_name_with_odd_characters_is_refused(api):
+    r = api.put("/api/v1/me/ai-keys/openai", json={"key": "sk-" + "x" * 30, "model": "a b"})
+    assert r.status_code == 400 and r.json()["error"]["code"] == "invalid_model"
+
+
+def test_using_a_key_never_changes_which_is_tried_first(api):
+    user = api.state["user"]
+    api.put("/api/v1/me/ai-keys/anthropic", json={"key": "sk-ant-" + "x" * 30})
+    api.put("/api/v1/me/ai-keys/groq", json={"key": "gsk_" + "y" * 40})
+    ai_keys.mark_used(user, "anthropic")  # using the older key...
+    assert list(ai_keys.active_keys(user)) == ["groq", "anthropic"]  # ...doesn't move it up
+    listed = api.get("/api/v1/me/ai-keys").json()["keys"]
+    assert [k["provider"] for k in listed] == ["groq", "anthropic"]

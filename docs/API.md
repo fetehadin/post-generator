@@ -430,30 +430,21 @@ Body `{"confirm": "delete"}` (any case) → `204`. Deletes the user's row and, b
 
 #### `GET /me/ai-keys`
 
-```json
-{
-  "enabled": true,
-  "providers": [
-    { "id": "google", "name": "Google Gemini", "key_url": "https://aistudio.google.com/apikey", "used_for": "Drafts, revisions and reading your imported posts" },
-    { "id": "groq", "name": "Groq", "key_url": "https://console.groq.com/keys", "used_for": "Drafts and revisions" }
-  ],
-  "keys": [
-    { "provider": "google", "last4": "wxyz", "status": "active", "last_error": null, "added_at": "2026-11-19T10:00:00Z", "last_used_at": "2026-11-19T11:02:00Z" }
-  ]
-}
-```
+`providers`: `google`, `groq`, `openai`, `anthropic`, `openrouter`, `mistral`, each as `{id, name, key_url, used_for, default_model}`. `keys`: the user's keys, newest first, as `{provider, last4, masked, model, status, last_error, added_at, last_used_at}`, where `masked` looks like `"sk-…a9F2"` and `model: null` means `default_model`.
 
 - `enabled` is `false` when the server has no `AI_KEY_ENCRYPTION_KEYS`; the UI then says the feature is off.
-- The key itself is never returned, only `last4`. `status: "rejected"` means the provider refused it on a real call; it's skipped until replaced.
+- The key itself is never returned. `status: "rejected"` means the provider refused it on a real call; it's skipped until replaced.
 
 #### `PUT /me/ai-keys/{provider}` → `200`
 
-`provider` is `google` or `groq`. Body `{"key": "…"}`. The key is checked with the provider first (Gemini: read the embedding model's details; Groq: list models; neither spends generation quota), then stored encrypted, replacing any earlier key for that provider. Returns one key object as above.
+Body `{"key": "…", "model": "…" | null}`. The key is checked with **one tiny test call** ("Reply OK") on that model, then stored encrypted, replacing any earlier key for that provider.
 
-- `400 invalid_key`: not shaped like a key (20–300 characters, no spaces), or the provider refused it. Nothing is stored.
-- `503 key_check_unavailable`: the provider couldn't be reached; nothing is decided. Try again.
-- `503 keys_disabled`: the feature is off on this server.
-- `404 unknown_provider`.
+- `400 invalid_key`: not shaped like a key, or the provider refused the key or the model, or its quota is used up. The message says the provider's reason. Nothing is stored.
+- `400 invalid_model`: the model name has characters no model uses.
+- `503 key_check_unavailable`: the provider couldn't be reached, or a per-minute limit hit. Try again.
+- `503 keys_disabled`; `404 unknown_provider`.
+
+**How keys are used:** a draft tries the user's keys first (newest first, each with its model), then Voxlace's free chain. When a user's key fails and the free chain writes the draft, the draft response's `notices` says "Your key failed, used the free model instead." Embeddings always use Voxlace's own key and model (C-7).
 
 #### `DELETE /me/ai-keys/{provider}` → `204`
 

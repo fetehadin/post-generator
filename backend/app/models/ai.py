@@ -25,7 +25,10 @@ class UserAIKey(CreatedAt, Base):
 
     __tablename__ = "user_ai_keys"
     __table_args__ = (
-        CheckConstraint("provider IN ('google', 'groq')", name="provider"),
+        CheckConstraint(
+            "provider IN ('google', 'groq', 'openai', 'anthropic', 'openrouter', 'mistral')",
+            name="provider",
+        ),
         CheckConstraint("status IN ('active', 'rejected')", name="status"),
     )
 
@@ -35,6 +38,8 @@ class UserAIKey(CreatedAt, Base):
     provider: Mapped[str] = mapped_column(String(16), primary_key=True)
     sealed_key: Mapped[str] = mapped_column(Text)
     last4: Mapped[str] = mapped_column(String(4))
+    prefix: Mapped[str] = mapped_column(String(8), server_default="")  # "sk-" of "sk-…a9F2"
+    model: Mapped[str | None] = mapped_column(String(128))  # NULL: the provider's default
     # "rejected": the provider refused it on a real call; it is skipped until replaced.
     status: Mapped[str] = mapped_column(String(16), server_default="active")
     last_error: Mapped[str | None] = mapped_column(Text)

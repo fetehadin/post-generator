@@ -46,6 +46,16 @@ class Settings(BaseSettings):
     # or high. Less thinking is faster and uses less quota; check drafts with the ten topics.
     gemini_thinking_level: str = ""
     groq_api_key: str = ""
+    # FR-48: the model a user's own key writes with when they don't pick one, per provider.
+    # Their key's provider must be one of: google, groq, openai, anthropic, openrouter, mistral.
+    byok_default_models: str = (
+        "google:gemini-flash-latest,groq:openai/gpt-oss-120b,openai:gpt-4.1-mini,"
+        "anthropic:claude-opus-5-5,openrouter:openrouter/auto,mistral:mistral-small-latest"
+    )
+    # Claude models whose refusals are re-run server-side on another Claude model.
+    anthropic_fallback_models: str = (
+        "claude-fable-5-2,claude-fable-5-1,claude-opus-5-5,claude-opus-5,claude-sonnet-5-5"
+    )
     # FR-48: users may add their own AI keys. They are encrypted with these Fernet keys
     # (comma-separated; the first encrypts, all decrypt, for rotation). Empty turns the
     # feature off. Make one with `python -m app.dev new-secret-key`.
@@ -93,6 +103,16 @@ class Settings(BaseSettings):
     @property
     def generation_chain(self) -> list[tuple[str, str]]:
         return _chain(self.generation_models)
+
+    @property
+    def anthropic_fallback_model_set(self) -> set[str]:
+        return {m.strip() for m in self.anthropic_fallback_models.split(",") if m.strip()}
+
+    def byok_default_model(self, provider: str) -> str:
+        for provider_, model in _chain(self.byok_default_models):
+            if provider_ == provider:
+                return model
+        return ""
 
     def chain_for(self, purpose: str) -> list[tuple[str, str]]:
         """Small jobs use the light chain when one is set; writing always uses the main one."""

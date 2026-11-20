@@ -459,6 +459,7 @@ def generate_draft(
         who,
     )
     result: GenerationResult = ai.generate(prompt, purpose="draft")
+    key_notice = result.notice  # FR-48: e.g. "Your key failed, used the free model instead."
     text = clean_output(result.text)
     if not text:
         raise AIUnavailable("the model returned nothing")  # 503; nothing is saved
@@ -470,7 +471,7 @@ def generate_draft(
         Example(uuid.uuid4(), t, 0.0, False) for t in pool + [s.text for s in shapes]
     ]
     prompt, result, text = _rewrite_if_needed(ai, prompt, result, text, facts, copy_sources)
-    notices: list[str] = []
+    notices: list[str] = [key_notice] if key_notice else []
     prompt, result, text, close = _check_originality(ai, prompt, result, text, shapes, embedder)
     if close:
         notices.append(TOO_CLOSE)

@@ -9,12 +9,16 @@ import {
 } from '../../api/aiKeys'
 
 const button = 'inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm'
+const field =
+  'mt-1 block min-h-10 w-full rounded-control border border-edge bg-surface px-3 text-sm'
 const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
+type Provider = AIKeysData['providers'][number]
 
 /**
- * Profile → AI keys (FR-48): bring your own Gemini or Groq key. Drafts try your key first and
- * fall back to Voxlace's; drafts on your key don't count towards the daily limit. The key is
- * checked with the provider, stored encrypted and never shown again, only its last four.
+ * Profile → AI keys (FR-48): optionally bring your own API key from one of six providers.
+ * Your key is tried first, with the model you pick; if it fails, the free models write the
+ * draft and say so. Keys are checked with one tiny call, stored encrypted and never shown
+ * again: only a masked "sk-…a9F2".
  */
 export function AIKeys() {
   const keys = useAIKeys()
@@ -33,111 +37,79 @@ export function AIKeys() {
       </p>
     )
 
+  const byId = new Map(keys.data.providers.map((p) => [p.id, p]))
   return (
-    <div className="mt-4 flex flex-col gap-4">
-      {keys.data.providers.map((p) => (
-        <ProviderKey
-          key={p.id}
-          provider={p}
-          saved={keys.data.keys.find((k) => k.provider === p.id)}
-        />
-      ))}
+    <div className="mt-4 flex flex-col gap-6">
+      <p className="rounded-panel border border-line p-4 text-sm">
+        <b>Optional.</b> A ChatGPT Plus, Claude Pro or Gemini subscription is <b>not</b> an API key.
+        Get a key from the provider's developer console (links below). Without one, Voxlace's free
+        models write your drafts, as they do now.
+      </p>
+
+      {keys.data.keys.length > 0 && (
+        <section aria-labelledby="your-keys" className="flex flex-col gap-3">
+          <h3 id="your-keys" className="font-semibold">
+            Your keys
+          </h3>
+          <p className="text-sm text-muted">
+            Tried first, newest first. Drafts on your key don't count towards the daily limit.
+          </p>
+          {keys.data.keys.map((k) => (
+            <SavedKey key={k.provider} saved={k} provider={byId.get(k.provider)} />
+          ))}
+        </section>
+      )}
+
+      <AddKey providers={keys.data.providers} saved={keys.data.keys} />
+
       <p className="text-sm text-muted">
-        Your key is checked with the provider, stored encrypted and never shown again. Only you can
-        use it. Remove it any time; deleting your account removes it too.
+        Your key is stored encrypted and only you can use it. Remove it any time: it's deleted for
+        good. Deleting your account removes it too.
       </p>
     </div>
   )
 }
 
-function ProviderKey({
-  provider,
-  saved,
-}: {
-  provider: AIKeysData['providers'][number]
-  saved: AIKey | undefined
-}) {
-  const [editing, setEditing] = useState(false)
-  const showForm = editing || !saved
-
-  return (
-    <section
-      aria-labelledby={`key-${provider.id}`}
-      className="rounded-panel border border-line p-4"
-    >
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 id={`key-${provider.id}`} className="font-semibold">
-          {provider.name}
-        </h3>
-        {saved && <Status saved={saved} />}
-      </div>
-      <p className="mt-1 text-sm text-muted">{provider.used_for}.</p>
-
-      {saved && !editing && (
-        <SavedKey saved={saved} provider={provider.id} onReplace={() => setEditing(true)} />
-      )}
-      {showForm && (
-        <KeyForm
-          provider={provider.id}
-          name={provider.name}
-          keyUrl={provider.key_url}
-          onDone={() => setEditing(false)}
-          onCancel={saved ? () => setEditing(false) : undefined}
-        />
-      )}
-    </section>
-  )
-}
-
-function Status({ saved }: { saved: AIKey }) {
-  if (saved.status === 'rejected')
-    return <span className="text-sm font-semibold text-danger">Not working</span>
-  return <span className="text-sm text-muted">In use</span>
-}
-
-function SavedKey({
-  saved,
-  provider,
-  onReplace,
-}: {
-  saved: AIKey
-  provider: AIProvider
-  onReplace: () => void
-}) {
+function SavedKey({ saved, provider }: { saved: AIKey; provider: Provider | undefined }) {
   const remove = useRemoveAIKey()
+  const name = provider?.name ?? saved.provider
   return (
-    <div className="mt-3 flex flex-col gap-2">
-      <p className="text-sm">
-        Key ending in <b className="font-mono">{saved.last4}</b>
+    <div className="rounded-panel border border-line p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="font-semibold">{name}</h4>
+        {saved.status === 'rejected' ? (
+          <span className="text-sm font-semibold text-danger">Not working</span>
+        ) : (
+          <span className="text-sm text-muted">In use</span>
+        )}
+      </div>
+      <p className="mt-1 text-sm">
+        <span className="font-mono">{saved.masked}</span>
         <span className="text-muted">
           {' '}
-          · added {day.format(new Date(saved.added_at))}
+          · {saved.model ?? `${provider?.default_model ?? 'default'} (default)`} · added{' '}
+          {day.format(new Date(saved.added_at))}
           {saved.last_used_at
             ? ` · last used ${day.format(new Date(saved.last_used_at))}`
             : ' · not used yet'}
         </span>
       </p>
       {saved.status === 'rejected' && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="mt-2 text-sm text-danger">
           The provider refused this key{saved.last_error ? ` (${saved.last_error})` : ''}. Drafts
-          use Voxlace's key until you replace it.
+          use the free models until you add it again.
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={onReplace} className={button}>
-          Replace key
-        </button>
-        <button
-          type="button"
-          onClick={() => remove.mutate(provider)}
-          disabled={remove.isPending}
-          className={button}
-        >
-          {remove.isPending ? 'Removing…' : 'Remove'}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => remove.mutate(saved.provider)}
+        disabled={remove.isPending}
+        className={`${button} mt-3`}
+      >
+        {remove.isPending ? 'Removing…' : `Remove ${name} key`}
+      </button>
       {remove.isError && (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="mt-2 text-sm text-danger">
           {remove.error.message}
         </p>
       )}
@@ -145,76 +117,110 @@ function SavedKey({
   )
 }
 
-function KeyForm({
-  provider,
-  name,
-  keyUrl,
-  onDone,
-  onCancel,
-}: {
-  provider: AIProvider
-  name: string
-  keyUrl: string
-  onDone: () => void
-  onCancel?: () => void
-}) {
-  const id = useId()
-  const [value, setValue] = useState('')
+function AddKey({ providers, saved }: { providers: Provider[]; saved: AIKey[] }) {
+  const ids = { provider: useId(), key: useId(), model: useId() }
+  const [providerId, setProviderId] = useState<AIProvider>(providers[0]?.id ?? 'groq')
+  const [key, setKey] = useState('')
+  const [model, setModel] = useState('')
+  const [done, setDone] = useState('')
   const save = useSaveAIKey()
+  const provider = providers.find((p) => p.id === providerId)
+  const replacing = saved.some((k) => k.provider === providerId)
 
   return (
     <form
-      className="mt-3 flex flex-col gap-2"
+      aria-labelledby="add-key"
+      className="flex flex-col gap-3 rounded-panel border border-line p-4"
       onSubmit={(e) => {
         e.preventDefault()
+        setDone('')
         save.mutate(
-          { provider, key: value.trim() },
+          { provider: providerId, key: key.trim(), model: model.trim() },
           {
-            onSuccess: () => {
-              setValue('')
-              onDone()
+            onSuccess: (k) => {
+              setKey('')
+              setModel('')
+              setDone(`Saved. Your ${provider?.name ?? ''} key ${k.masked} works.`)
             },
           },
         )
       }}
     >
-      <label htmlFor={id} className="text-sm">
-        Your {name} API key
+      <h3 id="add-key" className="font-semibold">
+        {replacing ? 'Add or replace a key' : 'Add a key'}
+      </h3>
+      <label htmlFor={ids.provider} className="text-sm">
+        Provider
+        <select
+          id={ids.provider}
+          value={providerId}
+          onChange={(e) => {
+            setProviderId(e.target.value as AIProvider)
+            setModel('')
+          }}
+          className={field}
+        >
+          {providers.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
       </label>
-      <div className="flex flex-wrap gap-2">
+      <label htmlFor={ids.key} className="text-sm">
+        API key
         <input
-          id={id}
+          id={ids.key}
           type="password"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
           autoComplete="off"
           spellCheck={false}
           placeholder="Paste the key"
-          className="min-h-10 min-w-0 flex-1 rounded-control border border-edge bg-surface px-3 font-mono text-sm"
+          className={`${field} font-mono`}
         />
-        <button
-          type="submit"
-          disabled={!value.trim() || save.isPending}
-          className="inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
-        >
-          {save.isPending ? 'Checking…' : 'Save key'}
-        </button>
-        {onCancel && (
-          <button type="button" onClick={onCancel} className="min-h-10 px-3 text-sm text-muted">
-            Cancel
-          </button>
-        )}
-      </div>
-      <p className="text-sm text-muted">
-        No key yet?{' '}
-        <a href={keyUrl} target="_blank" rel="noreferrer" className="text-thread underline">
-          Make one at {name}
-        </a>
-        . Free keys work too.
-      </p>
+      </label>
+      <label htmlFor={ids.model} className="text-sm">
+        Model <span className="text-muted">(optional)</span>
+        <input
+          id={ids.model}
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          autoComplete="off"
+          spellCheck={false}
+          placeholder={provider?.default_model}
+          className={`${field} font-mono`}
+        />
+      </label>
+      {provider && (
+        <p className="text-sm text-muted">
+          Empty uses {provider.default_model}. Get a key at{' '}
+          <a
+            href={provider.key_url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-thread underline"
+          >
+            {provider.name}'s developer console
+          </a>
+          .
+        </p>
+      )}
+      <button
+        type="submit"
+        disabled={!key.trim() || save.isPending}
+        className="inline-flex min-h-10 items-center self-start rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
+      >
+        {save.isPending ? 'Checking the key…' : 'Check and save'}
+      </button>
       {save.isError && (
         <p role="alert" className="text-sm text-danger">
           {save.error.message}
+        </p>
+      )}
+      {done && (
+        <p role="status" className="text-sm">
+          {done}
         </p>
       )}
     </form>

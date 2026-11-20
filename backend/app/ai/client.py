@@ -14,6 +14,8 @@ logical call is reported to a recorder (tokens, time, key source; never the text
 the app saves to `ai_calls`.
 """
 
+import dataclasses
+import functools
 import hashlib
 import logging
 import re
@@ -24,6 +26,7 @@ from collections import OrderedDict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
+import anthropic
 import httpx
 from google import genai
 from google.genai import errors, types
@@ -36,7 +39,7 @@ logger = logging.getLogger(__name__)
 DOC_PREFIX = "title: none | text: "
 QUERY_PREFIX = "task: search result | query: "
 EMBED_BATCH = 100
-RETRYABLE = {429, 500, 502, 503, 504}
+RETRYABLE = {429, 500, 502, 503, 504, 529}  # 529: Anthropic "overloaded"
 MAX_WAIT = 90.0
 # Gemini says how long to wait: "Please retry in 15.4s", "retry in 22h50m23.6s" (a daily
 # quota) or a RetryInfo retryDelay "15s".
@@ -44,9 +47,19 @@ RETRY_HINT = re.compile(
     r"retry in ((?:\d+h)?(?:\d+m)?[\d.]+s)|retryDelay\W+([\d.]+s)", re.IGNORECASE
 )
 DURATION = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?([\d.]+)s")
-GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODELS_URL = "https://api.groq.com/openai/v1/models"
-PROVIDERS = ("google", "groq")
+# FR-48: providers that speak the OpenAI chat-completions format, so one httpx call covers them.
+OPENAI_COMPATIBLE = {
+    "groq": "https://api.groq.com/openai/v1",
+    "openai": "https://api.openai.com/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
+    "mistral": "https://api.mistral.ai/v1",
+}
+PROVIDERS = ("google", "groq", "openai", "anthropic", "openrouter", "mistral")
+# Only these accept a sampling temperature for every model we expect people to pick.
+TEMPERATURE_PROVIDERS = {"groq", "openrouter", "mistral", "google"}
+ANTHROPIC_MAX_TOKENS = 16000
+KEY_CHECK_SECONDS = 30
+OWN_KEY_FAILED = "Your key failed, used the free model instead."
 
 MODEL_SHARE = 0.6  # of the time left, for one model while backups remain
 BACKUP_ATTEMPTS = 2  # tries on one route while a backup remains; the last route gets them all
@@ -92,6 +105,7 @@ class GenerationResult:
     prompt_tokens: int | None = None
     output_tokens: int | None = None
     thinking_tokens: int | None = None
+    notice: str | None = None  # FR-48: e.g. the user's key failed and ours answered
 
 
 @dataclass(frozen=True)
@@ -144,9 +158,11 @@ class Tally:
     attempts: int = 0
     tried: int = 0
     rejected: dict[str, str] = field(default_factory=dict)
+    own_failed: bool = False
 
 
-KeyStore = Callable[[uuid.UUID], dict[str, str]]
+# provider -> key, or (key, chosen model or None); in the order the user's keys should be tried.
+KeyStore = Callable[[uuid.UUID], dict[str, "str | tuple[str, str | None]"]]
 Recorder = Callable[[CallRecord], None]
 
 
@@ -175,6 +191,7 @@ class AIClient:
         self._genai_factory = genai_factory
         self.breaker = breaker or CircuitBreaker(clock=clock)
         self._own_clients: OrderedDict[str, object] = OrderedDict()
+        self._anthropic_clients: OrderedDict[str, object] = OrderedDict()
         self._query_cache: OrderedDict[str, tuple[float, ...]] = OrderedDict()
         self._lock = threading.Lock()
 
@@ -211,14 +228,21 @@ class AIClient:
         return c
 
     # ---- routes ----
-    def _own_keys(self, user_id: uuid.UUID | None) -> dict[str, str]:
+    def _own_keys(self, user_id: uuid.UUID | None) -> list[tuple[str, str, str | None]]:
+        """(provider, key, chosen model) for each of the user's working keys, in order."""
         if user_id is None or self._key_store is None:
-            return {}
+            return []
         try:
-            return self._key_store(user_id)
+            stored = self._key_store(user_id)
         except Exception:  # never let a key lookup stop a draft; use the app's keys
             logger.exception("couldn't load a user's own AI keys")
-            return {}
+            return []
+        out = []
+        for provider, value in stored.items():
+            key, model = value if isinstance(value, tuple) else (value, None)
+            if key:
+                out.append((provider, key, model))
+        return out
 
     def _default_key(self, provider: str) -> str:
         return {"google": self.settings.gemini_api_key, "groq": self.settings.groq_api_key}.get(
@@ -226,14 +250,37 @@ class AIClient:
         )
 
     def _routes(
-        self, chain: list[tuple[str, str]], own: dict[str, str], allow_default: bool
+        self,
+        chain: list[tuple[str, str]],
+        own: list[tuple[str, str, str | None]],
+        allow_default: bool,
     ) -> list[Route]:
-        """The user's keys first, through the whole chain, then the app's own keys: someone
-        who brought a key uses their own quota before anyone else's."""
-        routes = [Route(p, m, own[p], "own") for p, m in chain if own.get(p)]
+        """The user's keys first (FR-48: their key has priority), each with the model they
+        chose, else the model our chain uses for that provider, else the provider's default.
+        Then the app's own chain: the free pool, exactly as for everyone else."""
+        routes = []
+        for provider, key, model in own:
+            # Their chosen model; with none, every model our chain uses on that provider (so a
+            # busy one has a backup on their key too), else the provider's default.
+            models = (
+                [model]
+                if model
+                else [m for p, m in chain if p == provider]
+                or [self.settings.byok_default_model(provider)]
+            )
+            routes += [Route(provider, m, key, "own") for m in models if m]
         if allow_default:
             routes += [Route(p, m, self._default_key(p), "default") for p, m in chain]
         return routes
+
+    def _providers(self) -> dict[str, Callable[..., GenerationResult]]:
+        calls: dict[str, Callable[..., GenerationResult]] = {
+            "google": self._generate_google,
+            "anthropic": self._generate_anthropic,
+        }
+        for provider in OPENAI_COMPATIBLE:
+            calls[provider] = functools.partial(self._generate_compatible, provider)
+        return calls
 
     # ---- embeddings ----
     def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
@@ -275,11 +322,13 @@ class AIClient:
     def _embed(
         self, texts: list[str], user_id: uuid.UUID | None, allow_default: bool, purpose: str
     ) -> list[list[float]]:
-        """The fixed embedding model, on the user's Gemini key first, then the app's. The model
-        never changes (rule 3); only whose quota pays for it."""
+        """The fixed embedding model, always on the app's own key (rule 3, FR-48): users'
+        keys are for writing only."""
         started, tally, failures = self._clock(), Tally(), []
         model = self.settings.embedding_model
-        routes = self._routes([("google", model)], self._own_keys(user_id), allow_default)
+        # Embeddings always use the app's own key: users' keys are for writing only, so every
+        # vector of a user's posts comes from one key's model and one project (rule 3).
+        routes = [Route("google", model, self._default_key("google"), "default")]
         for route in routes:
             if not route.key:
                 failures.append("no Gemini key")
@@ -353,7 +402,7 @@ class AIClient:
         deadline = started + self.settings.generation_deadline_seconds
         failures: list[str] = []
         tally = Tally()
-        providers = {"google": self._generate_google, "groq": self._generate_groq}
+        providers = self._providers()
         usable: list[Route] = []
         own = self._own_keys(user_id)
         for route in self._routes(self.settings.chain_for(purpose), own, allow_default):
@@ -364,6 +413,8 @@ class AIClient:
                 failures.append(f"{route.model}: no {route.provider} key")
             elif paused := self.breaker.paused_for(route.breaker_key):
                 failures.append(f"{route.model} paused {paused:.0f}s after failures")
+                if route.source == "own":
+                    tally.own_failed = True  # their key failed recently: still say so
             else:
                 usable.append(route)
         for i, route in enumerate(usable):
@@ -388,6 +439,8 @@ class AIClient:
                 failures.append(f"{route.model} {describe(e)}")
                 continue
             self.breaker.success(route.breaker_key)
+            if tally.own_failed and route.source == "default":
+                result = dataclasses.replace(result, notice=OWN_KEY_FAILED)
             self._record(
                 CallRecord(
                     user_id, purpose, "generate", True, result.provider, result.model,
@@ -409,15 +462,17 @@ class AIClient:
 
     def _fail(self, route: Route, err: BaseException, tally: Tally) -> None:
         """Tell the breaker, and note a user's key that the provider refused."""
-        if route.source == "own" and is_key_problem(err):
-            tally.rejected[route.provider] = describe(err)[:200]
+        if route.source == "own":
+            tally.own_failed = True
+            if is_key_problem(err):
+                tally.rejected[route.provider] = describe(err)[:200]
         self.breaker.failure(route.breaker_key, hold_for(err))
 
     def check_models(self) -> list[ModelCheck]:
         """The daily health check (BUILD_PLAN Phase 6): one tiny prompt to every model in the
         chain on its own, on the app's keys and past the breaker, so a model that disappeared
         shows up before the fallback hides it."""
-        providers = {"google": self._generate_google, "groq": self._generate_groq}
+        providers = self._providers()
         checks = []
         for provider, model in self.settings.generation_chain:
             call = providers.get(provider)
@@ -431,34 +486,31 @@ class AIClient:
                 checks.append(ModelCheck(provider, model, describe(e)))
         return checks
 
-    def check_key(self, provider: str, key: str) -> None:
-        """Ask the provider whether a user's key works, without spending any generation quota:
-        Gemini reads the embedding model's details, Groq lists its models. Raises KeyRejected
-        or KeyCheckUnavailable."""
-        if provider == "google":
-            try:
-                self._new_genai(key).models.get(model=self.settings.embedding_model)
-            except errors.APIError as e:
-                if e.code in RETRYABLE:
-                    raise KeyCheckUnavailable(describe(e)) from e
+    def check_key(self, provider: str, key: str, model: str | None = None) -> None:
+        """FR-48: one tiny test call with the user's key and model ("Reply OK"), so a wrong
+        key, a model the key can't use, or a used-up quota shows up at saving. Raises
+        KeyRejected (with the provider's reason) or KeyCheckUnavailable (try again)."""
+        call = self._providers().get(provider)
+        model = model or self.settings.byok_default_model(provider)
+        if call is None or not model:
+            raise KeyRejected(f"unknown provider {provider}")
+        route = Route(provider, model, key, "own")
+        try:
+            call(model, HEALTH_PROMPT, 0.0, self._clock() + KEY_CHECK_SECONDS, route=route,
+                 attempts=1)  # fmt: skip
+        except AIUnavailable:
+            return  # it answered (blank, or declined to say OK): the key and model work
+        except (errors.APIError, ProviderError) as e:
+            hinted = retry_after(e)
+            if out_of_credit(e):
+                raise KeyRejected(f"it has no credit left ({describe(e)})") from e
+            if is_key_problem(e) or e.code in (400, 404, 422):
                 raise KeyRejected(describe(e)) from e
-            except httpx.TransportError as e:
-                raise KeyCheckUnavailable(describe(e)) from e
-            return
-        if provider == "groq":
-            try:
-                resp = self.http.get(
-                    GROQ_MODELS_URL, headers={"Authorization": f"Bearer {key}"}, timeout=15
-                )
-            except httpx.TransportError as e:
-                raise KeyCheckUnavailable(describe(e)) from e
-            if resp.status_code == 200:
-                return
-            err = _groq_error(resp)
-            if resp.status_code in RETRYABLE:
-                raise KeyCheckUnavailable(describe(err))
-            raise KeyRejected(describe(err))
-        raise KeyRejected(f"unknown provider {provider}")
+            if e.code == 429 and hinted is not None and hinted > MAX_WAIT:
+                raise KeyRejected(f"its quota is used up ({describe(e)})") from e
+            raise KeyCheckUnavailable(describe(e)) from e
+        except httpx.TransportError as e:
+            raise KeyCheckUnavailable(describe(e)) from e
 
     def _left(self, deadline: float) -> float:
         """Seconds for the next call: the usual timeout, or less near the deadline."""
@@ -515,8 +567,9 @@ class AIClient:
             self._http = httpx.Client(timeout=self.settings.ai_timeout_seconds)
         return self._http
 
-    def _generate_groq(
+    def _generate_compatible(
         self,
+        provider: str,
         model: str,
         prompt: str,
         temperature: float,
@@ -525,25 +578,23 @@ class AIClient:
         attempts: int | None = None,
         tally: Tally | None = None,
     ) -> GenerationResult:
+        """Groq, OpenAI, OpenRouter and Mistral: the same chat-completions request."""
         tally = tally or Tally()
-        key = route.key if route else self.settings.groq_api_key
+        key = route.key if route else self._default_key(provider)
         if not key:
-            raise AIUnavailable("GROQ_API_KEY is not set")
-        body = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": temperature,
-        }
-        if model.startswith("openai/gpt-oss"):
+            raise AIUnavailable(f"no {provider} key set")
+        body: dict = {"model": model, "messages": [{"role": "user", "content": prompt}]}
+        if provider in TEMPERATURE_PROVIDERS:
+            body["temperature"] = temperature
+        if provider == "groq" and model.startswith("openai/gpt-oss"):
             # A reasoning model: think briefly and return only the answer, not the reasoning.
             body |= {"reasoning_effort": "low", "include_reasoning": False}
         headers = {"Authorization": f"Bearer {key}"}
+        url = OPENAI_COMPATIBLE[provider] + "/chat/completions"
         for attempt in range(1, (attempts or self.max_attempts) + 1):
             tally.attempts += 1
             try:
-                resp = self.http.post(
-                    GROQ_URL, json=body, headers=headers, timeout=self._left(deadline)
-                )
+                resp = self.http.post(url, json=body, headers=headers, timeout=self._left(deadline))
                 if resp.status_code != 200:
                     raise _groq_error(resp)
                 try:
@@ -556,7 +607,7 @@ class AIClient:
                 return GenerationResult(
                     text=_answer(content),
                     model=model,
-                    provider="groq",
+                    provider=provider,
                     model_version=data.get("model") or model,
                     key_source=route.source if route else "default",
                     prompt_tokens=usage.get("prompt_tokens"),
@@ -567,6 +618,77 @@ class AIClient:
                 if not retryable(e) or attempt == (attempts or self.max_attempts):
                     raise
                 self._backoff(attempt, e, deadline)
+        raise AIUnavailable("unreachable")
+
+    def _anthropic(self, key: str):
+        """One Anthropic SDK client per user key in use (a small LRU, like Gemini's). Our own
+        retry and fallback logic runs around it, so its built-in retries are off."""
+        with self._lock:
+            c = self._anthropic_clients.pop(key, None) or anthropic.Anthropic(
+                api_key=key, max_retries=0
+            )
+            self._anthropic_clients[key] = c
+            while len(self._anthropic_clients) > 64:
+                self._anthropic_clients.popitem(last=False)
+        return c
+
+    def _generate_anthropic(
+        self,
+        model: str,
+        prompt: str,
+        temperature: float,
+        deadline: float,
+        route: Route | None = None,
+        attempts: int | None = None,
+        tally: Tally | None = None,
+    ) -> GenerationResult:
+        """Claude, on the user's own key only (the app has none). No sampling settings:
+        current Claude models reject them. On the models that support it, a refused request
+        is re-run server-side on another Claude model (`fallbacks="default"`)."""
+        tally = tally or Tally()
+        key = route.key if route else ""
+        if not key:
+            raise AIUnavailable("no anthropic key set")
+        request = {
+            "model": model,
+            "max_tokens": ANTHROPIC_MAX_TOKENS,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        for attempt in range(1, (attempts or self.max_attempts) + 1):
+            tally.attempts += 1
+            try:
+                client = self._anthropic(key)
+                if model in self.settings.anthropic_fallback_model_set:
+                    resp = client.beta.messages.create(
+                        **request,
+                        betas=["server-side-fallback-2026-07-01"],
+                        fallbacks="default",
+                        timeout=self._left(deadline),
+                    )
+                else:
+                    resp = client.messages.create(**request, timeout=self._left(deadline))
+            except anthropic.APIStatusError as e:
+                err = ProviderError(e.status_code, e.message, _retry_after_header(e.response))
+            except anthropic.APIConnectionError as e:  # includes timeouts
+                err = ProviderError(503, f"network error ({type(e).__name__})")
+            except anthropic.APIError as e:  # e.g. a reply the SDK couldn't read: move on
+                err = ProviderError(502, f"unreadable reply ({type(e).__name__})")
+            else:
+                if resp.stop_reason == "refusal":
+                    raise AIUnavailable(f"{model} declined this request")
+                text = "".join(b.text for b in resp.content if b.type == "text")
+                return GenerationResult(
+                    text=_answer(text),
+                    model=model,
+                    provider="anthropic",
+                    model_version=getattr(resp, "model", None) or model,
+                    key_source=route.source if route else "default",
+                    prompt_tokens=resp.usage.input_tokens,
+                    output_tokens=resp.usage.output_tokens,
+                )
+            if not retryable(err) or attempt == (attempts or self.max_attempts):
+                raise err
+            self._backoff(attempt, err, deadline)
         raise AIUnavailable("unreachable")
 
     def _backoff(self, attempt: int, err: Exception, deadline: float | None = None) -> None:
@@ -638,16 +760,30 @@ def retryable(err: Exception) -> bool:
         return True
     if not isinstance(err, errors.APIError | ProviderError) or err.code not in RETRYABLE:
         return False
+    if out_of_credit(err):
+        return False
     # A wait longer than we'd ever sleep means a daily quota: move on now, don't spin.
     hinted = retry_after(err)
     return hinted is None or hinted <= MAX_WAIT
 
 
-def is_key_problem(err: BaseException) -> bool:
-    """401/403, or Gemini's 400 "API key not valid": the key itself is the problem."""
+def out_of_credit(err: BaseException) -> bool:
+    """402, or a 429 that is about money, not speed (OpenAI's "insufficient_quota",
+    "credit", "billing"): waiting won't help."""
     if not isinstance(err, errors.APIError | ProviderError):
         return False
-    if err.code in (401, 403):
+    message = str(err.message).lower()
+    return err.code == 402 or (
+        err.code == 429 and any(w in message for w in ("insufficient_quota", "credit", "billing"))
+    )
+
+
+def is_key_problem(err: BaseException) -> bool:
+    """401/403, Gemini's 400 "API key not valid", or no credit left: the key itself is the
+    problem, so a user's key is marked "not working" until they replace it."""
+    if not isinstance(err, errors.APIError | ProviderError):
+        return False
+    if err.code in (401, 403) or out_of_credit(err):
         return True
     return err.code == 400 and "api key" in str(err.message).lower()
 
@@ -682,6 +818,13 @@ def retry_after(err: BaseException) -> float | None:
         return None
     h, mins, secs = DURATION.fullmatch(m.group(1) or m.group(2)).groups()
     return int(h or 0) * 3600 + int(mins or 0) * 60 + float(secs)
+
+
+def _retry_after_header(resp) -> float | None:
+    try:
+        return float(resp.headers["retry-after"])
+    except (KeyError, ValueError, TypeError, AttributeError):
+        return None
 
 
 def _groq_error(resp: httpx.Response) -> ProviderError:

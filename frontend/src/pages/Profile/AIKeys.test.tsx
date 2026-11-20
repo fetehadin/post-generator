@@ -12,14 +12,33 @@ vi.mock('../../api/client', async (importOriginal) => ({
 }))
 
 const providers = [
-  {
-    id: 'google',
-    name: 'Google Gemini',
-    key_url: 'https://aistudio.google.com/apikey',
-    used_for: 'Drafts, revisions and reading your imported posts',
-  },
-  { id: 'groq', name: 'Groq', key_url: 'https://console.groq.com/keys', used_for: 'Drafts' },
-]
+  ['groq', 'Groq', 'https://console.groq.com/keys', 'openai/gpt-oss-120b'],
+  ['openai', 'OpenAI', 'https://platform.openai.com/api-keys', 'gpt-4.1-mini'],
+  [
+    'anthropic',
+    'Anthropic (Claude)',
+    'https://platform.claude.com/settings/keys',
+    'claude-opus-5-5',
+  ],
+].map(([id, name, key_url, default_model]) => ({
+  id,
+  name,
+  key_url,
+  default_model,
+  used_for: 'Drafts',
+}))
+
+const savedKey = (over: Record<string, unknown> = {}) => ({
+  provider: 'openai',
+  last4: 'a9F2',
+  masked: 'sk-…a9F2',
+  model: null,
+  status: 'active',
+  last_error: null,
+  added_at: '2026-11-19T10:00:00Z',
+  last_used_at: null,
+  ...over,
+})
 
 let keys: Record<string, unknown>[] = []
 
@@ -29,19 +48,12 @@ beforeEach(() => {
   routeApi({
     'GET /me/ai-keys': () => ({ enabled: true, providers, keys }),
     'PUT /me/ai-keys/:p': (body) => {
-      const key = (body as { key: string }).key
+      const { key, model } = body as { key: string; model: string | null }
       if (key.includes('bad'))
-        throw new ApiError(400, 'invalid_key', "Google Gemini didn't accept this key.")
-      const saved = {
-        provider: 'google',
-        last4: key.slice(-4),
-        status: 'active',
-        last_error: null,
-        added_at: '2026-11-19T10:00:00Z',
-        last_used_at: null,
-      }
-      keys = [saved]
-      return saved
+        throw new ApiError(400, 'invalid_key', "OpenAI didn't accept this key or model.")
+      const k = savedKey({ last4: key.slice(-4), masked: `sk-…${key.slice(-4)}`, model })
+      keys = [k]
+      return k
     },
     'DELETE /me/ai-keys/:p': () => {
       keys = []
@@ -61,56 +73,56 @@ function renderKeys() {
   )
 }
 
-test('a key is pasted as a password, saved, then shown only by its last four', async () => {
+test('says a subscription is not an API key, and links to the chosen provider', async () => {
   renderKeys()
-  const input = await screen.findByLabelText('Your Google Gemini API key')
+  expect(await screen.findByText(/subscription is/)).toHaveTextContent(
+    'A ChatGPT Plus, Claude Pro or Gemini subscription is not an API key.',
+  )
+  await userEvent.selectOptions(screen.getByLabelText('Provider'), 'anthropic')
+  expect(
+    screen.getByRole('link', { name: /Anthropic \(Claude\)'s developer console/ }),
+  ).toHaveAttribute('href', 'https://platform.claude.com/settings/keys')
+  expect(screen.getByLabelText(/Model/)).toHaveAttribute('placeholder', 'claude-opus-5-5')
+})
+
+test('a key is pasted as a password with an optional model, then shown only masked', async () => {
+  renderKeys()
+  await userEvent.selectOptions(await screen.findByLabelText('Provider'), 'openai')
+  const input = screen.getByLabelText('API key')
   expect(input).toHaveAttribute('type', 'password')
-  await userEvent.type(input, 'fake-fake-fake-fake-wxyz')
-  await userEvent.click(screen.getAllByRole('button', { name: 'Save key' })[0])
-  expect(sent('PUT /me/ai-keys/google')).toEqual([{ key: 'fake-fake-fake-fake-wxyz' }])
-  expect(await screen.findByText('wxyz')).toBeInTheDocument()
-  expect(screen.queryByText(/fake-fake/)).not.toBeInTheDocument()
+  await userEvent.type(input, 'sk-fake-fake-fake-fake-zz11')
+  await userEvent.type(screen.getByLabelText(/Model/), 'gpt-x')
+  await userEvent.click(screen.getByRole('button', { name: 'Check and save' }))
+  expect(sent('PUT /me/ai-keys/openai')).toEqual([
+    { key: 'sk-fake-fake-fake-fake-zz11', model: 'gpt-x' },
+  ])
+  expect(await screen.findByRole('status')).toHaveTextContent('works')
+  expect(await screen.findByText('sk-…zz11')).toBeInTheDocument()
+  expect(screen.queryByText(/sk-fake-fake/)).not.toBeInTheDocument()
 })
 
 test('a refused key shows why and keeps what was typed', async () => {
   renderKeys()
-  const input = await screen.findByLabelText('Your Google Gemini API key')
+  const input = await screen.findByLabelText('API key')
   await userEvent.type(input, 'bad-key-000000000000000')
-  await userEvent.click(screen.getAllByRole('button', { name: 'Save key' })[0])
+  await userEvent.click(screen.getByRole('button', { name: 'Check and save' }))
   expect(await screen.findByRole('alert')).toHaveTextContent("didn't accept this key")
   expect(input).toHaveValue('bad-key-000000000000000')
 })
 
-test('a saved key can be removed', async () => {
-  keys = [
-    {
-      provider: 'google',
-      last4: 'wxyz',
-      status: 'active',
-      last_error: null,
-      added_at: '2026-11-19T10:00:00Z',
-      last_used_at: '2026-11-19T11:00:00Z',
-    },
-  ]
+test('a saved key shows its model and can be removed', async () => {
+  keys = [savedKey({ model: 'gpt-x' })]
   renderKeys()
-  await userEvent.click(await screen.findByRole('button', { name: 'Remove' }))
-  expect(calls()).toContain('DELETE /me/ai-keys/google')
+  expect(await screen.findByText(/gpt-x/)).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Remove OpenAI key' }))
+  expect(calls()).toContain('DELETE /me/ai-keys/openai')
 })
 
 test('a key the provider refused later is flagged', async () => {
-  keys = [
-    {
-      provider: 'google',
-      last4: 'wxyz',
-      status: 'rejected',
-      last_error: '401: API key expired',
-      added_at: '2026-11-19T10:00:00Z',
-      last_used_at: null,
-    },
-  ]
+  keys = [savedKey({ status: 'rejected', last_error: '401: key expired' })]
   renderKeys()
   expect(await screen.findByText('Not working')).toBeInTheDocument()
-  expect(screen.getByRole('alert')).toHaveTextContent('API key expired')
+  expect(screen.getByRole('alert')).toHaveTextContent('key expired')
 })
 
 test('says so when the feature is off', async () => {

@@ -109,18 +109,63 @@ def test_a_users_own_key_is_tried_first_and_marked_own():
     assert records[-1].key_source == "own" and records[-1].user_id == USER
 
 
-def test_own_keys_go_through_the_whole_chain_before_the_apps_keys():
+def test_a_failed_own_key_falls_back_to_the_free_pool_with_a_notice():
     client, log, _, _ = build(
         fail_by_key={"user-key": {"first": [404], "second": [404]}},
         own={USER: {"google": "user-key"}},
     )
     result = client.for_user(USER).generate("p")
     assert result.key_source == "default"
-    assert keys_used(log) == [
-        ("user-key", "first"),
-        ("user-key", "second"),
-        ("app-key", "first"),
-    ]
+    assert result.notice == "Your key failed, used the free model instead."
+    # With no model chosen, their key tries every model our chain uses on that provider first.
+    assert keys_used(log) == [("user-key", "first"), ("user-key", "second"), ("app-key", "first")]
+
+
+def test_a_paused_own_key_still_gets_the_notice():
+    client, _, _, _ = build(
+        fail_by_key={"user-key": {"first": [401], "second": [401]}},
+        own={USER: {"google": "user-key"}},
+    )
+    client.for_user(USER).generate("p")  # 401: their key is paused for an hour
+    again = client.for_user(USER).generate("p")
+    assert again.key_source == "default"
+    assert again.notice == "Your key failed, used the free model instead."
+
+
+def test_the_users_chosen_model_is_used_and_tried_before_any_of_ours():
+    client, log, _, _ = build(own={USER: {"google": ("user-key", "their-model")}})
+    result = client.for_user(USER).generate("p")
+    assert (result.key_source, result.model, result.notice) == ("own", "their-model", None)
+    assert keys_used(log) == [("user-key", "their-model")]
+
+
+def test_a_provider_the_app_has_no_key_for_works_on_the_users_key():
+    sent = []
+
+    def openai(request):
+        sent.append((str(request.url), request.headers["authorization"],
+                     json.loads(request.content)))  # fmt: skip
+        return httpx.Response(200, json={"model": "m", "choices": [{"message": {"content": "hi"}}]})
+
+    client = AIClient(
+        Settings(_env_file=None, gemini_api_key="app", generation_models="google:first"),
+        genai_client=SimpleNamespace(models=Models("app", [])),
+        http=httpx.Client(transport=httpx.MockTransport(openai)),
+        key_store=lambda uid: {"openai": ("sk-user", None)},
+        sleep=lambda _: None,
+    )
+    result = client.for_user(USER).generate("p")
+    assert (result.provider, result.model, result.key_source) == ("openai", "gpt-4.1-mini", "own")
+    url, auth, body = sent[0]
+    assert url == "https://api.openai.com/v1/chat/completions" and auth == "Bearer sk-user"
+    assert "temperature" not in body  # some OpenAI models reject it
+
+
+def test_without_their_own_key_users_get_the_free_pool_exactly_as_before():
+    client, log, _, _ = build()
+    result = client.for_user(USER).generate("p")
+    assert (result.key_source, result.notice) == ("default", None)
+    assert keys_used(log) == [("app-key", "first")]
 
 
 def test_a_refused_own_key_falls_back_and_is_reported_for_marking():
@@ -333,23 +378,11 @@ def test_the_same_topic_is_embedded_once_per_user():
     assert len(records) == 2
 
 
-def test_embeddings_use_the_users_gemini_key_first_with_the_same_model():
+def test_embeddings_never_use_the_users_key():
     client, log, records, _ = build(own={USER: {"google": "user-key"}})
     client.for_user(USER).embed_documents(["a post"])
-    assert keys_used(log, "embed") == [("user-key", "gemini-embedding-2")]
-    assert records[-1].key_source == "own" and records[-1].items == 1
-
-
-def test_embeddings_fall_back_to_the_apps_key_never_to_another_model():
-    client, log, _, _ = build(
-        fail_by_key={"user-key": {"gemini-embedding-2": [403]}},
-        own={USER: {"google": "user-key"}},
-    )
-    client.for_user(USER).embed_documents(["a post"])
-    assert keys_used(log, "embed") == [
-        ("user-key", "gemini-embedding-2"),
-        ("app-key", "gemini-embedding-2"),
-    ]
+    assert keys_used(log, "embed") == [("app-key", "gemini-embedding-2")]
+    assert records[-1].key_source == "default" and records[-1].items == 1
 
 
 def test_embeddings_raise_for_the_queue_when_every_key_fails():
@@ -363,35 +396,103 @@ def test_embeddings_raise_for_the_queue_when_every_key_fails():
 # ---- checking a key before it is saved
 
 
-def test_check_key_google_accepts_a_working_key_without_generating():
+def test_check_key_makes_one_tiny_call_with_the_chosen_model():
     client, log, _, _ = build()
-    client.check_key("google", "user-key")
-    assert [what for what, *_ in log] == ["get"]
+    client.check_key("google", "user-key", "their-model")
+    assert keys_used(log) == [("user-key", "their-model")]
 
 
 @pytest.mark.parametrize(
-    ("code", "error"), [(400, KeyRejected), (403, KeyRejected), (503, KeyCheckUnavailable)]
+    ("error", "expected"),
+    [
+        (400, KeyRejected),
+        (403, KeyRejected),
+        (404, KeyRejected),  # a model this key can't use
+        (api_error(429, "Quota exceeded. Please retry in 20h1m0s."), KeyRejected),
+        (429, KeyCheckUnavailable),  # a per-minute limit: try again
+        (503, KeyCheckUnavailable),
+    ],
 )
-def test_check_key_google_refusals_and_outages(code, error):
-    client, _, _, _ = build(fail_by_key={"user-key": {"get": [code]}})
-    with pytest.raises(error):
+def test_check_key_refusals_and_outages(error, expected):
+    client, _, _, _ = build(fail_by_key={"user-key": {"gemini-flash-latest": [error]}})
+    with pytest.raises(expected):
         client.check_key("google", "user-key")
 
 
 @pytest.mark.parametrize(
     ("status", "error"), [(200, None), (401, KeyRejected), (502, KeyCheckUnavailable)]
 )
-def test_check_key_groq(status, error):
+def test_check_key_on_an_openai_compatible_provider(status, error):
+    def reply(request):
+        if status == 200:
+            return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]})
+        return httpx.Response(status, json={"error": {"message": "x"}})
+
     client = AIClient(
-        Settings(_env_file=None),
-        http=httpx.Client(
-            transport=httpx.MockTransport(
-                lambda r: httpx.Response(status, json={"error": {"message": "x"}})
-            )
-        ),
+        Settings(_env_file=None), http=httpx.Client(transport=httpx.MockTransport(reply))
     )
     if error is None:
-        client.check_key("groq", "gsk_test")
+        client.check_key("mistral", "user-key-000")
     else:
         with pytest.raises(error):
-            client.check_key("groq", "gsk_test")
+            client.check_key("mistral", "user-key-000")
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        api_error(429, "You exceeded your current quota (insufficient_quota)"),
+        api_error(402, "Insufficient credits"),
+    ],
+)
+def test_a_key_without_credit_is_refused_and_not_retried(error):
+    client, log, records, _ = build(
+        fail_by_key={"user-key": {"first": [error]}},
+        own={USER: {"google": ("user-key", "first")}},
+        chain="google:first",
+    )
+    assert client.for_user(USER).generate("p").key_source == "default"
+    assert keys_used(log).count(("user-key", "first")) == 1  # no retry on an empty wallet
+    assert records[-1].rejected_keys[0][0] == "google"
+    client2, _, _, _ = build(fail_by_key={"user-key": {"first": [error]}})
+    with pytest.raises(KeyRejected, match="no credit"):
+        client2.check_key("google", "user-key", "first")
+
+
+def test_anthropic_overload_is_retried_and_odd_errors_fall_back(monkeypatch):
+    import anthropic
+
+    calls = []
+
+    class FakeMessages:
+        def create(self, **kw):
+            calls.append(kw["model"])
+            if len(calls) == 1:
+                raise anthropic.APIStatusError(
+                    "overloaded",
+                    response=httpx.Response(529, request=httpx.Request("POST", "https://x")),
+                    body=None,
+                )
+            if len(calls) == 2:
+                return SimpleNamespace(
+                    stop_reason="end_turn",
+                    content=[SimpleNamespace(type="text", text="hello from claude")],
+                    usage=SimpleNamespace(input_tokens=10, output_tokens=3),
+                    model="claude-x",
+                )
+            raise anthropic.APIError(
+                "odd reply", request=httpx.Request("POST", "https://x"), body=None
+            )
+
+    fake = SimpleNamespace(messages=FakeMessages(), beta=SimpleNamespace(messages=FakeMessages()))
+    monkeypatch.setattr(anthropic, "Anthropic", lambda **kw: fake)
+    client, log, _, _ = build(own={USER: {"anthropic": ("sk-ant-user", "claude-x")}})
+    result = client.for_user(USER).generate("p")
+    assert (result.provider, result.text, result.key_source) == (
+        "anthropic",
+        "hello from claude",
+        "own",
+    )
+    assert calls == ["claude-x", "claude-x"]  # 529 retried once, then answered
+    fallback = client.for_user(USER).generate("p")  # an unreadable reply: the free pool writes
+    assert fallback.key_source == "default" and fallback.notice

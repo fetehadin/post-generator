@@ -102,7 +102,7 @@ def export_all(user_id: uuid.UUID) -> dict:
             ],
             # FR-48: which keys exist, never the keys themselves.
             "ai_keys": [
-                {"provider": k.provider, "last4": k.last4, "status": k.status}
+                {"provider": k.provider, "last4": k.last4, "model": k.model, "status": k.status}
                 for k in mine(UserAIKey)
             ],
             "voice_cards": [{"platform": c.platform, "card": c.card} for c in mine(VoiceCard)],
