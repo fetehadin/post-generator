@@ -588,3 +588,60 @@ class AIKeysOut(BaseModel):
     enabled: bool
     providers: list[AIProviderOut]
     keys: list[AIKeyOut]
+
+
+GitHubFrequency = Literal["daily", "weekly", "highlights"]
+
+
+class GitHubRepoOut(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    private: bool
+    mention_ok: bool = Field(description="May drafts name this repo and its details?")
+
+
+class GitHubDigestOut(BaseModel):
+    id: uuid.UUID
+    day: date
+    kind: Literal["daily", "weekly"]
+    status: Literal["nothing", "suggested", "skipped"]
+    score: int
+    reason: str
+    angle: str | None
+    thread_id: uuid.UUID | None = Field(description="The suggested drafts, when there are some")
+    based_on: list[str] = Field(description="The commits, PRs and releases it used")
+
+
+class GitHubOut(BaseModel):
+    """GET /github (FR-14)."""
+
+    enabled: bool = Field(description="Connecting GitHub is switched on for this app")
+    private_enabled: bool = Field(description="The GitHub App for private repos is set up")
+    connected: bool
+    login: str | None
+    private_repos: bool = Field(description="The GitHub App is installed for this user")
+    frequency: GitHubFrequency
+    repos: list[GitHubRepoOut]
+    digests: list[GitHubDigestOut]
+
+
+class GitHubLinkOut(BaseModel):
+    url: str
+
+
+class GitHubCallbackIn(BaseModel):
+    code: str = Field(min_length=1, max_length=200)
+    state: str = Field(min_length=1, max_length=2000)
+
+
+class GitHubInstallationIn(BaseModel):
+    installation_id: int = Field(gt=0)
+    state: str = Field(min_length=1, max_length=2000)
+
+
+class GitHubSettingsIn(BaseModel):
+    frequency: GitHubFrequency
+
+
+class GitHubRepoIn(BaseModel):
+    mention_ok: bool

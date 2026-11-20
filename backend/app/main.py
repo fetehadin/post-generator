@@ -16,6 +16,7 @@ from app.api import (
     ai_keys,
     checkins,
     drafts,
+    github,
     guest,
     health,
     imports,
@@ -28,7 +29,7 @@ from app.api import (
 )
 from app.core import errors
 from app.core.config import get_settings
-from app.services.background import start_retry_loop
+from app.services.background import start_github_loop, start_retry_loop
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     cfg = get_settings()
     interval = cfg.embedding_retry_seconds
     stop = start_retry_loop(interval) if interval > 0 else None
+    github_stop = start_github_loop() if cfg.github_enabled and cfg.app_env != "test" else None
     if cfg.local_embedding_preload and cfg.app_env != "test":
         # Load the local model once, in the background: requests can start at once, and the
         # first one that needs it waits only until it's ready (FR-41).
@@ -48,6 +50,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
     if stop is not None:
         stop.set()
+    if github_stop is not None:
+        github_stop.set()
 
 
 def _warm_local_model() -> None:
@@ -85,8 +89,10 @@ def create_app() -> FastAPI:
         threads,
         drafts,
         guest,
+        github,
     ):
         app.include_router(module.router, prefix=API_PREFIX)
+    app.include_router(github.webhooks, prefix=API_PREFIX)
     return app
 
 

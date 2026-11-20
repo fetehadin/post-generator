@@ -36,3 +36,21 @@ def start_retry_loop(interval_seconds: int) -> threading.Event:
 
     threading.Thread(target=loop, name="embedding-retry", daemon=True).start()
     return stop
+
+
+def start_github_loop(interval_seconds: int = 3600) -> threading.Event:
+    """FR-14: once an hour, users at their evening hour get their GitHub digest. Nothing is
+    posted; suggestions wait in the app for the user."""
+    from app.services import github
+
+    stop = threading.Event()
+
+    def loop() -> None:
+        while not stop.wait(interval_seconds):
+            try:
+                github.run_once()
+            except Exception:  # the database or GitHub may be down; try again next hour
+                logger.exception("github pass failed")
+
+    threading.Thread(target=loop, name="github-digests", daemon=True).start()
+    return stop

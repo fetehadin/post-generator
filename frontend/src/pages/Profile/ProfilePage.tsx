@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { LABEL, PLATFORMS } from '../../lib/platforms'
 import { AboutYou } from './AboutYou'
 import { AIKeys } from './AIKeys'
+import { GitHubPanel } from './GitHubPanel'
 import { AccountSettings } from './AccountSettings'
 import { AudiencePanel } from './AudiencePanel'
 import { Chip } from './Chip'
@@ -22,6 +23,7 @@ const TABS = [
   { id: 'when', label: 'When you post' },
   { id: 'voice', label: 'Voice & posts' },
   { id: 'ai', label: 'AI keys' },
+  { id: 'github', label: 'GitHub' },
   { id: 'account', label: 'Account' },
 ] as const
 type TabId = (typeof TABS)[number]['id']
@@ -110,6 +112,14 @@ export function ProfilePage() {
             or Mistral: your drafts use it first. Without one, the free models write your drafts.
           </Intro>
           <AIKeys />
+        </TabsContent>
+
+        <TabsContent value="github">
+          <Intro>
+            Optional. Post ideas from the work you push to GitHub, suggested in the evening as
+            drafts you edit and approve.
+          </Intro>
+          <GitHubPanel />
         </TabsContent>
 
         <TabsContent value="account">
