@@ -9,6 +9,7 @@
 """
 
 import logging
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -36,10 +37,26 @@ PROVIDERS = {
         "google",
         "Google Gemini",
         "https://aistudio.google.com/apikey",
-        "Drafts, revisions and reading your imported posts",
+        "Drafts and revisions",
     ),
     "groq": Provider("groq", "Groq", "https://console.groq.com/keys", "Drafts and revisions"),
+    "openai": Provider(
+        "openai", "OpenAI", "https://platform.openai.com/api-keys", "Drafts and revisions"
+    ),
+    "anthropic": Provider(
+        "anthropic",
+        "Anthropic (Claude)",
+        "https://platform.claude.com/settings/keys",
+        "Drafts and revisions",
+    ),
+    "openrouter": Provider(
+        "openrouter", "OpenRouter", "https://openrouter.ai/settings/keys", "Drafts and revisions"
+    ),
+    "mistral": Provider(
+        "mistral", "Mistral", "https://console.mistral.ai/api-keys", "Drafts and revisions"
+    ),
 }
+MODEL_CHARS = re.compile(r"^[A-Za-z0-9._:/@-]{1,128}$")
 
 
 class AIKeyError(Exception):
@@ -56,16 +73,22 @@ def list_keys(user_id: uuid.UUID) -> list[UserAIKey]:
     with user_session(user_id) as s:
         return list(
             s.scalars(
-                select(UserAIKey).where(UserAIKey.user_id == user_id).order_by(UserAIKey.provider)
+                select(UserAIKey)
+                .where(UserAIKey.user_id == user_id)
+                .order_by(UserAIKey.created_at.desc())
             )
         )
 
 
-def save(user_id: uuid.UUID, provider: str, key: str, check) -> UserAIKey:
-    """Check the key with the provider (`check(provider, key)`), then store it encrypted.
-    Replaces any key the user had for that provider."""
+def save(user_id: uuid.UUID, provider: str, key: str, check, model: str | None = None) -> UserAIKey:
+    """Check the key with one tiny call (`check(provider, key, model)`), then store it
+    encrypted. Replaces any key the user had for that provider. `model` empty = the
+    provider's default (settings.byok_default_models)."""
     if provider not in PROVIDERS:
-        raise AIKeyError("unknown_provider", "Pick Google Gemini or Groq.", 404)
+        raise AIKeyError("unknown_provider", "Pick one of the listed providers.", 404)
+    model = (model or "").strip() or None
+    if model and not MODEL_CHARS.match(model):
+        raise AIKeyError("invalid_model", "That model name has characters models never use.", 400)
     if not enabled():
         raise AIKeyError(
             "keys_disabled", "Adding your own AI key isn't switched on for this app yet.", 503
@@ -77,12 +100,13 @@ def save(user_id: uuid.UUID, provider: str, key: str, check) -> UserAIKey:
         )
     name = PROVIDERS[provider].name
     try:
-        check(provider, key)
+        check(provider, key, model)
     except KeyRejected as e:
         logger.info("a user's %s key was refused at saving", provider)
         raise AIKeyError(
             "invalid_key",
-            f"{name} didn't accept this key. Check that it's copied in full and still active.",
+            f"{name} didn't accept this key or model ({str(e)[:160]}). Check that the key is "
+            "copied in full, still active, has credit, and can use that model.",
             400,
         ) from e
     except KeyCheckUnavailable as e:
@@ -97,7 +121,10 @@ def save(user_id: uuid.UUID, provider: str, key: str, check) -> UserAIKey:
             row = UserAIKey(user_id=user_id, provider=provider)
             s.add(row)
         row.sealed_key = secrets.seal(key)
+        row.created_at = datetime.now(UTC)  # "added": a replaced key counts as new
         row.last4 = key[-4:]
+        row.prefix = key[:3] if len(key) >= 24 else ""  # "sk-…a9F2"; short keys show less
+        row.model = model
         row.status = "active"
         row.last_error = None
         row.last_used_at = None
@@ -115,21 +142,26 @@ def delete(user_id: uuid.UUID, provider: str) -> bool:
         return True
 
 
-def active_keys(user_id: uuid.UUID) -> dict[str, str]:
-    """The user's working keys, decrypted, for the AI client. A key no configured encryption
+def active_keys(user_id: uuid.UUID) -> dict[str, tuple[str, str | None]]:
+    """The user's working keys, decrypted, with their chosen models, newest first: the AI
+    client tries them in this order, before Voxlace's own. A key no configured encryption
     key can read (after a rotation went wrong) is left out, never guessed."""
     with user_session(user_id) as s:
         rows = s.execute(
-            select(UserAIKey.provider, UserAIKey.sealed_key).where(
-                UserAIKey.user_id == user_id, UserAIKey.status == "active"
-            )
+            select(UserAIKey.provider, UserAIKey.sealed_key, UserAIKey.model)
+            .where(UserAIKey.user_id == user_id, UserAIKey.status == "active")
+            .order_by(UserAIKey.created_at.desc())
         ).all()
     keys = {}
-    for provider, sealed in rows:
+    for provider, sealed, model in rows:
         plain = secrets.unseal(sealed)
         if plain:
-            keys[provider] = plain
+            keys[provider] = (plain, model)
     return keys
+
+
+def masked(row: UserAIKey) -> str:
+    return f"{row.prefix}…{row.last4}" if row.prefix else f"…{row.last4}"
 
 
 def has_active_key(user_id: uuid.UUID) -> bool:
