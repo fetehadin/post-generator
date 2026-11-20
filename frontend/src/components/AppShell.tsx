@@ -11,6 +11,7 @@ import { Icon, type IconName } from './Icon'
 import { needsAction, NotificationsPanel } from './NotificationsPanel'
 import { PlatformMark } from './PlatformMark'
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from './ui/sheet'
+import { LogoMark, Wordmark } from './Logo'
 
 const THEME_ICON: Record<Theme, IconName> = { light: 'sun', dark: 'moon' }
 const NEXT: Record<Theme, Theme> = { light: 'dark', dark: 'light' }
@@ -84,8 +85,8 @@ export function AppShell() {
               collapsed ? 'flex-col gap-3' : 'justify-between',
             )}
           >
-            <span className="text-xl font-semibold tracking-tight">
-              {collapsed ? 'V' : 'Voxlace'}
+            <span className="text-ink">
+              {collapsed ? <LogoMark className="size-6" /> : <Wordmark className="h-6 w-auto" />}
             </span>
             <div className={cn('flex items-center gap-1', collapsed && 'flex-col')}>
               {count > 0 && !wide && <Bell count={count} />}
@@ -141,7 +142,7 @@ export function AppShell() {
 
       {/* Mobile: the wordmark, the bell and the theme toggle. */}
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-paper px-4 py-2 md:hidden">
-        <span className="text-xl font-semibold tracking-tight">Voxlace</span>
+        <Wordmark className="h-5 w-auto text-ink" />
         <div className="flex items-center gap-1">
           {count > 0 && <Bell count={count} />}
           {themeButton}
