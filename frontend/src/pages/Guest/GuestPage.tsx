@@ -7,6 +7,7 @@ import { PlatformMark } from '../../components/PlatformMark'
 import { cn } from '../../lib/utils'
 import { loadGuest, saveGuest } from '../../lib/guest'
 import { LABEL, PLATFORMS, RULES } from '../../lib/platforms'
+import { Wordmark } from '../../components/Logo'
 
 const QUICK = ['Shorter', 'Punchier', 'End with a question']
 
@@ -46,7 +47,7 @@ export function GuestPage() {
   return (
     <div className="min-h-screen">
       <header className="flex items-center justify-between border-b border-line px-4 py-3 md:px-6">
-        <span className="text-lg font-semibold tracking-tight">Voxlace</span>
+        <Wordmark className="h-5 w-auto text-ink" />
         <nav className="flex items-center gap-2 text-sm">
           <Link to="/login" className="min-h-10 rounded-control px-3 py-2 hover:bg-sunken">
             Log in

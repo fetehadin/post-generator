@@ -17,7 +17,7 @@ Read the relevant doc before changing behaviour. Don't contradict it; if the cod
 - `samples/README.md` — expected parser counts for each sample file, and the format traps they contain.
 - `docs/DESIGN.md` — UI/UX principles, screen specs and tokens. Read it before any UI work.
 
-**Current phase:** 7 — Private beta prep. Demos passed: Phase 0 and 1 on 19 Oct 2026; Phase 2 on 21 Oct 2026; Phases 3–6 on 4 Nov 2026 (one inspiration author per platform on a throwaway database, never Fetehadin's own posts; see docs/STATUS.md). Live at https://voxlace.fetehadin.com, deployed on every merge to main. Still open from Phase 3: drafts sometimes add actions the check-in didn't give (rule 10), a prompt fix that needs the ten-topic before/after. (Update this line when a phase's demo passes.)
+**Current phase:** 7 — Private beta prep. Demos passed: Phase 0 and 1 on 19 Oct 2026; Phase 2 on 21 Oct 2026; Phases 3–6 on 4 Nov 2026 (one inspiration author per platform on a throwaway database, never Fetehadin's own posts; see docs/STATUS.md). Live at https://voxlace.fetehadin.com, deployed on every merge to main. The Phase 3 rule-10 gap (drafts adding actions the check-in didn't give) was fixed on 19 Nov 2026 (#70, ten-topic eval 10/10). (Update this line when a phase's demo passes.)
 
 ## Stack
 
