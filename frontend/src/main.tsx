@@ -15,6 +15,7 @@ import '@fontsource/noto-serif-ethiopic/400.css'
 import '@fontsource/source-serif-4/400.css'
 import '@fontsource/source-serif-4/600.css'
 import './index.css'
+import { markVisit } from './lib/storage'
 import { applyTheme, savedTheme } from './lib/theme'
 import { CalendarPage } from './pages/Calendar/CalendarPage'
 import { CheckinsPage } from './pages/Checkins/CheckinsPage'
@@ -30,6 +31,7 @@ import { UploadPage } from './pages/Upload/UploadPage'
 import { WelcomePage } from './pages/Welcome/WelcomePage'
 
 applyTheme(savedTheme())
+markVisit()
 
 const queryClient = new QueryClient()
 

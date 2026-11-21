@@ -206,25 +206,83 @@ const profile: Profile = {
 
 const uploads: Upload[] = []
 const aiKeys = new Map<string, Record<string, unknown>>()
+// Mirrors backend/app/ai/providers.py (same order: free ones first).
 const AI_PROVIDERS = [
-  ['groq', 'Groq', 'https://console.groq.com/keys', 'openai/gpt-oss-120b'],
-  ['google', 'Google Gemini', 'https://aistudio.google.com/apikey', 'gemini-flash-latest'],
-  ['openai', 'OpenAI', 'https://platform.openai.com/api-keys', 'gpt-4.1-mini'],
-  [
-    'anthropic',
-    'Anthropic (Claude)',
-    'https://platform.claude.com/settings/keys',
-    'claude-opus-5-5',
-  ],
-  ['openrouter', 'OpenRouter', 'https://openrouter.ai/settings/keys', 'openrouter/auto'],
-  ['mistral', 'Mistral', 'https://console.mistral.ai/api-keys', 'mistral-small-latest'],
-].map(([id, name, key_url, default_model]) => ({
-  id,
-  name,
-  key_url,
-  default_model,
-  used_for: 'Drafts and revisions',
-}))
+  {
+    id: 'google',
+    name: 'Google Gemini',
+    key_url: 'https://aistudio.google.com/apikey',
+    default_model: 'gemini-flash-latest',
+    prefix: '^AIza',
+    hint: 'AIza',
+    free: true,
+    steps: [
+      'Sign in with your Google account.',
+      'Click “Create API key”.',
+      'Copy the key and paste it here.',
+    ],
+    note: 'Needs a Google account that is 18 or older. On the free tier, Google may use what you send to improve its products.',
+  },
+  {
+    id: 'groq',
+    name: 'Groq',
+    key_url: 'https://console.groq.com/keys',
+    default_model: 'openai/gpt-oss-120b',
+    prefix: '^gsk_',
+    hint: 'gsk_',
+    free: true,
+    steps: [
+      'Sign up with Google, GitHub or email.',
+      'Click “Create API Key” and give it any name.',
+      'Copy the key and paste it here.',
+    ],
+    note: 'Free with daily limits; no card needed.',
+  },
+  {
+    id: 'openrouter',
+    name: 'OpenRouter',
+    key_url: 'https://openrouter.ai/settings/keys',
+    default_model: 'openrouter/auto',
+    prefix: '^sk-or-',
+    hint: 'sk-or-',
+    free: true,
+    steps: ['Sign up at OpenRouter.', 'Click “Create Key”.', 'Copy the key and paste it here.'],
+    note: 'Free models have a small daily limit (about 50 drafts) unless you add credit.',
+  },
+  {
+    id: 'anthropic',
+    name: 'Anthropic (Claude)',
+    key_url: 'https://platform.claude.com/settings/keys',
+    default_model: 'claude-opus-5-5',
+    prefix: '^sk-ant-',
+    hint: 'sk-ant-',
+    free: false,
+    steps: [],
+    note: 'Paid: billed per use by Anthropic.',
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    key_url: 'https://platform.openai.com/api-keys',
+    default_model: 'gpt-4.1-mini',
+    prefix: '^sk-(?!or-|ant-)',
+    hint: 'sk-',
+    free: false,
+    steps: [],
+    note: 'Paid: billed per use by OpenAI.',
+  },
+  {
+    id: 'mistral',
+    name: 'Mistral',
+    key_url: 'https://console.mistral.ai/api-keys',
+    default_model: 'mistral-small-latest',
+    prefix: '',
+    hint: '',
+    free: false,
+    steps: [],
+    note: 'Has a free plan with low limits.',
+  },
+].map((p) => ({ ...p, used_for: 'Drafts and revisions' }))
 const imports = new Map<string, ImportJob>()
 const posts: Post[] = [
   'Ship log: fixed the timezone bug. Everything is UTC in the database now and only converted at the edges.',
@@ -579,9 +637,21 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
     })
   if (keyMatch && init?.method === 'PUT') {
     const { key, model } = JSON.parse(String(init.body)) as { key: string; model: string | null }
-    if (key.trim().length < 20)
+    const info = AI_PROVIDERS.find((p) => p.id === keyMatch[1])
+    const looksLike = AI_PROVIDERS.find((p) => p.prefix && new RegExp(p.prefix).test(key.trim()))
+    if (looksLike && looksLike !== info)
       return json(400, {
-        error: { code: 'invalid_key', message: "That doesn't look like an API key." },
+        error: {
+          code: 'invalid_key',
+          message: `That looks like a ${looksLike.name} key, not a ${info?.name} key.`,
+        },
+      })
+    if (key.trim().length < 20 || (info?.prefix && !looksLike))
+      return json(400, {
+        error: {
+          code: 'invalid_key',
+          message: `That doesn't look right. Make sure you copied the whole key${info?.hint ? ` (it starts with ${info.hint})` : ''}.`,
+        },
       })
     const k = key.trim()
     const saved = {

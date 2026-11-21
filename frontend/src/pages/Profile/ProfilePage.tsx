@@ -108,8 +108,8 @@ export function ProfilePage() {
 
         <TabsContent value="ai">
           <Intro>
-            Optional. Bring your own API key from Groq, Google Gemini, OpenAI, Anthropic, OpenRouter
-            or Mistral: your drafts use it first. Without one, the free models write your drafts.
+            Optional. Add a free key from Google Gemini, Groq or OpenRouter and your drafts have no
+            daily limit. Without one, Voxlace's free models write your drafts.
           </Intro>
           <AIKeys />
         </TabsContent>
