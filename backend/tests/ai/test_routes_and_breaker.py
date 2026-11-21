@@ -416,7 +416,7 @@ def test_check_key_makes_one_tiny_call_with_the_chosen_model():
 def test_check_key_refusals_and_outages(error, expected):
     client, _, _, _ = build(fail_by_key={"user-key": {"gemini-flash-latest": [error]}})
     with pytest.raises(expected):
-        client.check_key("google", "user-key")
+        client.check_key("google", "user-key", "gemini-flash-latest")
 
 
 @pytest.mark.parametrize(

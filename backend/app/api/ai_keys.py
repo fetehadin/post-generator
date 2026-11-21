@@ -1,4 +1,4 @@
-"""Your own AI keys (FR-48): add, list and remove a Gemini or Groq key. The key itself is
+"""Your own AI keys (FR-48): add, list and remove a key from one of the providers. The key itself is
 never sent back; only its last four characters."""
 
 from fastapi import APIRouter, Depends, Response
@@ -37,8 +37,13 @@ def list_keys(user_id=Depends(current_user)) -> AIKeysOut:
                 id=p.id,
                 name=p.name,
                 key_url=p.key_url,
-                used_for=p.used_for,
+                used_for="Drafts and revisions",
                 default_model=get_settings().byok_default_model(p.id),
+                prefix=p.prefix,
+                hint=p.hint,
+                free=p.free,
+                steps=list(p.steps),
+                note=p.note,
             )
             for p in ai_keys.PROVIDERS.values()
         ],

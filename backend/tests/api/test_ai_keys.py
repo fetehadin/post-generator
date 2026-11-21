@@ -6,7 +6,7 @@ import uuid
 import pytest
 from sqlalchemy import select, text
 
-from app.ai.client import CallRecord
+from app.ai.client import CallRecord, KeyRejected
 from app.core import secrets
 from app.core.config import get_settings
 from app.core.db import user_session
@@ -52,7 +52,7 @@ def test_a_refused_key_is_not_saved(api):
 def test_when_the_provider_cant_be_reached_nothing_is_decided(api):
     api.state["ai"].key_check = "down"
     r = api.put("/api/v1/me/ai-keys/google", json={"key": KEY})
-    assert r.status_code == 503 and r.json()["error"]["code"] == "key_check_unavailable"
+    assert r.status_code == 503 and r.json()["error"]["code"] == "network_error"
 
 
 @pytest.mark.parametrize("bad", ["short", "has a space in the middle of it ok", "x" * 301])
@@ -237,3 +237,39 @@ def test_using_a_key_never_changes_which_is_tried_first(api):
     assert list(ai_keys.active_keys(user)) == ["groq", "anthropic"]  # ...doesn't move it up
     listed = api.get("/api/v1/me/ai-keys").json()["keys"]
     assert [k["provider"] for k in listed] == ["groq", "anthropic"]
+
+
+def test_a_key_for_another_provider_is_refused_before_asking_anyone(api):
+    r = api.put("/api/v1/me/ai-keys/google", json={"key": "gsk_" + "x" * 40})
+    assert r.status_code == 400 and r.json()["error"]["code"] == "invalid_key"
+    assert "Groq key" in r.json()["error"]["message"]
+    r = api.put("/api/v1/me/ai-keys/google", json={"key": "x" * 39})
+    assert "starts with AIza" in r.json()["error"]["message"]
+    assert api.state["ai"].checked == []
+
+
+@pytest.mark.parametrize(
+    ("reason", "says"),
+    [
+        ("invalid_key", "copied the whole key (it starts with AIza)"),
+        ("quota_exceeded", "out of free quota"),
+        ("region_or_age_blocked", "Try Groq instead"),
+    ],
+)
+def test_refusals_come_back_as_a_code_and_a_plain_fix_never_the_raw_reply(api, reason, says):
+    def refuse(provider, key, model=None):
+        raise KeyRejected("400: FAILED_PRECONDITION raw provider text", reason)
+
+    api.state["ai"].check_key = refuse
+    r = api.put("/api/v1/me/ai-keys/google", json={"key": KEY})
+    assert r.status_code == 400 and r.json()["error"]["code"] == reason
+    assert says in r.json()["error"]["message"]
+    assert "raw provider text" not in r.text and KEY not in r.text
+
+
+def test_the_providers_list_says_which_are_free_and_how_to_get_a_key(api):
+    providers = {p["id"]: p for p in api.get("/api/v1/me/ai-keys").json()["providers"]}
+    assert providers["google"]["free"] and providers["groq"]["free"]
+    assert not providers["anthropic"]["free"]
+    assert providers["google"]["hint"] == "AIza" and len(providers["groq"]["steps"]) == 3
+    assert "18" in providers["google"]["note"]

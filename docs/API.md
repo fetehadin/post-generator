@@ -430,18 +430,22 @@ Body `{"confirm": "delete"}` (any case) → `204`. Deletes the user's row and, b
 
 #### `GET /me/ai-keys`
 
-`providers`: `google`, `groq`, `openai`, `anthropic`, `openrouter`, `mistral`, each as `{id, name, key_url, used_for, default_model}`. `keys`: the user's keys, newest first, as `{provider, last4, masked, model, status, last_error, added_at, last_used_at}`, where `masked` looks like `"sk-…a9F2"` and `model: null` means `default_model`.
+`providers`: `google`, `groq`, `openrouter`, `anthropic`, `openai`, `mistral` (free ones first), each as `{id, name, key_url, used_for, default_model, prefix, hint, free, steps, note}`. `prefix` is a regex every key from that provider matches (`""` = any shape; the UI detects the provider from a pasted key with it), `hint` how its keys start (`"AIza"`), `free` whether it has a free tier (shown as a "Get free key" card with its three `steps` and one honest `note`). All of it comes from `backend/app/ai/providers.py`. `keys`: the user's keys, newest first, as `{provider, last4, masked, model, status, last_error, added_at, last_used_at}`, where `masked` looks like `"sk-…a9F2"` and `model: null` means `default_model`.
 
 - `enabled` is `false` when the server has no `AI_KEY_ENCRYPTION_KEYS`; the UI then says the feature is off.
 - The key itself is never returned. `status: "rejected"` means the provider refused it on a real call; it's skipped until replaced.
 
 #### `PUT /me/ai-keys/{provider}` → `200`
 
-Body `{"key": "…", "model": "…" | null}`. The key is checked with **one tiny test call** ("Reply OK") on that model, then stored encrypted, replacing any earlier key for that provider.
+Body `{"key": "…", "model": "…" | null}`. With no model, the key is checked with a **free models-list call** (key info for OpenRouter) that spends none of its quota; with a model (or for Anthropic), with **one tiny test call** ("Reply OK") on that model. The key goes in a header, never a URL. Then it's stored encrypted, replacing any earlier key for that provider.
 
-- `400 invalid_key`: not shaped like a key, or the provider refused the key or the model, or its quota is used up. The message says the provider's reason. Nothing is stored.
+Refusals carry a plain fix in `message` (never the provider's raw reply) that names a free provider to try next. Nothing is stored.
+
+- `400 invalid_key`: not shaped like a key, shaped like another provider's key ("That looks like a Groq key…"), or refused by the provider.
+- `400 quota_exceeded`: the key has no free quota or credit left.
+- `400 region_or_age_blocked`: the provider won't serve this account (Gemini: under 18, not age-verified, or a country without the free tier).
 - `400 invalid_model`: the model name has characters no model uses.
-- `503 key_check_unavailable`: the provider couldn't be reached, or a per-minute limit hit. Try again.
+- `503 network_error`: the provider couldn't be reached, or a per-minute limit hit. Try again.
 - `503 keys_disabled`; `404 unknown_provider`.
 
 **How keys are used:** a draft tries the user's keys first (newest first, each with its model), then Voxlace's free chain. When a user's key fails and the free chain writes the draft, the draft response's `notices` says "Your key failed, used the free model instead." Embeddings always use Voxlace's own key and model (C-7).
