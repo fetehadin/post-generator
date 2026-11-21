@@ -265,15 +265,18 @@ Rules: never set "voxlace" in a font; use the component. Keep space around it eq
 
 ### Motion
 
-- `--duration` 150ms with `--ease` `cubic-bezier(0.2, 0, 0, 1)`, for color and background only.
-- The one signature moment is the draft text streaming in (§10).
-- `prefers-reduced-motion` sets the duration to 0.
+- `--duration` 150ms for hover and color, `--duration-reveal` 200ms for something appearing (a panel, a draft's text), both with `--ease` `cubic-bezier(0.2, 0, 0, 1)`. Transform and opacity only.
+- The one signature moment is the draft text arriving (§10): it fades up once (`.animate-reveal`).
+- `prefers-reduced-motion` sets every duration to 0.
+- **Touch:** every control is at least 44px on a touch screen (a global rule in `index.css`); 40px with a mouse.
 
 ---
 
 ## 6. Components
 
 **Recommendation: [shadcn/ui](https://ui.shadcn.com/docs).** It copies accessible component source into your repo (built on headless primitives and Tailwind), so you own and restyle the code instead of fighting a library's look. **Agreed by the product owner, 2 Nov 2026:** used for menus, dialogs and tabs, restyled with the tokens in §5.
+
+**Recipes (21 Nov 2026), `frontend/src/lib/ui.ts`:** `primary` (the one main action), `secondary` (outlined pill), `ghost` (text only), `iconButton` (needs `aria-label` + `Tooltip`), `chip` / `chipOn`, `field`, `panel`. Screens use these instead of writing their own button classes. Tooltips and shortcut hints use `components/ui/tooltip.tsx` (`Tooltip`, `Kbd`), never the browser's `title`. The same system in the ui-ux-pro-max layout: `design-system/voxlace/MASTER.md`.
 
 Product components to build on top:
 

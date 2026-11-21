@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from './dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'
+import { Tooltip } from './tooltip'
 
 // The adapted shadcn/ui parts keep Radix's accessibility: roles, keyboard and focus.
 
@@ -61,4 +62,19 @@ test('tabs switch with the arrow keys', async () => {
   await userEvent.keyboard('{ArrowRight}')
   expect(screen.getByRole('tab', { name: 'Work' })).toHaveAttribute('aria-selected', 'true')
   expect(screen.getByRole('tabpanel')).toHaveTextContent('Projects')
+})
+
+test('a tooltip shows on keyboard focus and goes away with Escape', async () => {
+  render(
+    <Tooltip content="Write the drafts">
+      <button type="button" aria-label="Send">
+        ↑
+      </button>
+    </Tooltip>,
+  )
+  await userEvent.tab()
+  expect(screen.getByRole('button', { name: 'Send' })).toHaveFocus()
+  expect(await screen.findByRole('tooltip')).toHaveTextContent('Write the drafts')
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
 })
