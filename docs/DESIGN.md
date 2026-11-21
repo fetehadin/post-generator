@@ -307,7 +307,7 @@ Product components to build on top:
 | Slow response | After 3 seconds the placeholder adds "Still working…"; after 20 seconds (NFR-3) offer **Cancel** and **Try again**. Never a blank screen. |
 | Rate-limited (429) | "The AI is busy right now. Your text is saved. Try again in a minute." with **Try again**. |
 | AI unavailable (503) | "Drafts are unavailable right now. Your check-in is saved." with Try again, the free-key offer, and **Copy your check-in** so the user can still post by hand today. |
-| Daily limit reached | "You've used today's 30 drafts. You can generate more tomorrow." (Which "day" is still OPEN_QUESTIONS Q10.) |
+| Daily limit reached | The limit line in quiet grey (it isn't an error), then "You've used today's free drafts. Add a free key to keep going, or come back tomorrow." with **Add a free key** and **Maybe later** (equal weight). Saving a key writes the failed drafts at once. In a first session, or after Maybe later, one line instead: "Come back tomorrow, or add a free key to keep going today." No "Try again" (it would only fail again). |
 | Under 20 posts | Voice strength badge: "Still learning: import more posts for a closer match." (FR-5) |
 | Empty chat | Starters by profession under the box. A chat with no drafts: "Your drafts appear here" + platform chips + **Write drafts**. |
 | Empty Drafts | "Your drafts will appear here. Start a chat." with a button. |

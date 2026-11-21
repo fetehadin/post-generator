@@ -462,11 +462,13 @@ function DraftPanel({
       )}
 
       {writer.failures.length > 0 && !writing.length && (
-        <div className="flex flex-col gap-3 rounded-panel border border-line p-4">
+        // One card level: the free-key offer is the only box here.
+        <div className="flex flex-col gap-3">
           {writer.failures.map((f) => (
             <p key={f.platform} role="alert" className="flex items-start gap-2 text-sm">
               <PlatformMark platform={f.platform} />
-              <span className="text-danger">
+              {/* The daily limit is not an error, so it isn't red. */}
+              <span className={f.code === 'daily_limit' ? 'text-muted' : 'text-danger'}>
                 {LABEL[f.platform]}: {f.message}
               </span>
             </p>
@@ -475,13 +477,16 @@ function DraftPanel({
             // Saving a key writes the drafts that failed straight away: no extra tap.
             <AddKeyNudge reason={nudge} onSaved={() => writer.write(failed)} />
           )}
-          <button
-            type="button"
-            onClick={() => writer.write(failed)}
-            className={cn(secondary, 'self-start')}
-          >
-            {failed.length === 1 ? `Try ${LABEL[failed[0]]} again` : 'Try again'}
-          </button>
+          {/* At the limit, trying again only fails again: the offer above is the way on. */}
+          {nudge !== 'limit' && (
+            <button
+              type="button"
+              onClick={() => writer.write(failed)}
+              className={cn(secondary, 'self-start')}
+            >
+              {failed.length === 1 ? `Try ${LABEL[failed[0]]} again` : 'Try again'}
+            </button>
+          )}
           {nudge === 'busy' && <ManualFallback checkin={thread.checkin_text} />}
         </div>
       )}

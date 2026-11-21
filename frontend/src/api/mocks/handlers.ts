@@ -769,6 +769,24 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
     if (!t) return json(404, { error: { code: 'not_found', message: 'Not found.' } })
     if (threadMatch[2]) {
       const { platforms } = JSON.parse(String(init?.body)) as { platforms: Platform[] }
+      // Design aid: a check-in with "#limit" (or "#busy") shows that state, until a key exists.
+      const state = /#limit/.test(t.checkin_text)
+        ? 'daily_limit'
+        : /#busy/.test(t.checkin_text)
+          ? 'ai_unavailable'
+          : null
+      if (state && !aiKeys.size)
+        return json(201, {
+          ...threadOut(t),
+          failures: platforms.map((platform) => ({
+            platform,
+            code: state,
+            message:
+              state === 'daily_limit'
+                ? "You've used today's 40 drafts and revisions. Your text is kept; the count resets at midnight UTC."
+                : 'Drafts are unavailable right now. Your check-in is saved.',
+          })),
+        })
       for (const platform of platforms) {
         const d = newDraft(platform, t.checkin_text, t.id)
         say(d, 'assistant', '', true)
