@@ -136,13 +136,16 @@ test('a pasted key is recognised and checked at once, then shown only masked', a
 
 test('a key of no known shape asks which service, with an optional model', async () => {
   renderKeys()
-  await userEvent.type(await screen.findByLabelText('Paste your free key'), '3f9c0a7b1e2d4c5f6a7b')
+  await userEvent.type(
+    await screen.findByLabelText('Paste your free key'),
+    'not-a-real-mistral-key',
+  )
   await userEvent.selectOptions(screen.getByLabelText(/Which service/), 'mistral')
   await userEvent.click(screen.getByText('Advanced: choose a model'))
   await userEvent.type(screen.getByLabelText(/Model/), 'mistral-x')
   await userEvent.click(screen.getByRole('button', { name: 'Check the key' }))
   expect(sent('PUT /me/ai-keys/mistral')).toEqual([
-    { key: '3f9c0a7b1e2d4c5f6a7b', model: 'mistral-x' },
+    { key: 'not-a-real-mistral-key', model: 'mistral-x' },
   ])
 })
 
