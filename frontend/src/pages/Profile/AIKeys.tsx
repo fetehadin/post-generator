@@ -1,24 +1,16 @@
-import { useId, useState } from 'react'
-import {
-  type AIKey,
-  type AIKeys as AIKeysData,
-  type AIProvider,
-  useAIKeys,
-  useRemoveAIKey,
-  useSaveAIKey,
-} from '../../api/aiKeys'
+import { type AIKey, type AIProviderInfo, useAIKeys, useRemoveAIKey } from '../../api/aiKeys'
+import { GetKeyLink, KeyPaste } from '../../components/KeyPaste'
+import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 
-const button = 'inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm'
-const field =
-  'mt-1 block min-h-10 w-full rounded-control border border-edge bg-surface px-3 text-sm'
+const button =
+  'inline-flex min-h-12 items-center rounded-full border border-edge px-4 text-sm hover:bg-sunken'
 const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
-type Provider = AIKeysData['providers'][number]
 
 /**
- * Profile → AI keys (FR-48): optionally bring your own API key from one of six providers.
- * Your key is tried first, with the model you pick; if it fails, the free models write the
- * draft and say so. Keys are checked with one tiny call, stored encrypted and never shown
- * again: only a masked "sk-…a9F2".
+ * Profile → AI keys (FR-48): "Get a free key". One paste field that tells which service the
+ * key is from and checks it at once; cards for the three free services, the paid ones folded
+ * away. Your key is tried first; if it fails, the free models write the draft and say so.
+ * Keys are stored encrypted and never shown again: only a masked "sk-…a9F2".
  */
 export function AIKeys() {
   const keys = useAIKeys()
@@ -37,22 +29,20 @@ export function AIKeys() {
       </p>
     )
 
-  const byId = new Map(keys.data.providers.map((p) => [p.id, p]))
+  const { providers } = keys.data
+  const byId = new Map(providers.map((p) => [p.id, p]))
+  const free = providers.filter((p) => p.free)
+  const paid = providers.filter((p) => !p.free)
+
   return (
     <div className="mt-4 flex flex-col gap-6">
-      <p className="rounded-panel border border-line p-4 text-sm">
-        <b>Optional.</b> A ChatGPT Plus, Claude Pro or Gemini subscription is <b>not</b> an API key.
-        Get a key from the provider's developer console (links below). Without one, Voxlace's free
-        models write your drafts, as they do now.
-      </p>
-
       {keys.data.keys.length > 0 && (
         <section aria-labelledby="your-keys" className="flex flex-col gap-3">
           <h3 id="your-keys" className="font-semibold">
             Your keys
           </h3>
           <p className="text-sm text-muted">
-            Tried first, newest first. Drafts on your key don't count towards the daily limit.
+            Tried first, newest first. Drafts on your key have no daily limit.
           </p>
           {keys.data.keys.map((k) => (
             <SavedKey key={k.provider} saved={k} provider={byId.get(k.provider)} />
@@ -60,17 +50,92 @@ export function AIKeys() {
         </section>
       )}
 
-      <AddKey providers={keys.data.providers} saved={keys.data.keys} />
+      <section
+        id="add-key"
+        aria-labelledby="add-key-title"
+        className="flex flex-col gap-3 rounded-panel border border-line p-4"
+      >
+        <h3 id="add-key-title" className="font-semibold">
+          {keys.data.keys.length ? 'Add or replace a free key' : 'Add a free key'}
+        </h3>
+        <KeyPaste providers={providers} />
+        <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
+          Stored encrypted. Only used to write your drafts. Remove it anytime.
+          <WhatIsAKey />
+        </p>
+      </section>
 
-      <p className="text-sm text-muted">
-        Your key is stored encrypted and only you can use it. Remove it any time: it's deleted for
-        good. Deleting your account removes it too.
-      </p>
+      <section aria-labelledby="no-key" className="flex flex-col gap-3">
+        <h3 id="no-key" className="font-semibold">
+          Don't have a key yet?
+        </h3>
+        <p className="text-sm text-muted">These are free. Each takes about a minute.</p>
+        <div className="grid gap-3 md:grid-cols-3">
+          {free.map((p) => (
+            <ProviderCard key={p.id} provider={p} />
+          ))}
+        </div>
+      </section>
+
+      {paid.length > 0 && (
+        <details className="rounded-panel border border-line p-4">
+          <summary className="cursor-pointer font-semibold">Other providers</summary>
+          <ul className="mt-3 flex flex-col gap-3">
+            {paid.map((p) => (
+              <li key={p.id} className="text-sm">
+                <a
+                  href={p.key_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-thread underline"
+                >
+                  {p.name} ↗
+                </a>
+                {p.note && <span className="block text-muted">{p.note}</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   )
 }
 
-function SavedKey({ saved, provider }: { saved: AIKey; provider: Provider | undefined }) {
+function WhatIsAKey() {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" className="min-h-10 text-thread underline">
+          What is an API key?
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="max-w-xs text-sm">
+        A key is a long code that lets Voxlace ask an AI service to write on your account, within
+        that service's free limits. A ChatGPT Plus, Claude Pro or Gemini subscription is not a key.
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function ProviderCard({ provider }: { provider: AIProviderInfo }) {
+  return (
+    <article className="flex flex-col gap-2 rounded-panel border border-line p-4">
+      <h4 className="font-semibold">{provider.name}</h4>
+      <ol className="list-decimal pl-5 text-sm">
+        {provider.steps.map((s) => (
+          <li key={s}>{s}</li>
+        ))}
+      </ol>
+      {provider.note && <p className="text-sm text-muted">{provider.note}</p>}
+      <GetKeyLink
+        provider={provider}
+        className={`${button} mt-auto justify-center font-semibold`}
+      />
+    </article>
+  )
+}
+
+function SavedKey({ saved, provider }: { saved: AIKey; provider: AIProviderInfo | undefined }) {
   const remove = useRemoveAIKey()
   const name = provider?.name ?? saved.provider
   return (
@@ -95,134 +160,32 @@ function SavedKey({ saved, provider }: { saved: AIKey; provider: Provider | unde
         </span>
       </p>
       {saved.status === 'rejected' && (
+        // Never the provider's raw reply: just what happened and what to do.
         <p role="alert" className="mt-2 text-sm text-danger">
-          The provider refused this key{saved.last_error ? ` (${saved.last_error})` : ''}. Drafts
-          use the free models until you add it again.
+          {name} stopped accepting this key. Drafts use the free models until you paste a new one
+          above.
         </p>
       )}
-      <button
-        type="button"
-        onClick={() => remove.mutate(saved.provider)}
-        disabled={remove.isPending}
-        className={`${button} mt-3`}
-      >
-        {remove.isPending ? 'Removing…' : `Remove ${name} key`}
-      </button>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {saved.status === 'rejected' && (
+          <a href="#add-key" className={button}>
+            Replace the key
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={() => remove.mutate(saved.provider)}
+          disabled={remove.isPending}
+          className={button}
+        >
+          {remove.isPending ? 'Removing…' : `Remove ${name} key`}
+        </button>
+      </div>
       {remove.isError && (
         <p role="alert" className="mt-2 text-sm text-danger">
           {remove.error.message}
         </p>
       )}
     </div>
-  )
-}
-
-function AddKey({ providers, saved }: { providers: Provider[]; saved: AIKey[] }) {
-  const ids = { provider: useId(), key: useId(), model: useId() }
-  const [providerId, setProviderId] = useState<AIProvider>(providers[0]?.id ?? 'groq')
-  const [key, setKey] = useState('')
-  const [model, setModel] = useState('')
-  const [done, setDone] = useState('')
-  const save = useSaveAIKey()
-  const provider = providers.find((p) => p.id === providerId)
-  const replacing = saved.some((k) => k.provider === providerId)
-
-  return (
-    <form
-      aria-labelledby="add-key"
-      className="flex flex-col gap-3 rounded-panel border border-line p-4"
-      onSubmit={(e) => {
-        e.preventDefault()
-        setDone('')
-        save.mutate(
-          { provider: providerId, key: key.trim(), model: model.trim() },
-          {
-            onSuccess: (k) => {
-              setKey('')
-              setModel('')
-              setDone(`Saved. Your ${provider?.name ?? ''} key ${k.masked} works.`)
-            },
-          },
-        )
-      }}
-    >
-      <h3 id="add-key" className="font-semibold">
-        {replacing ? 'Add or replace a key' : 'Add a key'}
-      </h3>
-      <label htmlFor={ids.provider} className="text-sm">
-        Provider
-        <select
-          id={ids.provider}
-          value={providerId}
-          onChange={(e) => {
-            setProviderId(e.target.value as AIProvider)
-            setModel('')
-          }}
-          className={field}
-        >
-          {providers.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label htmlFor={ids.key} className="text-sm">
-        API key
-        <input
-          id={ids.key}
-          type="password"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="Paste the key"
-          className={`${field} font-mono`}
-        />
-      </label>
-      <label htmlFor={ids.model} className="text-sm">
-        Model <span className="text-muted">(optional)</span>
-        <input
-          id={ids.model}
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          autoComplete="off"
-          spellCheck={false}
-          placeholder={provider?.default_model}
-          className={`${field} font-mono`}
-        />
-      </label>
-      {provider && (
-        <p className="text-sm text-muted">
-          Empty uses {provider.default_model}. Get a key at{' '}
-          <a
-            href={provider.key_url}
-            target="_blank"
-            rel="noreferrer"
-            className="text-thread underline"
-          >
-            {provider.name}'s developer console
-          </a>
-          .
-        </p>
-      )}
-      <button
-        type="submit"
-        disabled={!key.trim() || save.isPending}
-        className="inline-flex min-h-10 items-center self-start rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
-      >
-        {save.isPending ? 'Checking the key…' : 'Check and save'}
-      </button>
-      {save.isError && (
-        <p role="alert" className="text-sm text-danger">
-          {save.error.message}
-        </p>
-      )}
-      {done && (
-        <p role="status" className="text-sm">
-          {done}
-        </p>
-      )}
-    </form>
   )
 }

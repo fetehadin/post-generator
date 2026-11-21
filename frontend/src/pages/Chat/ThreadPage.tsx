@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { activeKey, useAIKeys } from '../../api/aiKeys'
 import { useDeleteCheckin, usePatchCheckin } from '../../api/checkins'
 import { useReviseDraft } from '../../api/drafts'
 import { useGenerateInThread, useThread } from '../../api/threads'
@@ -11,6 +12,7 @@ import type {
   Thread,
   ThreadMessage,
 } from '../../api/types'
+import { AddKeyNudge } from '../../components/AddKeyNudge'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Icon } from '../../components/Icon'
 import { PlatformMark } from '../../components/PlatformMark'
@@ -177,6 +179,15 @@ function ThreadView({ thread }: { thread: Thread }) {
           {notices.map((n, i) => (
             <p key={i} className="text-sm text-signal">
               {LABEL[n.platform]}: {n.message}
+              {/* The backend's OWN_KEY_FAILED notice: one tap to the key settings. */}
+              {n.message.startsWith('Your key failed') && (
+                <>
+                  {' '}
+                  <Link to="/profile?tab=ai" className="text-thread underline">
+                    Fix key
+                  </Link>
+                </>
+              )}
             </p>
           ))}
           <button
@@ -349,8 +360,15 @@ function PlatformPicker({
   const [failures, setFailures] = useState<GenerateFailure[]>([])
   const generate = useGenerateInThread()
   const seconds = useElapsed(generate.isPending)
+  const own = activeKey(useAIKeys().data)
   const n = chosen.length
   const retrying = failures.length > 0
+  // Out of free drafts, or the shared AI is busy: a free key of their own gets them going.
+  const nudge = failures.some((f) => f.code === 'daily_limit')
+    ? 'limit'
+    : failures.some((f) => f.code === 'ai_unavailable')
+      ? 'busy'
+      : null
 
   function toggle(p: Platform) {
     setChosen((c) => (c.includes(p) ? c.filter((x) => x !== p) : [...c, p]))
@@ -398,6 +416,16 @@ function PlatformPicker({
       {generate.error && (
         <p role="alert" className="mb-2 text-sm text-danger">
           {generate.error.message} Your check-in is saved.
+        </p>
+      )}
+      {nudge && !generate.isPending && (
+        // Saving a key writes the drafts that failed straight away: no extra tap.
+        <AddKeyNudge reason={nudge} onSaved={() => write(failures.map((f) => f.platform))} />
+      )}
+      {own?.provider && (
+        <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-sunken px-3 py-1 text-xs">
+          <Icon name="check" className="size-3" />
+          Using your {own.provider.name.replace(/ \(.*\)$/, '')} key
         </p>
       )}
       <div

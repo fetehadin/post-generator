@@ -17,16 +17,38 @@ export type AIKey = {
   last_used_at: string | null
 }
 
+export type AIProviderInfo = {
+  id: AIProvider
+  name: string
+  key_url: string
+  used_for: string
+  default_model: string
+  /** A regex every key from this provider matches; '' = keys of any shape. */
+  prefix: string
+  /** How its keys start, e.g. "AIza". */
+  hint: string
+  /** Has a free tier: shown as a "Get free key" card. */
+  free: boolean
+  steps: string[]
+  note: string
+}
+
 export type AIKeys = {
   enabled: boolean
-  providers: {
-    id: AIProvider
-    name: string
-    key_url: string
-    used_for: string
-    default_model: string
-  }[]
+  providers: AIProviderInfo[]
   keys: AIKey[]
+}
+
+/** The provider a pasted key belongs to, from how it starts (prefixes come from the API). */
+export function detectProvider(key: string, providers: AIProviderInfo[]) {
+  const k = key.trim()
+  return providers.find((p) => p.prefix && new RegExp(p.prefix).test(k))
+}
+
+/** The user's working key the drafts use first, if any (keys come newest first). */
+export function activeKey(data: AIKeys | undefined) {
+  const key = data?.keys.find((k) => k.status === 'active')
+  return key && { key, provider: data?.providers.find((p) => p.id === key.provider) }
 }
 
 export function useAIKeys() {

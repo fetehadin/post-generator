@@ -580,6 +580,11 @@ class AIProviderOut(BaseModel):
     key_url: str
     used_for: str
     default_model: str
+    prefix: str = Field("", description="A regex every key from this provider matches; '' = any")
+    hint: str = Field("", description="How its keys start, e.g. 'AIza'")
+    free: bool = Field(False, description="Has a free tier: shown as a 'Get free key' card")
+    steps: list[str] = []
+    note: str = ""
 
 
 class AIKeysOut(BaseModel):

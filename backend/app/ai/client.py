@@ -32,6 +32,8 @@ from google import genai
 from google.genai import errors, types
 
 from app.ai.breaker import CircuitBreaker
+from app.ai.providers import PROVIDERS as PROVIDER_INFO
+from app.ai.providers import ProviderInfo
 from app.core.config import Settings, get_settings
 
 logger = logging.getLogger(__name__)
@@ -47,6 +49,13 @@ RETRY_HINT = re.compile(
     r"retry in ((?:\d+h)?(?:\d+m)?[\d.]+s)|retryDelay\W+([\d.]+s)", re.IGNORECASE
 )
 DURATION = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?([\d.]+)s")
+# FR-48: the provider won't serve this account where it is, or at its age (Gemini says
+# "User location is not supported", or FAILED_PRECONDITION for the free tier by country).
+BLOCKED = re.compile(
+    r"location is not supported|not (?:available|supported) in your (?:country|region|location)"
+    r"|\bage\b|age[- ]verif|FAILED_PRECONDITION",
+    re.IGNORECASE,
+)
 # FR-48: providers that speak the OpenAI chat-completions format, so one httpx call covers them.
 OPENAI_COMPATIBLE = {
     "groq": "https://api.groq.com/openai/v1",
@@ -88,7 +97,12 @@ class EmbeddingUnavailable(Exception):
 
 
 class KeyRejected(Exception):
-    """The provider refused a user's key (wrong, revoked, or without access)."""
+    """The provider refused a user's key. `reason` is one of invalid_key, quota_exceeded or
+    region_or_age_blocked (see key_failure_reason)."""
+
+    def __init__(self, message: str, reason: str = "invalid_key") -> None:
+        super().__init__(message)
+        self.reason = reason
 
 
 class KeyCheckUnavailable(Exception):
@@ -487,9 +501,13 @@ class AIClient:
         return checks
 
     def check_key(self, provider: str, key: str, model: str | None = None) -> None:
-        """FR-48: one tiny test call with the user's key and model ("Reply OK"), so a wrong
-        key, a model the key can't use, or a used-up quota shows up at saving. Raises
-        KeyRejected (with the provider's reason) or KeyCheckUnavailable (try again)."""
+        """FR-48: is this key good? With no model chosen and a provider that has one, a free
+        models-list (or key-info) call, so checking spends none of the key's quota. With a
+        chosen model, one tiny test call ("Reply OK"), so a model the key can't use shows up
+        at saving too. Raises KeyRejected (with a reason) or KeyCheckUnavailable (try again)."""
+        info = PROVIDER_INFO.get(provider)
+        if model is None and info is not None and info.check_url:
+            return self._check_by_listing(info, key)
         call = self._providers().get(provider)
         model = model or self.settings.byok_default_model(provider)
         if call is None or not model:
@@ -500,17 +518,20 @@ class AIClient:
                  attempts=1)  # fmt: skip
         except AIUnavailable:
             return  # it answered (blank, or declined to say OK): the key and model work
-        except (errors.APIError, ProviderError) as e:
-            hinted = retry_after(e)
-            if out_of_credit(e):
-                raise KeyRejected(f"it has no credit left ({describe(e)})") from e
-            if is_key_problem(e) or e.code in (400, 404, 422):
-                raise KeyRejected(describe(e)) from e
-            if e.code == 429 and hinted is not None and hinted > MAX_WAIT:
-                raise KeyRejected(f"its quota is used up ({describe(e)})") from e
-            raise KeyCheckUnavailable(describe(e)) from e
+        except (errors.APIError, ProviderError, httpx.TransportError) as e:
+            raise key_check_error(e) from e
+
+    def _check_by_listing(self, info: ProviderInfo, key: str) -> None:
+        """The key goes in a header, never in the URL, so it can't end up in a proxy log."""
+        value = f"Bearer {key}" if info.check_header == "Authorization" else key
+        try:
+            resp = self.http.get(
+                info.check_url, headers={info.check_header: value}, timeout=KEY_CHECK_SECONDS
+            )
         except httpx.TransportError as e:
             raise KeyCheckUnavailable(describe(e)) from e
+        if resp.status_code != 200:
+            raise key_check_error(_groq_error(resp))
 
     def _left(self, deadline: float) -> float:
         """Seconds for the next call: the usual timeout, or less near the deadline."""
@@ -786,6 +807,33 @@ def is_key_problem(err: BaseException) -> bool:
     if err.code in (401, 403) or out_of_credit(err):
         return True
     return err.code == 400 and "api key" in str(err.message).lower()
+
+
+def key_failure_reason(err: BaseException) -> str | None:
+    """Why a provider refused a key, as the code the user sees: invalid_key, quota_exceeded or
+    region_or_age_blocked. None when nothing is decided (network, server trouble or a
+    per-minute limit): try again."""
+    if not isinstance(err, errors.APIError | ProviderError):
+        return None
+    if BLOCKED.search(f"{err.message} {getattr(err, 'status', '') or ''}"):
+        return "region_or_age_blocked"
+    hinted = retry_after(err)
+    if out_of_credit(err) or (err.code == 429 and hinted is not None and hinted > MAX_WAIT):
+        return "quota_exceeded"
+    if is_key_problem(err) or err.code in (400, 404, 422):
+        return "invalid_key"
+    return None
+
+
+def key_check_error(err: BaseException) -> Exception:
+    reason = key_failure_reason(err)
+    if reason is None:
+        return KeyCheckUnavailable(describe(err))
+    if out_of_credit(err):
+        return KeyRejected(f"it has no credit left ({describe(err)})", reason)
+    if reason == "quota_exceeded":
+        return KeyRejected(f"its quota is used up ({describe(err)})", reason)
+    return KeyRejected(describe(err), reason)
 
 
 def hold_for(err: BaseException) -> float | None:
