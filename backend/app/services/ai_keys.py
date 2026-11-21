@@ -1,6 +1,10 @@
 """Users' own AI keys (FR-48): bring a Gemini or Groq key and your drafts use your quota.
 
-- A key is checked with the provider before it's saved, without spending generation quota.
+- A key is checked with the provider before it's saved, without spending generation quota
+  (a models-list call; app/ai/providers.py has each provider's details).
+- Refusals come back as invalid_key, quota_exceeded, region_or_age_blocked or network_error,
+  each with a plain fix that names a free provider to try instead. Never the provider's
+  raw reply, and never the key.
 - It's stored encrypted (core/secrets.py); the plain key is never logged, exported or sent
   back. The app shows only the last four characters.
 - Drafts try the user's keys first and fall back to the app's keys (ai/client.py). Drafts
@@ -11,12 +15,12 @@
 import logging
 import re
 import uuid
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import select, update
 
 from app.ai.client import KeyCheckUnavailable, KeyRejected
+from app.ai.providers import PROVIDERS, ProviderInfo, detect
 from app.core import secrets
 from app.core.db import user_session
 from app.models import UserAIKey
@@ -24,38 +28,6 @@ from app.models import UserAIKey
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
-class Provider:
-    id: str
-    name: str
-    key_url: str  # where to make a key
-    used_for: str
-
-
-PROVIDERS = {
-    "google": Provider(
-        "google",
-        "Google Gemini",
-        "https://aistudio.google.com/apikey",
-        "Drafts and revisions",
-    ),
-    "groq": Provider("groq", "Groq", "https://console.groq.com/keys", "Drafts and revisions"),
-    "openai": Provider(
-        "openai", "OpenAI", "https://platform.openai.com/api-keys", "Drafts and revisions"
-    ),
-    "anthropic": Provider(
-        "anthropic",
-        "Anthropic (Claude)",
-        "https://platform.claude.com/settings/keys",
-        "Drafts and revisions",
-    ),
-    "openrouter": Provider(
-        "openrouter", "OpenRouter", "https://openrouter.ai/settings/keys", "Drafts and revisions"
-    ),
-    "mistral": Provider(
-        "mistral", "Mistral", "https://console.mistral.ai/api-keys", "Drafts and revisions"
-    ),
-}
 MODEL_CHARS = re.compile(r"^[A-Za-z0-9._:/@-]{1,128}$")
 
 
@@ -98,23 +70,17 @@ def save(user_id: uuid.UUID, provider: str, key: str, check, model: str | None =
         raise AIKeyError(
             "invalid_key", "That doesn't look like an API key. Copy the whole key again.", 400
         )
-    name = PROVIDERS[provider].name
+    info = PROVIDERS[provider]
+    looks_like = detect(key)
+    if (looks_like and looks_like != provider) or (info.pattern and not info.matches(key)):
+        raise AIKeyError("invalid_key", refusal_message("invalid_key", info, looks_like), 400)
     try:
         check(provider, key, model)
     except KeyRejected as e:
-        logger.info("a user's %s key was refused at saving", provider)
-        raise AIKeyError(
-            "invalid_key",
-            f"{name} didn't accept this key or model ({str(e)[:160]}). Check that the key is "
-            "copied in full, still active, has credit, and can use that model.",
-            400,
-        ) from e
+        logger.info("a user's %s key was refused at saving (%s)", provider, e.reason)
+        raise AIKeyError(e.reason, refusal_message(e.reason, info), 400) from e
     except KeyCheckUnavailable as e:
-        raise AIKeyError(
-            "key_check_unavailable",
-            f"We couldn't reach {name} to check the key. Try again in a minute.",
-            503,
-        ) from e
+        raise AIKeyError("network_error", refusal_message("network_error", info), 503) from e
     with user_session(user_id) as s:
         row = s.get(UserAIKey, (user_id, provider))
         if row is None:
@@ -131,6 +97,32 @@ def save(user_id: uuid.UUID, provider: str, key: str, check, model: str | None =
         s.flush()
         s.refresh(row)
         return row
+
+
+def other_free(info: ProviderInfo) -> ProviderInfo | None:
+    """The free provider to suggest when this one doesn't work out."""
+    return next((p for p in PROVIDERS.values() if p.free and p.id != info.id), None)
+
+
+def refusal_message(reason: str, info: ProviderInfo, looks_like: str | None = None) -> str:
+    """A plain-language fix for a refused key, ending with the next thing to try."""
+    other = other_free(info)
+    instead = f" Try {other.name} instead." if other else ""
+    if reason == "invalid_key" and looks_like and looks_like != info.id:
+        return f"That looks like a {PROVIDERS[looks_like].name} key, not a {info.name} key."
+    if reason == "invalid_key":
+        starts = f" (it starts with {info.hint})" if info.hint else ""
+        return f"That doesn't look right. Make sure you copied the whole key{starts}."
+    if reason == "region_or_age_blocked":
+        if info.id == "google":
+            return (
+                "Google says AI Studio isn't available for this account (it needs to be 18+ "
+                f"and age-verified).{instead}"
+            )
+        return f"{info.name} isn't available for this account or country.{instead}"
+    if reason == "quota_exceeded":
+        return "This key is out of free quota. Try again later or use another provider."
+    return f"We couldn't reach {info.name} to check the key. Try again in a minute."
 
 
 def delete(user_id: uuid.UUID, provider: str) -> bool:
