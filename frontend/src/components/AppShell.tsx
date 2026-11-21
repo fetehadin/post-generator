@@ -4,7 +4,6 @@ import { useMe, useNotifications, useSetTimezone } from '../api/me'
 import { useThreads } from '../api/threads'
 import { remember, remembered } from '../lib/storage'
 import { cn } from '../lib/utils'
-import { useMedia } from '../lib/useMedia'
 import { LABEL, PLATFORMS } from '../lib/platforms'
 import { applyTheme, nextTheme, savedTheme, type Theme } from '../lib/theme'
 import { Icon, type IconName } from './Icon'
@@ -20,10 +19,11 @@ const DRAFTS_OPEN_KEY = 'voxlace-drafts-open'
 const TZ_SENT_KEY = 'voxlace-timezone-sent'
 
 /**
- * DESIGN.md §2 (decided 22 Oct 2026; restyled 20 Nov 2026). Left: a flat, full-height sidebar with New chat, the chat
- * history, Drafts → X · LinkedIn · Telegram, Calendar, and at the bottom the collapse button
- * and the avatar → Profile. Right (1280px and up): Notifications and Missed, hidden when
- * empty; narrower, a bell opens the same panel. Mobile: a top bar and a bottom tab bar.
+ * DESIGN.md §2 (decided 22 Oct 2026; restyled 20 Nov 2026; bell only, 21 Nov 2026). Left: a
+ * flat, full-height sidebar with New chat, the chat history, Drafts → X · LinkedIn · Telegram,
+ * Calendar, and at the bottom the collapse button and the avatar → Profile. Notifications and
+ * missed posts open from a bell, at every width, so the page keeps its room. Mobile: a top bar
+ * and a bottom tab bar.
  */
 export function AppShell() {
   const [theme, setTheme] = useState<Theme | null>(savedTheme)
@@ -31,8 +31,6 @@ export function AppShell() {
   const me = useMe()
   const notifications = useNotifications().data
   const count = needsAction(notifications)
-  // One panel at a time: beside the page from 1280px, behind the bell below that.
-  const wide = useMedia('(min-width: 1280px)')
   useSendTimezoneOnce(me.data?.id, me.data?.timezone)
 
   const current: Theme =
@@ -70,11 +68,6 @@ export function AppShell() {
       className={cn(
         'min-h-screen md:grid',
         collapsed ? 'md:grid-cols-[64px_minmax(0,1fr)]' : 'md:grid-cols-[260px_minmax(0,1fr)]',
-        count > 0 &&
-          wide &&
-          (collapsed
-            ? 'xl:grid-cols-[64px_minmax(0,1fr)_300px]'
-            : 'xl:grid-cols-[260px_minmax(0,1fr)_300px]'),
       )}
     >
       <aside className="sticky top-0 hidden h-screen bg-sidebar md:block">
@@ -89,7 +82,7 @@ export function AppShell() {
               {collapsed ? <LogoMark className="size-6" /> : <Wordmark className="h-6 w-auto" />}
             </span>
             <div className={cn('flex items-center gap-1', collapsed && 'flex-col')}>
-              {count > 0 && !wide && <Bell count={count} />}
+              {count > 0 && <Bell count={count} />}
               {themeButton}
             </div>
           </div>
@@ -155,15 +148,6 @@ export function AppShell() {
       <main id="main" className="relative min-w-0 bg-paper pb-16 md:pb-0">
         <Outlet />
       </main>
-
-      {count > 0 && wide && (
-        <aside
-          aria-label="Notifications and missed posts"
-          className="sticky top-0 h-screen overflow-y-auto border-l border-line p-4"
-        >
-          <NotificationsPanel />
-        </aside>
-      )}
 
       <MobileTabs />
     </div>
@@ -314,7 +298,7 @@ function DraftsGroup({ collapsed }: { collapsed: boolean }) {
   )
 }
 
-/** Below 1280px the panel lives behind a bell (DESIGN.md §2). */
+/** Notifications and missed posts live behind a bell (DESIGN.md §2). */
 function Bell({ count, className }: { count: number; className?: string }) {
   const label = count === 1 ? '1 thing needs you' : `${count} things need you`
   return (

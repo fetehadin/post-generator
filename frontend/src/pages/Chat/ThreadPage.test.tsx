@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { beforeEach, vi } from 'vitest'
 import type { DraftRow, Thread } from '../../api/types'
 import { detail, row } from '../../test/drafts'
-import { routeApi, sent } from '../../test/fakeApi'
+import { calls, routeApi, sent } from '../../test/fakeApi'
 import { ThreadPage } from './ThreadPage'
 
 vi.mock('../../api/client', async (importOriginal) => ({
@@ -79,6 +79,8 @@ beforeEach(() => {
     'GET /me': () => ({ id: 'u1', email: 'fete@example.com', timezone: 'Africa/Addis_Ababa' }),
     'GET /platforms/telegram': () => ({ channel: null }),
     'POST /drafts/:id/revise': () => detail({ id: 'd1' }),
+    'POST /drafts/:id/versions/:v/restore': () => detail({ id: 'd1' }),
+    'GET /me/ai-keys': () => ({ enabled: false, providers: [], keys: [] }),
     'POST /drafts/:id/schedule': () => {
       // Relative to now: a fixed date turns into "passed" once the calendar reaches it.
       const tomorrow = new Date(Date.now() + 24 * 3600_000).toISOString()
@@ -113,32 +115,52 @@ const renderThread = (state?: unknown) =>
     </QueryClientProvider>,
   )
 
-test('a thread shows the check-in, folds older cards and opens the newest (§4.1)', async () => {
+test('the panel shows the newest version; older ones fold into the history (§4.1)', async () => {
   renderThread()
   expect(await screen.findByRole('heading', { name: 'Finished the importer' })).toBeInTheDocument()
-  const open = screen.getByRole('article', { name: 'X draft · v2' })
+  const panel = screen.getByRole('region', { name: 'Drafts' })
+  const open = within(panel).getByRole('article', { name: 'X draft, version 2' })
   expect(open).toHaveTextContent('Shorter one')
   expect(open).toHaveTextContent('AI draft')
-  expect(screen.queryByRole('article', { name: 'X draft · v1' })).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /X draft · v1/ })).toHaveTextContent(
+  const history = screen.getByRole('region', { name: 'History' })
+  expect(within(history).getByRole('button', { name: /X draft · v1/ })).toHaveTextContent(
     'First long version',
   )
-  expect(screen.getByText('Make it shorter please')).toBeInTheDocument()
+  expect(within(history).getByText('Make it shorter please')).toBeInTheDocument()
 })
 
-test('with one draft, replies go to it: a quick change revises it', async () => {
+test('a quick change under the draft revises it', async () => {
   renderThread()
-  expect(await screen.findByText('Replying to: X draft')).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Punchier' }))
+  const open = await screen.findByRole('article', { name: 'X draft, version 2' })
+  await userEvent.click(within(open).getByRole('button', { name: 'Punchier' }))
   await vi.waitFor(() =>
     expect(sent('POST /drafts/d1/revise')).toEqual([{ instruction: 'Punchier' }]),
   )
 })
 
+test('the message box changes the open draft; Enter sends', async () => {
+  renderThread()
+  const box = await screen.findByLabelText('Tell it what to change in the X draft')
+  await userEvent.type(box, 'Mention the 31 skipped posts{Enter}')
+  await vi.waitFor(() =>
+    expect(sent('POST /drafts/d1/revise')).toEqual([
+      { instruction: 'Mention the 31 skipped posts' },
+    ]),
+  )
+})
+
+test('Undo goes back to the version before', async () => {
+  renderThread()
+  const open = await screen.findByRole('article', { name: 'X draft, version 2' })
+  await userEvent.click(within(open).getByRole('button', { name: 'Undo' }))
+  await vi.waitFor(() => expect(calls()).toContain('POST /drafts/d1/versions/v1/restore'))
+})
+
 test('nothing is handed off before approval; approve asks only for the day (rule 4, FR-45)', async () => {
   renderThread()
-  const open = await screen.findByRole('article', { name: 'X draft · v2' })
+  const open = await screen.findByRole('article', { name: 'X draft, version 2' })
   expect(within(open).queryByRole('button', { name: 'Open in X' })).not.toBeInTheDocument()
+  expect(within(open).queryByRole('button', { name: 'Copy text' })).not.toBeInTheDocument()
   await userEvent.click(within(open).getByRole('button', { name: 'Approve and pick a day' }))
   await userEvent.click(within(open).getByRole('button', { name: 'Tomorrow' }))
   await vi.waitFor(() => expect(sent('POST /drafts/d1/schedule')).toHaveLength(1))
@@ -147,39 +169,29 @@ test('nothing is handed off before approval; approve asks only for the day (rule
   expect(await within(open).findByRole('button', { name: 'Open in X' })).toBeInTheDocument()
 })
 
-test('a new chat asks which platforms and reports a platform that failed', async () => {
+test('arriving from the new-chat box writes straight away and reports a platform that failed', async () => {
   thread = makeThread([])
-  localStorage.setItem('voxlace-platforms', JSON.stringify(['x', 'linkedin']))
-  renderThread({ ask: true })
-  const group = await screen.findByRole('group', { name: 'Which platforms?' })
-  expect(within(group).getByRole('button', { name: 'X' })).toHaveAttribute('aria-pressed', 'true')
-  expect(within(group).getByRole('button', { name: 'Telegram' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
+  renderThread({ write: ['x', 'linkedin'] })
+  await vi.waitFor(() =>
+    expect(sent('POST /threads/t1/generate')).toEqual([{ platforms: ['x', 'linkedin'] }]),
   )
-  await userEvent.click(within(group).getByRole('button', { name: 'Write 2 drafts' }))
-  expect(sent('POST /threads/t1/generate')).toEqual([{ platforms: ['x', 'linkedin'] }])
   expect(await screen.findByRole('alert')).toHaveTextContent('LinkedIn: The AI is busy right now.')
 })
 
-test('closing the reply box works with one draft, and Save does not ask for platforms', async () => {
-  renderThread()
-  await userEvent.click(await screen.findByRole('button', { name: 'Stop replying to this draft' }))
-  expect(screen.queryByText('Replying to: X draft')).not.toBeInTheDocument()
-  expect(screen.getByText('Press Reply on a card to change it.')).toBeInTheDocument()
-  expect(screen.queryByRole('group', { name: 'Which platforms?' })).not.toBeInTheDocument()
+test('a retry after a failure writes only the platform that failed', async () => {
+  thread = makeThread([])
+  renderThread({ write: ['x', 'linkedin'] })
+  await userEvent.click(await screen.findByRole('button', { name: 'Try LinkedIn again' }))
+  expect(sent('POST /threads/t1/generate').at(-1)).toEqual({ platforms: ['linkedin'] })
 })
 
-test('a retry after a failure offers only the platform that failed', async () => {
+test('a chat with no drafts says what appears there and offers one action', async () => {
   thread = makeThread([])
-  localStorage.setItem('voxlace-platforms', JSON.stringify(['x', 'linkedin']))
-  renderThread({ ask: true })
-  await userEvent.click(await screen.findByRole('button', { name: 'Write 2 drafts' }))
-  const retry = await screen.findByRole('button', { name: 'Try again' })
-  const group = screen.getByRole('group', { name: 'Which platforms?' })
-  expect(within(group).getByRole('button', { name: 'X' })).toHaveAttribute('aria-pressed', 'false')
-  await userEvent.click(retry)
-  expect(sent('POST /threads/t1/generate').at(-1)).toEqual({ platforms: ['linkedin'] })
+  localStorage.setItem('voxlace-platforms', JSON.stringify(['telegram']))
+  renderThread()
+  expect(await screen.findByText('Your drafts appear here')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Write drafts' }))
+  expect(sent('POST /threads/t1/generate')).toEqual([{ platforms: ['telegram'] }])
 })
 
 test('the check-in that opens a chat can be edited there (FR-6)', async () => {

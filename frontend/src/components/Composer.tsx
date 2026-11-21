@@ -65,6 +65,8 @@ export function Composer({
   const matches = query === null ? [] : commands.filter((c) => c.name.startsWith(query))
   const showCommands = matches.length > 0 && !hideCommands
   const current = matches[Math.min(active, matches.length - 1)]
+  // Nothing but Send: it sits beside the text, so the box stays one line tall.
+  const inline = !platforms && !options
 
   function run(c: Command) {
     onChange('')
@@ -106,7 +108,10 @@ export function Composer({
         </ul>
       )}
       <form
-        className="rounded-composer border border-line bg-composer px-3 pt-2.5 pb-2 shadow-composer transition-colors duration-(--duration) focus-within:border-edge"
+        className={cn(
+          'rounded-composer border border-line bg-composer shadow-composer transition-colors duration-(--duration) focus-within:border-edge',
+          inline ? 'flex items-end gap-2 py-1.5 pr-1.5 pl-3' : 'px-3 pt-2.5 pb-2',
+        )}
         onSubmit={(e) => {
           e.preventDefault()
           if (canSubmit && !busy) onSubmit()
@@ -155,7 +160,7 @@ export function Composer({
           placeholder={placeholder}
           className="block max-h-[40vh] w-full resize-none bg-transparent px-2 py-1.5 text-md leading-writing outline-none [field-sizing:content] placeholder:text-muted"
         />
-        <div className="mt-1 flex items-center gap-1.5">
+        <div className={cn('flex items-center gap-1.5', inline ? 'flex-none' : 'mt-1')}>
           {platforms && <PlatformChips {...platforms} />}
           <div className="ml-auto flex items-center gap-1">
             {options && (

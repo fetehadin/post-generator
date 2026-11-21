@@ -52,7 +52,7 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 - **Calendar**;
 - at the bottom: the collapse button and **your avatar → Profile**.
 
-**Right sidebar** (new): **Notifications** (a post is due now, today's check-in reminder) and **Missed** (approved posts whose time passed without "Posted", each with Post now and Reschedule). It hides when empty. On narrow screens it becomes a bell in the header that opens the same panel.
+**Notifications** (a post is due now, today's check-in reminder) and **Missed** (approved posts whose time passed without "Posted", each with Post now and Reschedule) open from a **bell** in the sidebar header, or the phone's top bar, at every width. *(Changed 21 Nov 2026: the right sidebar is gone, so the chat canvas keeps its room; the bell shows only when something needs you.)*
 
 On mobile, Chat · Drafts · Calendar · Profile become a bottom tab bar.
 
@@ -112,7 +112,7 @@ Wireframes show layout and hierarchy, not final styling.
 
 ### 4.1 Chat board (home)
 
-The home screen is a ChatGPT-style thread with one question at the top.
+**Changed 21 Nov 2026 (product owner): a canvas, not an endless thread.** The new chat is one question and one box: Enter writes drafts for the platforms picked as chips inside the box (remembered), Shift+Enter is a new line, Options holds "Save as a check-in" and "Past check-ins", and "/" lists commands (`/x`, `/linkedin`, `/telegram`, `/all`, `/save`). Starters under the box follow the user's profession. A chat then shows the check-in, the history (older versions folded, the user's notes) and the message box on the left, and the **draft panel** on the right from 1280px (stacked under the check-in below that): one tab per draft, the newest version open, with one-click changes under the text (Shorter, Punchier, More casual, Add a hook, Translate, Another version, Undo), Preview and Edit as icon buttons, and one primary action (Approve, then the hand-off). "+" writes for a platform the chat doesn't have yet. The wireframe below is the earlier thread, kept for its card contents.
 
 ```
 ┌────────────┐                                                         ┌──────────────┐
@@ -301,13 +301,13 @@ Product components to build on top:
 
 | Situation | What the user sees |
 |---|---|
-| Generating | A draft card or editor placeholder appears instantly with "Writing your X draft…", and text streams in. The input stays editable. Screen readers hear "Draft ready" when done (`aria-live="polite"`). |
+| Generating | A placeholder in the draft card's frame appears at once and names the step ("Reading your check-in", "Finding examples in your posts", "Writing your X draft", "Checking the length and the facts"), with **Stop**. The API returns the whole draft, so the text then arrives with a short word-by-word reveal (off under reduced motion). Screen readers hear each step once and "Draft ready" when done (`aria-live="polite"`). Stop cancels the wait; if the server finishes anyway, the draft appears. |
 | Slow response | After 3 seconds the placeholder adds "Still working…"; after 20 seconds (NFR-3) offer **Cancel** and **Try again**. Never a blank screen. |
 | Rate-limited (429) | "The AI is busy right now. Your text is saved. Try again in a minute." with **Try again**. |
-| AI unavailable (503) | "Drafts are unavailable right now. Your check-in is saved." |
+| AI unavailable (503) | "Drafts are unavailable right now. Your check-in is saved." with Try again, the free-key offer, and **Copy your check-in** so the user can still post by hand today. |
 | Daily limit reached | "You've used today's 30 drafts. You can generate more tomorrow." (Which "day" is still OPEN_QUESTIONS Q10.) |
 | Under 20 posts | Voice strength badge: "Still learning: import more posts for a closer match." (FR-5) |
-| Empty chat | Prompt starters + "Write today's check-in". |
+| Empty chat | Starters by profession under the box. A chat with no drafts: "Your drafts appear here" + platform chips + **Write drafts**. |
 | Empty Drafts | "Your drafts will appear here. Start a chat." with a button. |
 | Empty Calendar | "Approve a draft and pick a time to see it here." |
 | Import failed | Names the problem and the fix: "This isn't a Telegram export. Export your channel as JSON from Telegram Desktop." |

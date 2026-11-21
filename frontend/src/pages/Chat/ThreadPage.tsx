@@ -1,8 +1,8 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { activeKey, useAIKeys } from '../../api/aiKeys'
 import { useDeleteCheckin, usePatchCheckin } from '../../api/checkins'
-import { useReviseDraft } from '../../api/drafts'
+import { useReviseAnyDraft } from '../../api/drafts'
 import { useGenerateInThread, useThread } from '../../api/threads'
 import type {
   DraftRow,
@@ -10,31 +10,42 @@ import type {
   GenerateNotice,
   Platform,
   Thread,
+  ThreadCard,
   ThreadMessage,
 } from '../../api/types'
 import { AddKeyNudge } from '../../components/AddKeyNudge'
+import { type Command, Composer, PlatformChips } from '../../components/Composer'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Icon } from '../../components/Icon'
 import { PlatformMark } from '../../components/PlatformMark'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
+import { Tooltip } from '../../components/ui/tooltip'
 import { savedPlatforms, savePlatforms } from '../../lib/platformChoice'
 import { LABEL, PLATFORMS } from '../../lib/platforms'
-import { slowNote, useElapsed } from '../../lib/useElapsed'
+import { ghost, iconButton, primary, secondary } from '../../lib/ui'
 import { cn } from '../../lib/utils'
-import { DraftCard, FoldedCard } from './DraftCard'
+import { ManualFallback, WritingCard } from './AiStatus'
+import { AGAIN, DraftCard, FoldedCard, QUICK } from './DraftCard'
 
-const QUICK = ['Shorter', 'Punchier', 'More casual', 'Add a hook']
 const TAB_BAR = 64 // the mobile tab bar under the composer, in px
 
 /**
- * One chat (DESIGN.md §4.1, FR-10, FR-40, FR-46): the day's check-in, then a card for every
- * draft version in order; the newest card of each draft is open, older ones fold. Reply to a
- * card from the box at the bottom; every reply that changes the text adds a new card.
+ * One chat as a canvas (DESIGN.md §4.1, FR-10, FR-40, FR-46): the check-in, the history and
+ * the message box on one side; the drafts in a panel beside it on wide screens, under the
+ * check-in on phones. The panel shows the newest version of each draft, one tab per draft;
+ * older versions fold into the history.
  */
 export function ThreadPage() {
   const { id } = useParams()
   const thread = useThread(id)
   return thread.isPending ? (
-    <p className="mx-auto max-w-column px-4 py-16 text-muted md:px-6">Loading the chat…</p>
+    <ThreadSkeleton />
   ) : thread.isError ? (
     <p role="alert" className="mx-auto max-w-column px-4 py-16 text-danger md:px-6">
       {thread.error.message}{' '}
@@ -47,57 +58,113 @@ export function ThreadPage() {
   )
 }
 
-/** Who the box replies to: a draft, nobody (the user closed it), or automatic. */
-type ReplyTo = string | null | 'auto'
+const layout =
+  'mx-auto grid min-h-[calc(100vh-4rem)] max-w-[1240px] grid-cols-1 content-start gap-x-10 px-4 md:min-h-screen md:px-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] xl:grid-rows-[auto_1fr_auto]'
+
+/** The loaded layout's frame, so nothing jumps when the chat arrives. */
+function ThreadSkeleton() {
+  return (
+    <div aria-busy="true" className={layout}>
+      <p className="sr-only">Loading the chat…</p>
+      <div className="flex justify-end pt-10 xl:col-start-1">
+        <span className="h-12 w-2/3 rounded-3xl bg-sunken" />
+      </div>
+      <div className="pt-6 xl:col-start-2 xl:row-span-3 xl:row-start-1 xl:pt-10">
+        <div className="rounded-panel border border-line p-5">
+          <span className="block h-4 w-24 rounded-full bg-sunken" />
+          <div className="mt-5 flex flex-col gap-3">
+            {['w-11/12', 'w-full', 'w-3/4', 'w-1/2'].map((w) => (
+              <span key={w} className={cn('h-3 rounded-full bg-sunken', w)} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** What the drafts are doing right now (DESIGN.md §7). */
+function useWriter(thread: Thread) {
+  const generate = useGenerateInThread()
+  const [pending, setPending] = useState<Platform[]>([])
+  const [failures, setFailures] = useState<GenerateFailure[]>([])
+  const [notices, setNotices] = useState<GenerateNotice[]>([])
+  const [stopped, setStopped] = useState(false)
+  const abort = useRef<AbortController | null>(null)
+
+  function write(platforms: Platform[]) {
+    if (!platforms.length || generate.isPending) return
+    setStopped(false)
+    setPending(platforms)
+    abort.current = new AbortController()
+    generate.mutate(
+      { threadId: thread.id, platforms, signal: abort.current.signal },
+      {
+        onSuccess: (t) => {
+          // Only what failed is offered again, so a retry never duplicates a draft.
+          setFailures(t.failures ?? [])
+          setNotices(t.notices ?? [])
+        },
+        onError: () => {
+          if (abort.current?.signal.aborted) setStopped(true)
+        },
+        onSettled: () => setPending([]),
+      },
+    )
+  }
+
+  return {
+    write,
+    stop: () => abort.current?.abort(),
+    pending,
+    failures,
+    notices,
+    stopped,
+    error: stopped ? null : generate.error,
+    dismissNotices: () => setNotices([]),
+  }
+}
+
+type Writer = ReturnType<typeof useWriter>
+type Versions = Map<string, Array<{ message: ThreadMessage; card: ThreadCard }>>
 
 function ThreadView({ thread }: { thread: Thread }) {
   const location = useLocation()
   const navigate = useNavigate()
   const live = thread.drafts.filter((d) => d.status !== 'discarded')
-  const [replyTo, setReplyTo] = useState<ReplyTo>('auto')
-  const [picking, setPicking] = useState(false)
-  // Platforms picked in the new-chat box: written as soon as the chat opens.
-  const [autoWrite, setAutoWrite] = useState<Platform[] | null>(null)
+  const [active, setActive] = useState<string | null>(live[0]?.id ?? null)
   const [selection, setSelection] = useState('')
-  const [revising, setRevising] = useState<DraftRow | null>(null)
   const [announce, setAnnounce] = useState('')
-  const [notices, setNotices] = useState<GenerateNotice[]>([])
+  const writer = useWriter(thread)
+  const revise = useReviseFor()
   const composer = useRef<HTMLDivElement>(null)
-  // With one draft in the thread, replies go to it (§4.1) until the user closes the box.
-  const selected =
-    replyTo === 'auto'
-      ? live.length === 1
-        ? live[0]
-        : null
-      : (thread.drafts.find((d) => d.id === replyTo) ?? null)
+  const panel = useRef<HTMLElement>(null)
+  const current = live.find((d) => d.id === active) ?? live[0] ?? null
 
-  // Arriving with intent (Generate, a notification, /drafts/:id): apply it once, then clear
-  // it from history so a reload or Back doesn't ask again.
+  // Arriving with intent (the new-chat box, a notification, /drafts/:id): apply it once, then
+  // clear it from history so a reload or Back doesn't do it again.
   useEffect(() => {
-    const state = location.state as { ask?: boolean; draft?: string; write?: Platform[] } | null
+    const state = location.state as { draft?: string; write?: Platform[] } | null
     if (!state) return
-    if (state.ask) setPicking(true)
-    if (state.write?.length) {
-      setAutoWrite(state.write)
-      setPicking(true)
-    }
+    if (state.write?.length) writer.write(state.write)
     if (state.draft) {
-      setReplyTo(state.draft)
-      const card = document.getElementById(`card-${state.draft}`)
-      card?.scrollIntoView?.()
-      card?.focus()
+      setActive(state.draft)
+      panel.current?.scrollIntoView?.({ block: 'start' })
     }
     navigate(location.pathname, { replace: true, state: null })
   }, [location.key]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // "Draft ready" for screen readers when new drafts arrive (§7).
-  const count = thread.drafts.length
-  const previous = useRef(count)
+  // New drafts: open the first new one and tell screen readers (§7).
+  const ids = live.map((d) => d.id).join()
+  const seenIds = useRef(new Set(live.map((d) => d.id)))
   useEffect(() => {
-    const added = count - previous.current
-    previous.current = count
-    if (added > 0) setAnnounce(added === 1 ? 'Draft ready.' : `${added} drafts ready.`)
-  }, [count])
+    const added = live.filter((d) => !seenIds.current.has(d.id))
+    for (const d of added) seenIds.current.add(d.id)
+    if (added.length) {
+      setActive(added[0].id)
+      setAnnounce(added.length === 1 ? 'Draft ready.' : `${added.length} drafts ready.`)
+    }
+  }, [ids]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bars never hide focus (WCAG 2.4.11): the page scrolls with room for the composer.
   useLayoutEffect(() => {
@@ -117,73 +184,139 @@ function ThreadView({ thread }: { thread: Thread }) {
     }
   }, [])
 
+  const onSelectText = useCallback((t: string) => setSelection(t), [])
   const byId = new Map(thread.drafts.map((d) => [d.id, d]))
-  // The chat opens with the day's check-in; it can be edited or deleted there (FR-6).
   const checkinMessage = thread.messages.find((m) => m.role === 'user' && !m.draft_id)
-  const newest = new Map<string, string>()
-  for (const m of thread.messages) if (m.card && m.draft_id) newest.set(m.draft_id, m.id)
+  // Every card per draft, oldest first: the last one is in the panel, the rest are history.
+  const versions: Versions = new Map()
+  for (const m of thread.messages)
+    if (m.card && m.draft_id)
+      versions.set(m.draft_id, [...(versions.get(m.draft_id) ?? []), { message: m, card: m.card }])
+  const newestIds = new Set([...versions.values()].map((v) => v[v.length - 1].message.id))
+  const history = thread.messages.filter(
+    (m) => m !== checkinMessage && !newestIds.has(m.id) && (m.card || m.text),
+  )
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-column flex-col px-4 pt-12 md:min-h-screen md:px-6">
-      <h1 className="text-xl font-semibold tracking-tight">{thread.title}</h1>
+    <div className={layout}>
+      <h1 className="sr-only">{thread.title}</h1>
       <p aria-live="polite" className="sr-only">
         {announce}
       </p>
-      <ol className="mt-8 flex flex-col gap-4 pb-8">
-        {thread.messages.map((m) => {
-          const draft = m.draft_id ? byId.get(m.draft_id) : undefined
-          const isNewest = Boolean(m.card && draft && newest.get(draft.id) === m.id)
-          return (
-            <li key={m.id} id={isNewest ? `card-${draft!.id}` : undefined} tabIndex={-1}>
-              {m.card && draft ? (
-                isNewest ? (
-                  <DraftCard
-                    card={m.card}
-                    draft={draft}
-                    selected={selected?.id === draft.id}
-                    onSelect={() => {
-                      setReplyTo(selected?.id === draft.id ? null : draft.id)
-                      setSelection('')
-                    }}
-                    onSelectText={(t) => {
-                      setReplyTo(draft.id)
-                      setSelection(t)
-                    }}
-                  />
-                ) : (
-                  <FoldedCard card={m.card} draft={draft} />
-                )
-              ) : m === checkinMessage ? (
-                thread.checkin_id ? (
-                  <CheckinMessage checkinId={thread.checkin_id} text={thread.checkin_text} />
-                ) : (
-                  <p className="ml-auto text-sm text-muted">You deleted this check-in.</p>
-                )
-              ) : (
-                <Plain message={m} />
-              )}
-            </li>
-          )
-        })}
-        {revising && (
-          <li
-            aria-live="polite"
-            className="rounded-panel border border-dashed border-edge p-4 text-sm font-semibold"
-          >
-            <span className="flex items-center gap-2">
-              <PlatformMark platform={revising.platform} />
-              Writing the next version of your {LABEL[revising.platform]} draft…
-            </span>
-          </li>
+
+      <div className="pt-10 xl:col-start-1">
+        {thread.checkin_id ? (
+          <CheckinMessage checkinId={thread.checkin_id} text={thread.checkin_text} />
+        ) : (
+          <p className="text-right text-sm text-muted">You deleted this check-in.</p>
         )}
-      </ol>
-      {notices.length > 0 && (
-        <div
-          role="status"
-          className="mt-3 flex flex-col gap-1 rounded-panel border border-line p-3"
-        >
-          {notices.map((n, i) => (
-            <p key={i} className="text-sm text-signal">
+      </div>
+
+      <section
+        ref={panel}
+        aria-label="Drafts"
+        className="scroll-mt-4 pt-6 xl:sticky xl:top-0 xl:col-start-2 xl:row-span-3 xl:row-start-1 xl:max-h-screen xl:overflow-y-auto xl:pt-10 xl:pb-10"
+      >
+        <DraftPanel
+          thread={thread}
+          live={live}
+          current={current}
+          versions={versions}
+          writer={writer}
+          revise={revise}
+          onActive={setActive}
+          onSelectText={onSelectText}
+        />
+      </section>
+
+      {history.length > 0 && (
+        <section aria-label="History" className="pt-8 xl:col-start-1">
+          <h2 className="mb-3 text-xs font-semibold text-muted">History</h2>
+          <ol className="flex flex-col gap-3">
+            {history.map((m) => {
+              const draft = m.draft_id ? byId.get(m.draft_id) : undefined
+              return (
+                <li key={m.id}>
+                  {m.card && draft ? (
+                    <FoldedCard card={m.card} draft={draft} />
+                  ) : (
+                    <Plain message={m} />
+                  )}
+                </li>
+              )
+            })}
+          </ol>
+        </section>
+      )}
+
+      <div
+        ref={composer}
+        className="sticky bottom-16 z-[1] mt-auto bg-paper pt-6 pb-4 md:bottom-0 xl:col-start-1 xl:row-start-3"
+      >
+        {current && (
+          <ReplyBox
+            draft={current}
+            drafts={live}
+            selection={selection}
+            revise={revise}
+            onClearSelection={() => setSelection('')}
+            onTarget={setActive}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The draft panel: an empty state with one action, the drafts as tabs, what is being written,
+ * and anything that went wrong, each with a way on.
+ */
+function DraftPanel({
+  thread,
+  live,
+  current,
+  versions,
+  writer,
+  revise,
+  onActive,
+  onSelectText,
+}: {
+  thread: Thread
+  live: DraftRow[]
+  current: DraftRow | null
+  versions: Versions
+  writer: Writer
+  revise: Reviser
+  onActive: (id: string) => void
+  onSelectText: (text: string) => void
+}) {
+  const own = activeKey(useAIKeys().data)
+  const missing = PLATFORMS.filter((p) => !live.some((d) => d.platform === p))
+  const writing = writer.pending
+  // Cards that were here when the chat opened don't replay the reveal.
+  const seen = useRef(new Set([...versions.values()].map((v) => v[v.length - 1].message.id)))
+  const failed = writer.failures.map((f) => f.platform)
+  const nudge = writer.failures.some((f) => f.code === 'daily_limit')
+    ? 'limit'
+    : writer.failures.some((f) => f.code === 'ai_unavailable')
+      ? 'busy'
+      : null
+  const empty = !live.length && !writing.length && !writer.failures.length
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      for (const v of versions.values()) seen.current.add(v[v.length - 1].message.id)
+    }, 1500)
+    return () => clearTimeout(t)
+  })
+
+  return (
+    <div className="flex flex-col gap-4">
+      {writer.notices.length > 0 && (
+        <div role="status" className="flex flex-col gap-1 rounded-panel bg-sunken p-3 text-sm">
+          {writer.notices.map((n, i) => (
+            <p key={i} className="text-signal">
               {LABEL[n.platform]}: {n.message}
               {/* The backend's OWN_KEY_FAILED notice: one tap to the key settings. */}
               {n.message.startsWith('Your key failed') && (
@@ -196,61 +329,257 @@ function ThreadView({ thread }: { thread: Thread }) {
               )}
             </p>
           ))}
-          <button
-            type="button"
-            onClick={() => setNotices([])}
-            className="self-start text-sm text-muted underline"
-          >
+          <button type="button" onClick={writer.dismissNotices} className={cn(ghost, 'self-start')}>
             Dismiss
           </button>
         </div>
       )}
-      <div ref={composer} className="sticky bottom-16 mt-auto bg-paper pt-2 pb-4 md:bottom-0">
-        {picking ? (
-          <PlatformPicker
-            thread={thread}
-            autoWrite={autoWrite}
-            canClose
-            onClose={() => setPicking(false)}
-            onDone={(n) => {
-              setNotices(n)
-              setPicking(false)
-            }}
-          />
-        ) : selected ? (
-          <ReplyBox
-            key={selected.id}
-            draft={selected}
-            selection={selection}
-            onBusy={(busy) => setRevising(busy ? selected : null)}
-            onClearSelection={() => setSelection('')}
-            onClear={() => {
-              setReplyTo(null)
-              setSelection('')
-            }}
-            onMorePlatforms={() => setPicking(true)}
-          />
-        ) : (
-          <p className="flex flex-wrap items-center gap-2 text-sm text-muted">
-            {count === 0 ? 'Saved as today’s check-in.' : 'Press Reply on a card to change it.'}
-            <button
-              type="button"
-              onClick={() => setPicking(true)}
-              className={cn(
-                'ml-auto min-h-10 rounded-full px-4',
-                count === 0
-                  ? 'bg-primary font-semibold text-on-primary'
-                  : 'text-thread underline underline-offset-4',
-              )}
-            >
-              {count === 0 ? 'Write drafts from it' : 'Write for other platforms'}
-            </button>
-          </p>
-        )}
+
+      {empty && !writer.stopped && !writer.error && <EmptyPanel onWrite={writer.write} />}
+
+      {live.length > 0 && current && (
+        <Tabs value={current.id} onValueChange={onActive}>
+          <div className="flex items-center gap-2">
+            {live.length > 1 ? (
+              <TabsList
+                variant="line"
+                aria-label="Drafts"
+                className="min-w-0 flex-1 justify-start overflow-x-auto"
+              >
+                {live.map((d, i) => (
+                  <TabsTrigger key={d.id} value={d.id} className="flex-none px-3">
+                    <PlatformMark platform={d.platform} />
+                    {LABEL[d.platform]}
+                    {/* Two drafts for one platform: number the later ones. */}
+                    {(() => {
+                      const n = live.slice(0, i + 1).filter((x) => x.platform === d.platform).length
+                      return n > 1 ? ` ${n}` : ''
+                    })()}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            ) : (
+              <span className="flex-1" />
+            )}
+            {missing.length > 0 && (
+              <DropdownMenu>
+                <Tooltip content="Write for another platform">
+                  <DropdownMenuTrigger
+                    aria-label="Write for another platform"
+                    disabled={writing.length > 0}
+                    className={iconButton}
+                  >
+                    <Icon name="plus" />
+                  </DropdownMenuTrigger>
+                </Tooltip>
+                <DropdownMenuContent align="end">
+                  {missing.map((p) => (
+                    <DropdownMenuItem key={p} onSelect={() => writer.write([p])}>
+                      <PlatformMark platform={p} />
+                      Write {p === 'x' ? 'an' : 'a'} {LABEL[p]} draft
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+          {live.map((d) => {
+            const v = versions.get(d.id) ?? []
+            const newest = v[v.length - 1]
+            if (!newest) return null
+            return (
+              <TabsContent key={d.id} value={d.id} className="mt-3">
+                {revise.busyFor === d.id ? (
+                  <WritingCard platform={d.platform} revising onStop={revise.stop} />
+                ) : (
+                  <DraftCard
+                    key={newest.message.id}
+                    card={newest.card}
+                    draft={d}
+                    previous={v[v.length - 2]?.card}
+                    fresh={!seen.current.has(newest.message.id)}
+                    busy={revise.busyFor !== null}
+                    onRevise={(instruction) => revise.send(d, instruction)}
+                    onSelectText={onSelectText}
+                  />
+                )}
+                {revise.errorFor === d.id && (
+                  <p
+                    role="alert"
+                    className="mt-2 flex flex-wrap items-center gap-2 text-sm text-danger"
+                  >
+                    {revise.error}
+                    <button
+                      type="button"
+                      onClick={revise.retry}
+                      className={cn(secondary, 'min-h-9 text-ink')}
+                    >
+                      Try again
+                    </button>
+                  </p>
+                )}
+                {revise.stoppedFor === d.id && (
+                  <p className="mt-2 text-sm text-muted">
+                    Stopped. The draft is as it was; if the change finishes anyway, it shows up as a
+                    new version.
+                  </p>
+                )}
+              </TabsContent>
+            )
+          })}
+        </Tabs>
+      )}
+
+      {writing.map((p) => (
+        <WritingCard key={p} platform={p} onStop={writer.stop} />
+      ))}
+
+      {writer.stopped && (
+        <div className="rounded-panel border border-line p-4 text-sm">
+          <p>Stopped. Your check-in is saved; if the drafts finish anyway, they show up here.</p>
+          <button
+            type="button"
+            onClick={() => writer.write(savedPlatforms())}
+            className={cn(secondary, 'mt-3')}
+          >
+            Write drafts again
+          </button>
+        </div>
+      )}
+
+      {writer.error && (
+        <div role="alert" className="rounded-panel border border-line p-4 text-sm">
+          <p className="text-danger">{writer.error.message} Your check-in is saved.</p>
+          <button
+            type="button"
+            onClick={() => writer.write(savedPlatforms())}
+            className={cn(secondary, 'mt-3')}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {writer.failures.length > 0 && !writing.length && (
+        <div className="flex flex-col gap-3 rounded-panel border border-line p-4">
+          {writer.failures.map((f) => (
+            <p key={f.platform} role="alert" className="flex items-start gap-2 text-sm">
+              <PlatformMark platform={f.platform} />
+              <span className="text-danger">
+                {LABEL[f.platform]}: {f.message}
+              </span>
+            </p>
+          ))}
+          {nudge && (
+            // Saving a key writes the drafts that failed straight away: no extra tap.
+            <AddKeyNudge reason={nudge} onSaved={() => writer.write(failed)} />
+          )}
+          <button
+            type="button"
+            onClick={() => writer.write(failed)}
+            className={cn(secondary, 'self-start')}
+          >
+            {failed.length === 1 ? `Try ${LABEL[failed[0]]} again` : 'Try again'}
+          </button>
+          {nudge === 'busy' && <ManualFallback checkin={thread.checkin_text} />}
+        </div>
+      )}
+
+      {own?.provider && live.length > 0 && (
+        <p className="inline-flex items-center gap-1 self-start rounded-full bg-sunken px-3 py-1 text-xs text-muted">
+          <Icon name="check" className="size-3" />
+          Using your {own.provider.name.replace(/ \(.*\)$/, '')} key
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * No drafts yet (an NN/g empty state): what appears here, how to start, one action. Shown
+ * after "Save as a check-in" or once every draft is discarded.
+ */
+function EmptyPanel({ onWrite }: { onWrite: (p: Platform[]) => void }) {
+  const [platforms, setPlatforms] = useState<Platform[]>(savedPlatforms)
+  return (
+    <div className="rounded-panel border border-dashed border-edge p-6">
+      <p className="flex items-center gap-2 font-semibold">
+        <Icon name="nib" className="size-4 text-thread" />
+        Your drafts appear here
+      </p>
+      <p className="mt-1 text-sm text-muted">
+        Pick where you post. Each draft can be changed with one click after.
+      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <PlatformChips value={platforms} onChange={setPlatforms} />
+        <button
+          type="button"
+          disabled={!platforms.length}
+          onClick={() => {
+            savePlatforms(platforms)
+            onWrite(platforms)
+          }}
+          className={cn(primary, 'ml-auto')}
+        >
+          Write drafts
+        </button>
       </div>
     </div>
   )
 }
+
+/**
+ * A change being written for one draft, with Stop. The card's chips and the message box
+ * share it, so the card shows "Rewriting…" whichever started it.
+ */
+function useReviseFor() {
+  const [busyFor, setBusyFor] = useState<string | null>(null)
+  const [errorFor, setErrorFor] = useState<string | null>(null)
+  const [stoppedFor, setStoppedFor] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [last, setLast] = useState<{ draft: DraftRow; instruction: string; selection?: string }>()
+  const revise = useReviseAnyDraft()
+  const abort = useRef<AbortController | null>(null)
+
+  function send(draft: DraftRow, instruction: string, selection?: string, done?: () => void) {
+    if (busyFor || !instruction.trim() || draft.status === 'published') return
+    setLast({ draft, instruction, selection })
+    setBusyFor(draft.id)
+    setErrorFor(null)
+    setStoppedFor(null)
+    abort.current = new AbortController()
+    revise.mutate(
+      {
+        id: draft.id,
+        instruction: instruction.trim(),
+        ...(selection && { selection }),
+        signal: abort.current.signal,
+      },
+      {
+        onSuccess: () => done?.(),
+        onError: (e) => {
+          if (abort.current?.signal.aborted) setStoppedFor(draft.id)
+          else {
+            setError(`${e.message} Your text is still here.`)
+            setErrorFor(draft.id)
+          }
+        },
+        onSettled: () => setBusyFor(null),
+      },
+    )
+  }
+  return {
+    send,
+    busyFor,
+    errorFor,
+    stoppedFor,
+    error,
+    stop: () => abort.current?.abort(),
+    retry: () => last && send(last.draft, last.instruction, last.selection),
+  }
+}
+
+type Reviser = ReturnType<typeof useReviseFor>
 
 /**
  * The day's check-in (FR-6): edit it, or delete it. Drafts already made from it stay; new
@@ -264,7 +593,7 @@ function CheckinMessage({ checkinId, text }: { checkinId: string; text: string }
   const boxId = useId()
   const error = patch.error
   return (
-    <div className="ml-auto max-w-[70%]">
+    <div className="group ml-auto max-w-[85%]">
       {editing ? (
         <form
           onSubmit={(e) => {
@@ -284,18 +613,10 @@ function CheckinMessage({ checkinId, text }: { checkinId: string; text: string }
             className="block w-full rounded-panel border border-edge bg-surface px-4 py-3 text-md leading-writing [field-sizing:content]"
           />
           <div className="mt-2 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="min-h-9 rounded-full border border-edge px-3 text-sm hover:bg-sunken"
-            >
+            <button type="button" onClick={() => setEditing(false)} className={ghost}>
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={patch.isPending || !value.trim()}
-              className="min-h-9 rounded-full bg-primary px-3 text-sm font-semibold text-on-primary disabled:opacity-50"
-            >
+            <button type="submit" disabled={patch.isPending || !value.trim()} className={primary}>
               Save check-in
             </button>
           </div>
@@ -306,20 +627,21 @@ function CheckinMessage({ checkinId, text }: { checkinId: string; text: string }
             <span className="sr-only">Your check-in: </span>
             {text}
           </p>
-          <p className="mt-1 flex justify-end gap-1 text-sm">
+          {/* Quiet until hovered or focused, like a chat app's message actions. */}
+          <p className="mt-1 flex justify-end gap-1 text-sm transition-opacity duration-(--duration) md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100">
             <button
               type="button"
               onClick={() => {
                 setValue(text)
                 setEditing(true)
               }}
-              className="min-h-9 px-2 text-muted hover:text-ink"
+              className={cn(ghost, 'min-h-8')}
             >
               Edit check-in
             </button>
             <ConfirmDialog
               trigger="Delete check-in"
-              triggerClassName="min-h-9 rounded-control px-2 text-muted hover:bg-sunken hover:text-danger"
+              triggerClassName={cn(ghost, 'min-h-8 hover:text-danger')}
               title="Delete this check-in?"
               description="The drafts made from it stay in this chat. This can't be undone."
               confirm="Delete check-in"
@@ -342,302 +664,97 @@ function CheckinMessage({ checkinId, text }: { checkinId: string; text: string }
 function Plain({ message }: { message: ThreadMessage }) {
   if (!message.text) return null
   return message.role === 'user' ? (
-    <p className="ml-auto max-w-[70%] rounded-3xl bg-bubble px-5 py-2.5 text-md leading-writing whitespace-pre-wrap">
+    <p className="ml-auto max-w-[85%] rounded-3xl bg-bubble px-5 py-2.5 text-md leading-writing whitespace-pre-wrap">
       <span className="sr-only">You: </span>
       {message.text}
     </p>
   ) : (
-    <p className="text-muted">{message.text}</p>
+    <p className="text-sm text-muted">{message.text}</p>
   )
 }
 
-/** "Which platforms?" (§4.1): three toggles, remembering the last choice, then one card each. */
-function PlatformPicker({
-  thread,
-  autoWrite,
-  canClose,
-  onClose,
-  onDone,
-}: {
-  thread: Thread
-  autoWrite?: Platform[] | null
-  canClose: boolean
-  onClose: () => void
-  onDone: (notices: GenerateNotice[]) => void
-}) {
-  const [chosen, setChosen] = useState<Platform[]>(() => autoWrite ?? savedPlatforms())
-  const [failures, setFailures] = useState<GenerateFailure[]>([])
-  const generate = useGenerateInThread()
-  const seconds = useElapsed(generate.isPending)
-  const own = activeKey(useAIKeys().data)
-  const n = chosen.length
-  const retrying = failures.length > 0
-  // Out of free drafts, or the shared AI is busy: a free key of their own gets them going.
-  const nudge = failures.some((f) => f.code === 'daily_limit')
-    ? 'limit'
-    : failures.some((f) => f.code === 'ai_unavailable')
-      ? 'busy'
-      : null
-
-  function toggle(p: Platform) {
-    setChosen((c) => (c.includes(p) ? c.filter((x) => x !== p) : [...c, p]))
-  }
-
-  function write(platforms: Platform[]) {
-    if (!platforms.length || generate.isPending) return
-    if (!retrying) savePlatforms(platforms)
-    generate.mutate(
-      { threadId: thread.id, platforms },
-      {
-        onSuccess: (t) => {
-          const failed = t.failures ?? []
-          setFailures(failed)
-          // Only what failed is offered again, so a retry never duplicates a draft.
-          if (failed.length) setChosen(failed.map((f) => f.platform))
-          else onDone(t.notices ?? [])
-        },
-      },
-    )
-  }
-
-  // Arriving from the new-chat box with platforms picked: write them once, no extra click.
-  const started = useRef(false)
-  useEffect(() => {
-    if (autoWrite?.length && !started.current) {
-      started.current = true
-      write(autoWrite)
-    }
-  }, [autoWrite]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <div>
-      {generate.isPending && (
-        <ul aria-live="polite" className="mb-3 flex flex-col gap-2">
-          {chosen.map((p) => (
-            <li key={p} className="rounded-panel border border-dashed border-edge p-4 text-sm">
-              <span className="flex items-center gap-2 font-semibold">
-                <PlatformMark platform={p} />
-                Writing your {LABEL[p]} draft…
-              </span>
-              {slowNote(seconds) && (
-                <span className="mt-1 block text-muted">{slowNote(seconds)}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {failures.map((f) => (
-        <p key={f.platform} role="alert" className="mb-2 text-sm text-danger">
-          {LABEL[f.platform]}: {f.message}
-        </p>
-      ))}
-      {generate.error && (
-        <p role="alert" className="mb-2 text-sm text-danger">
-          {generate.error.message} Your check-in is saved.
-        </p>
-      )}
-      {nudge && !generate.isPending && (
-        // Saving a key writes the drafts that failed straight away: no extra tap.
-        <AddKeyNudge reason={nudge} onSaved={() => write(failures.map((f) => f.platform))} />
-      )}
-      {own?.provider && (
-        <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-sunken px-3 py-1 text-xs">
-          <Icon name="check" className="size-3" />
-          Using your {own.provider.name.replace(/ \(.*\)$/, '')} key
-        </p>
-      )}
-      <div
-        role="group"
-        aria-labelledby="which-platforms"
-        className="flex flex-wrap items-center gap-2"
-      >
-        <p id="which-platforms" className="mr-1 text-sm font-semibold">
-          Which platforms?
-        </p>
-        {PLATFORMS.map((p) => {
-          const on = chosen.includes(p)
-          return (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={on}
-              onClick={() => toggle(p)}
-              className={cn(
-                'flex min-h-10 items-center gap-2 rounded-full border px-3 text-sm',
-                on ? 'border-primary bg-primary text-on-primary' : 'border-edge hover:bg-sunken',
-              )}
-            >
-              {on ? <Icon name="check" className="size-4" /> : <PlatformMark platform={p} />}
-              {LABEL[p]}
-            </button>
-          )
-        })}
-        <div className="ml-auto flex gap-2">
-          {canClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="min-h-10 rounded-full border border-edge px-3 text-sm hover:bg-sunken"
-            >
-              Cancel
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={n === 0 || generate.isPending}
-            onClick={() => write(chosen)}
-            className="min-h-10 rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:opacity-50"
-          >
-            {retrying || generate.error
-              ? 'Try again'
-              : n === 1
-                ? 'Write 1 draft'
-                : `Write ${n} drafts`}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/** "Replying to: X draft" (§4.1): quick changes, or tell it what to change. */
+/**
+ * "Tell it what to change" (§4.1): goes to the draft open in the panel. A sentence selected
+ * in the draft scopes the change to it. "/" lists the quick changes and switches drafts.
+ */
 function ReplyBox({
   draft,
+  drafts,
   selection,
-  onBusy,
+  revise,
   onClearSelection,
-  onClear,
-  onMorePlatforms,
+  onTarget,
 }: {
   draft: DraftRow
+  drafts: DraftRow[]
   selection: string
-  onBusy: (busy: boolean) => void
+  revise: Reviser
   onClearSelection: () => void
-  onClear: () => void
-  onMorePlatforms: () => void
+  onTarget: (id: string) => void
 }) {
   const [text, setText] = useState('')
-  const [last, setLast] = useState('')
-  const revise = useReviseDraft(draft.id)
-  const seconds = useElapsed(revise.isPending)
   const boxId = useId()
   const name = LABEL[draft.platform]
-  const busy = revise.isPending || draft.status === 'published'
+  const posted = draft.status === 'published'
+  const busy = revise.busyFor !== null
 
   function send(instruction: string) {
-    // The keyboard shortcut obeys the same rules as the buttons.
-    if (busy || !instruction.trim()) return
-    setLast(instruction.trim())
-    onBusy(true)
-    revise.mutate(
-      { instruction: instruction.trim(), ...(selection && { selection }) },
-      {
-        onSuccess: () => {
-          setText('')
-          onClearSelection()
-        },
-        onSettled: () => onBusy(false),
-      },
-    )
+    revise.send(draft, instruction, selection || undefined, () => {
+      setText('')
+      onClearSelection()
+    })
   }
+
+  const commands: Command[] = [
+    ...QUICK.map((q) => ({
+      name: q
+        .toLowerCase()
+        .replace(/^more /, '')
+        .replace(/^add a /, ''),
+      hint: q,
+      run: () => send(q),
+    })),
+    { name: 'again', hint: 'Another version', run: () => send(AGAIN) },
+    ...drafts
+      .filter((d) => d.id !== draft.id)
+      .map((d) => ({
+        name: d.platform,
+        hint: `Change the ${LABEL[d.platform]} draft instead`,
+        run: () => onTarget(d.id),
+      })),
+  ]
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="flex items-center gap-2 rounded-full bg-sunken py-1 pr-1 pl-3">
-          Replying to: {name} draft
-          <button
-            type="button"
-            onClick={onClear}
-            aria-label="Stop replying to this draft"
-            className="grid size-7 place-items-center rounded-full hover:bg-line"
-          >
-            <Icon name="x" className="size-4" />
-          </button>
-        </span>
-        {selection && (
-          <span className="flex max-w-full items-center gap-2 rounded-full border border-edge py-1 pr-1 pl-3">
+      {selection && (
+        <p className="mb-2 flex max-w-full items-center gap-2 text-sm">
+          <span className="flex min-w-0 items-center gap-2 rounded-full bg-sunken py-1 pr-1 pl-3">
             <span className="truncate">Only this part: “{selection}”</span>
             <button
               type="button"
               onClick={onClearSelection}
               aria-label="Change the whole draft instead"
-              className="grid size-7 flex-none place-items-center rounded-full hover:bg-sunken"
+              className="grid size-7 flex-none place-items-center rounded-full hover:bg-line"
+              data-compact
             >
               <Icon name="x" className="size-4" />
             </button>
           </span>
-        )}
-        <button
-          type="button"
-          onClick={onMorePlatforms}
-          className="ml-auto min-h-9 rounded-control px-2 text-thread underline underline-offset-4"
-        >
-          Write for other platforms
-        </button>
-      </div>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {QUICK.map((q) => (
-          <button
-            key={q}
-            type="button"
-            disabled={busy}
-            onClick={() => send(q)}
-            className="min-h-9 rounded-full border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
-      <form
-        className="mt-2 flex items-end gap-2 rounded-composer border border-line bg-composer p-2 pl-5 shadow-composer focus-within:outline-2 focus-within:outline-thread"
-        onSubmit={(e) => {
-          e.preventDefault()
-          send(text)
-        }}
-      >
-        <label htmlFor={boxId} className="sr-only">
-          Tell it what to change in the {name} draft
-        </label>
-        <textarea
-          id={boxId}
-          value={text}
-          rows={1}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send(text)
-          }}
-          placeholder="Tell it what to change… e.g. mention the 31 skipped posts"
-          className="max-h-40 min-h-10 flex-1 resize-none bg-transparent py-2 outline-none [field-sizing:content] placeholder:text-muted"
-        />
-        <button
-          type="submit"
-          disabled={busy || !text.trim()}
-          title="Ctrl+Enter"
-          aria-label="Send"
-          className="grid size-10 flex-none place-items-center rounded-full bg-primary text-on-primary disabled:opacity-30"
-        >
-          <Icon name="arrow-up" />
-        </button>
-      </form>
-      {revise.isPending && slowNote(seconds) && (
-        <p className="mt-1 text-sm text-muted">{slowNote(seconds)}</p>
-      )}
-      {draft.status === 'published' && (
-        <p className="mt-1 text-sm text-muted">This draft is posted; it can't be changed.</p>
-      )}
-      {revise.error && (
-        <p role="alert" className="mt-1 flex flex-wrap items-center gap-2 text-sm text-danger">
-          {revise.error.message} Your text is still here.
-          <button
-            type="button"
-            onClick={() => send(text || last)}
-            className="min-h-9 rounded-full border border-edge px-3 text-ink hover:bg-sunken"
-          >
-            Try again
-          </button>
         </p>
       )}
+      <Composer
+        id={boxId}
+        label={`Tell it what to change in the ${name} draft`}
+        value={text}
+        onChange={setText}
+        onSubmit={() => send(text)}
+        canSubmit={Boolean(text.trim()) && !posted}
+        busy={busy}
+        onStop={revise.stop}
+        placeholder={posted ? `The ${name} draft is posted` : 'Ask for a change…'}
+        sendLabel="Send"
+        commands={commands}
+      />
     </div>
   )
 }
