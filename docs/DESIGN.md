@@ -156,6 +156,8 @@ Wireframes show layout and hierarchy, not final styling.
 
 ### 4.4 Profile
 
+**Changed 21 Nov 2026: five tabs, optional things folded.** About you (the basics open: profession, what you're working on, what you're getting better at; the other groups, projects, language and resume fold away and say how many answers are filled) · Audience & timing (with check-in reminders) · Voice & posts · **Connections** (free AI key, Telegram channel, GitHub, which is open only for developers) · Account. Old tab links (`?tab=ai`, `github`, `resume`, `when`) open the new tab at the right section. The list below is the earlier tab set, kept for what each holds.
+
 Tabs: **About you** (role, experience, discipline, your time zone, language), **Work** (projects with name, one line and link; stack; focus areas; facts the AI may use), **Resume & portfolio** (upload a PDF/DOCX, enter a URL, review the cleaned text before it's used), **Audience** (per platform: profession, places with shares on a time-zone search, goal, posts per week, and a preview of the best hours), **When you post** (posting window, days off, reminders), **Voice & posts** (per platform: voice card, stats, pin/exclude, import, Telegram channel name), **Account** (usage, export, delete).
 
 ### 4.5 First run

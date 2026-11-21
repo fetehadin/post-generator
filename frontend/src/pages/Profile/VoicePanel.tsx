@@ -105,7 +105,6 @@ function VoiceBody({ info, label }: { info: PlatformInfo; label: string }) {
       </div>
 
       {info.platform === 'x' && <PremiumSetting info={info} />}
-      {info.platform === 'telegram' && <ChannelSetting info={info} />}
 
       <details className="mt-4 text-sm">
         <summary className="cursor-pointer text-muted">{label} rules</summary>
@@ -155,8 +154,8 @@ function PremiumSetting({ info }: { info: PlatformInfo }) {
   )
 }
 
-/** FR-12: the Telegram channel the hand-off opens after copying a post. */
-function ChannelSetting({ info }: { info: PlatformInfo }) {
+/** FR-12: the Telegram channel the hand-off opens after copying a post (Profile → Connections). */
+export function ChannelSetting({ info }: { info: PlatformInfo }) {
   const save = useSavePlatformSettings('telegram')
   const [channel, setChannel] = useState(info.channel ?? '')
   const changed = channel.trim() !== (info.channel ?? '')
