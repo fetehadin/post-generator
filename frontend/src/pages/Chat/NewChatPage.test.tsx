@@ -105,3 +105,12 @@ test('a failure keeps the text where it was (NFR-4)', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('The AI is busy right now.')
   expect(box).toHaveValue('Wrote the docs')
 })
+
+test('a new account goes straight to the box: no setup first (§4.5)', async () => {
+  localStorage.clear()
+  renderPage()
+  expect(await screen.findByLabelText('What did you do today?')).toBeInTheDocument()
+  expect(
+    await screen.findByText("One line is enough. You'll get a draft to edit in seconds."),
+  ).toBeInTheDocument()
+})

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useZone } from '../../api/me'
 import { useProfile } from '../../api/profile'
 import { useCreateThread, useThreads } from '../../api/threads'
@@ -11,12 +11,11 @@ import { LABEL, PLATFORMS } from '../../lib/platforms'
 import { starterLabel, startersFor } from '../../lib/starters'
 import { dateIn } from '../../lib/time'
 import { chip } from '../../lib/ui'
-import { useNeedsWelcome } from '../../lib/welcome'
 
 const BOX = 'new-chat-box'
 
 /**
- * A new chat (DESIGN.md §4.1, FR-6, FR-46): "What did you do today?" Enter writes drafts for
+ * A new chat, and the first run (DESIGN.md §4.1, §4.5, FR-6, FR-46): "What did you do today?" Enter writes drafts for
  * the platforms picked in the box, straight away; Options → "Save as a check-in" only saves
  * it. A failure keeps the text exactly where it was (NFR-4).
  */
@@ -26,7 +25,6 @@ export function NewChatPage() {
   const handed = (location.state as { text?: string } | null)?.text
   const [text, setText] = useState(handed ?? '')
   const [platforms, setPlatforms] = useState<Platform[]>(savedPlatforms)
-  const needsWelcome = useNeedsWelcome()
   const profession = useProfile().data?.discipline
   const threads = useThreads().data?.items
   const zone = useZone()
@@ -60,9 +58,6 @@ export function NewChatPage() {
     if (handed) navigate(location.pathname, { replace: true, state: null })
   }, [handed, location.pathname, navigate])
 
-  if (needsWelcome === true) return <Navigate to="/welcome" replace />
-  // Don't offer the box until we know, so nothing typed is thrown away by the redirect.
-  if (needsWelcome === 'loading') return <p className="p-8 text-muted">Loading…</p>
   return (
     <div className="mx-auto max-w-column px-4 pt-12 pb-16 md:px-6 md:pt-[22vh]">
       <h1 className="text-center text-2xl font-semibold tracking-tight text-balance">

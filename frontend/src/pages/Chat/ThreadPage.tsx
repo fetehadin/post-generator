@@ -18,6 +18,7 @@ import { type Command, Composer, PlatformChips } from '../../components/Composer
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Icon } from '../../components/Icon'
 import { PlatformMark } from '../../components/PlatformMark'
+import { VoiceSetup } from '../../components/VoiceSetup'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -484,6 +485,9 @@ function DraftPanel({
           {nudge === 'busy' && <ManualFallback checkin={thread.checkin_text} />}
         </div>
       )}
+
+      {/* First run: two optional questions after the first draft, never before it. */}
+      {live.length > 0 && !writing.length && <VoiceSetup />}
 
       {own?.provider && live.length > 0 && (
         <p className="inline-flex items-center gap-1 self-start rounded-full bg-sunken px-3 py-1 text-xs text-muted">

@@ -71,7 +71,7 @@ There's no separate editor page any more: a draft is edited in its thread. `/dra
 
 ### First run: from sign-up to first draft in under 5 minutes
 
-Activation is a success metric (SRS §9), so onboarding asks only what the first draft needs. Everything else can wait.
+Activation is a success metric (SRS §9), so onboarding asks only what the first draft needs. Everything else can wait. *(21 Nov 2026: the flow below is now "write first, optional questions after the draft"; see §4.5.)*
 
 ```mermaid
 flowchart LR
@@ -160,7 +160,7 @@ Tabs: **About you** (role, experience, discipline, your time zone, language), **
 
 ### 4.5 First run
 
-Invite → privacy → pick platforms → role and focus → audience profession and place (pre-filled from your time zone, saved for each picked platform) → import an export, or "skip, write a first draft" with a topic suggested from your focus. Shown once, to accounts with no role yet (`/welcome`, linked from the new chat). Everything else waits in Profile.
+**Changed 21 Nov 2026 (product owner): one question, then a draft.** After sign-up (and the invite and privacy steps), a new account lands on "What did you do today?" with "One line is enough. You'll get a draft to edit in seconds." Editing beats a blank page, so nothing is asked first. Under the first drafts, an optional card asks two one-tap questions (what you do, why you post) and offers "Import your past posts"; "Not now" hides it for a week, and accounts that already have a role never see it. The old four-step setup still opens at `/welcome` but nothing sends anyone there. Everything else waits in Profile.
 
 ---
 
