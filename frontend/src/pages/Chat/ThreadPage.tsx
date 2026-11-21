@@ -119,7 +119,7 @@ function ThreadView({ thread }: { thread: Thread }) {
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-column flex-col px-4 pt-12 md:min-h-screen md:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{thread.title}</h1>
+      <h1 className="text-xl font-semibold tracking-tight">{thread.title}</h1>
       <p aria-live="polite" className="sr-only">
         {announce}
       </p>
@@ -199,10 +199,7 @@ function ThreadView({ thread }: { thread: Thread }) {
           </button>
         </div>
       )}
-      <div
-        ref={composer}
-        className="sticky bottom-16 mt-auto border-t border-line bg-paper py-3 md:bottom-0"
-      >
+      <div ref={composer} className="sticky bottom-16 mt-auto bg-paper pt-2 pb-4 md:bottom-0">
         {picking ? (
           <PlatformPicker
             thread={thread}
@@ -233,7 +230,7 @@ function ThreadView({ thread }: { thread: Thread }) {
               type="button"
               onClick={() => setPicking(true)}
               className={cn(
-                'ml-auto min-h-10 rounded-control px-3',
+                'ml-auto min-h-10 rounded-full px-4',
                 count === 0
                   ? 'bg-primary font-semibold text-on-primary'
                   : 'text-thread underline underline-offset-4',
@@ -260,7 +257,7 @@ function CheckinMessage({ checkinId, text }: { checkinId: string; text: string }
   const boxId = useId()
   const error = patch.error
   return (
-    <div className="ml-auto max-w-[85%]">
+    <div className="ml-auto max-w-[70%]">
       {editing ? (
         <form
           onSubmit={(e) => {
@@ -277,20 +274,20 @@ function CheckinMessage({ checkinId, text }: { checkinId: string; text: string }
             value={value}
             maxLength={4000}
             onChange={(e) => setValue(e.target.value)}
-            className="block w-full rounded-panel border border-edge bg-surface px-4 py-3 font-serif text-lg leading-writing [field-sizing:content]"
+            className="block w-full rounded-panel border border-edge bg-surface px-4 py-3 text-md leading-writing [field-sizing:content]"
           />
           <div className="mt-2 flex justify-end gap-2">
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="min-h-9 rounded-control border border-edge px-3 text-sm hover:bg-sunken"
+              className="min-h-9 rounded-full border border-edge px-3 text-sm hover:bg-sunken"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={patch.isPending || !value.trim()}
-              className="min-h-9 rounded-control bg-primary px-3 text-sm font-semibold text-on-primary disabled:opacity-50"
+              className="min-h-9 rounded-full bg-primary px-3 text-sm font-semibold text-on-primary disabled:opacity-50"
             >
               Save check-in
             </button>
@@ -298,7 +295,7 @@ function CheckinMessage({ checkinId, text }: { checkinId: string; text: string }
         </form>
       ) : (
         <>
-          <p className="rounded-panel bg-sunken px-4 py-3 font-serif text-lg leading-writing whitespace-pre-wrap">
+          <p className="rounded-3xl bg-bubble px-5 py-2.5 text-md leading-writing whitespace-pre-wrap">
             <span className="sr-only">Your check-in: </span>
             {text}
           </p>
@@ -338,7 +335,7 @@ function CheckinMessage({ checkinId, text }: { checkinId: string; text: string }
 function Plain({ message }: { message: ThreadMessage }) {
   if (!message.text) return null
   return message.role === 'user' ? (
-    <p className="ml-auto max-w-[85%] rounded-panel bg-sunken px-4 py-3 font-serif text-lg leading-writing whitespace-pre-wrap">
+    <p className="ml-auto max-w-[70%] rounded-3xl bg-bubble px-5 py-2.5 text-md leading-writing whitespace-pre-wrap">
       <span className="sr-only">You: </span>
       {message.text}
     </p>
@@ -462,7 +459,7 @@ function PlatformPicker({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-10 rounded-control border border-edge px-3 text-sm hover:bg-sunken"
+              className="min-h-10 rounded-full border border-edge px-3 text-sm hover:bg-sunken"
             >
               Cancel
             </button>
@@ -471,7 +468,7 @@ function PlatformPicker({
             type="button"
             disabled={n === 0 || generate.isPending}
             onClick={() => write(chosen)}
-            className="min-h-10 rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:opacity-50"
+            className="min-h-10 rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:opacity-50"
           >
             {retrying || generate.error
               ? 'Try again'
@@ -575,7 +572,7 @@ function ReplyBox({
         ))}
       </div>
       <form
-        className="mt-2 flex items-end gap-2 rounded-panel border border-edge bg-surface p-2 pl-3 focus-within:outline-2 focus-within:outline-thread"
+        className="mt-2 flex items-end gap-2 rounded-composer border border-line bg-composer p-2 pl-5 shadow-composer focus-within:outline-2 focus-within:outline-thread"
         onSubmit={(e) => {
           e.preventDefault()
           send(text)
@@ -599,9 +596,10 @@ function ReplyBox({
           type="submit"
           disabled={busy || !text.trim()}
           title="Ctrl+Enter"
-          className="min-h-10 rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:opacity-50"
+          aria-label="Send"
+          className="grid size-10 flex-none place-items-center rounded-full bg-primary text-on-primary disabled:opacity-30"
         >
-          Send
+          <Icon name="arrow-up" />
         </button>
       </form>
       {revise.isPending && slowNote(seconds) && (
@@ -616,7 +614,7 @@ function ReplyBox({
           <button
             type="button"
             onClick={() => send(text || last)}
-            className="min-h-9 rounded-control border border-edge px-3 text-ink hover:bg-sunken"
+            className="min-h-9 rounded-full border border-edge px-3 text-ink hover:bg-sunken"
           >
             Try again
           </button>

@@ -161,7 +161,7 @@ function AudienceForm({ info, label }: { info: PlatformInfo; label: string }) {
         {places.length < MAX_PLACES && (
           <button
             type="button"
-            className="mt-2 inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm"
+            className="mt-2 inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm"
             onClick={() => {
               setSaved(false)
               setPlaces([...places, { timezone: '', share: places.length ? 30 : 100 }])

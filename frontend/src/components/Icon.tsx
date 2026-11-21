@@ -22,6 +22,7 @@ const PATHS = {
   grip: 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
   alert: 'M12 3l9.5 17h-19zM12 10v4M12 17h.01',
   clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18zM12 7v5l3 2',
+  'arrow-up': 'M12 19V5M6 11l6-6 6 6',
 } as const
 
 export type IconName = keyof typeof PATHS

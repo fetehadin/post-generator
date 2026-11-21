@@ -20,7 +20,7 @@ const DRAFTS_OPEN_KEY = 'voxlace-drafts-open'
 const TZ_SENT_KEY = 'voxlace-timezone-sent'
 
 /**
- * DESIGN.md §2 (decided 22 Oct 2026). Left: a floating sidebar card with New chat, the chat
+ * DESIGN.md §2 (decided 22 Oct 2026; restyled 20 Nov 2026). Left: a flat, full-height sidebar with New chat, the chat
  * history, Drafts → X · LinkedIn · Telegram, Calendar, and at the bottom the collapse button
  * and the avatar → Profile. Right (1280px and up): Notifications and Missed, hidden when
  * empty; narrower, a bell opens the same panel. Mobile: a top bar and a bottom tab bar.
@@ -59,7 +59,7 @@ export function AppShell() {
       onClick={switchTheme}
       aria-label={themeLabel}
       title={themeLabel}
-      className="grid size-9 place-items-center rounded-control hover:bg-sunken"
+      className="grid size-9 place-items-center rounded-control text-muted hover:bg-sunken hover:text-ink"
     >
       <Icon name={THEME_ICON[current]} />
     </button>
@@ -69,20 +69,20 @@ export function AppShell() {
     <div
       className={cn(
         'min-h-screen md:grid',
-        collapsed ? 'md:grid-cols-[88px_minmax(0,1fr)]' : 'md:grid-cols-[288px_minmax(0,1fr)]',
+        collapsed ? 'md:grid-cols-[64px_minmax(0,1fr)]' : 'md:grid-cols-[260px_minmax(0,1fr)]',
         count > 0 &&
           wide &&
           (collapsed
-            ? 'xl:grid-cols-[88px_minmax(0,1fr)_300px]'
-            : 'xl:grid-cols-[288px_minmax(0,1fr)_300px]'),
+            ? 'xl:grid-cols-[64px_minmax(0,1fr)_300px]'
+            : 'xl:grid-cols-[260px_minmax(0,1fr)_300px]'),
       )}
     >
-      <aside className="sticky top-0 hidden h-screen p-3 md:block">
-        <div className="flex h-full flex-col rounded-panel border border-line bg-paper">
+      <aside className="sticky top-0 hidden h-screen bg-sidebar md:block">
+        <div className="flex h-full flex-col">
           <div
             className={cn(
-              'flex items-center border-b border-line p-4',
-              collapsed ? 'flex-col gap-3' : 'justify-between',
+              'flex items-center px-3 pt-3 pb-1',
+              collapsed ? 'flex-col gap-2' : 'justify-between pl-4',
             )}
           >
             <span className="text-ink">
@@ -94,7 +94,7 @@ export function AppShell() {
             </div>
           </div>
 
-          <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col gap-1 p-3">
+          <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col gap-0.5 px-2 py-2">
             <NavItem to="/" icon="plus" label="New chat" collapsed={collapsed} end />
             {!collapsed && <ThreadList />}
             <DraftsGroup collapsed={collapsed} />
@@ -102,28 +102,31 @@ export function AppShell() {
           </nav>
 
           <div
-            className={cn('flex gap-2 p-3', collapsed ? 'flex-col items-center' : 'items-center')}
+            className={cn(
+              'flex gap-1 border-t border-line p-2',
+              collapsed ? 'flex-col items-center' : 'items-center',
+            )}
           >
             <NavLink
               to="/profile"
               title={collapsed ? 'Profile' : undefined}
               className={({ isActive }) =>
                 cn(
-                  'flex min-w-0 flex-1 items-center gap-3 rounded-full',
-                  collapsed ? 'justify-center' : 'bg-sunken p-2 pr-4',
-                  isActive ? 'ring-1 ring-primary' : 'hover:ring-1 hover:ring-edge',
+                  'flex min-w-0 flex-1 items-center gap-3 rounded-control p-2',
+                  collapsed && 'justify-center',
+                  isActive ? 'bg-sunken' : 'hover:bg-sunken',
                 )
               }
             >
               <span
                 aria-hidden="true"
-                className="grid size-10 flex-none place-items-center rounded-full bg-primary text-md font-semibold text-on-primary"
+                className="grid size-8 flex-none place-items-center rounded-full bg-primary text-sm font-semibold text-on-primary"
               >
                 {name.charAt(0).toUpperCase()}
               </span>
               <span className={collapsed ? 'sr-only' : 'min-w-0 leading-tight'}>
-                <span className="block truncate font-semibold">{name}</span>
-                <span className="block text-sm text-muted">Profile &amp; settings</span>
+                <span className="block truncate text-sm font-semibold">{name}</span>
+                <span className="block text-xs text-muted">Profile &amp; settings</span>
               </span>
             </NavLink>
             <button
@@ -141,7 +144,7 @@ export function AppShell() {
       </aside>
 
       {/* Mobile: the wordmark, the bell and the theme toggle. */}
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-paper px-4 py-2 md:hidden">
+      <header className="sticky top-0 z-10 flex items-center justify-between bg-paper px-4 py-2 md:hidden">
         <Wordmark className="h-5 w-auto text-ink" />
         <div className="flex items-center gap-1">
           {count > 0 && <Bell count={count} />}
@@ -205,9 +208,9 @@ function NavItem({
       title={collapsed ? label : undefined}
       className={({ isActive }) =>
         cn(
-          'flex min-h-11 flex-none items-center gap-3 rounded-control text-md text-ink',
-          collapsed ? 'justify-center' : 'px-3',
-          isActive ? 'bg-sunken font-semibold' : 'hover:bg-sunken',
+          'flex min-h-9 flex-none items-center gap-3 rounded-control text-sm text-ink',
+          collapsed ? 'justify-center' : 'px-2.5',
+          isActive ? 'bg-sunken' : 'hover:bg-sunken',
         )
       }
     >
@@ -222,11 +225,11 @@ function ThreadList() {
   const threads = useThreads().data?.items ?? []
   return (
     <section aria-labelledby="chats-title" className="flex min-h-0 flex-col">
-      <h2 id="chats-title" className="px-3 pt-3 pb-1 text-sm text-muted">
+      <h2 id="chats-title" className="px-2.5 pt-4 pb-1 text-xs font-semibold text-muted">
         Chats
       </h2>
       {threads.length === 0 ? (
-        <p className="px-3 text-sm text-muted">Your chats will appear here.</p>
+        <p className="px-2.5 text-sm text-muted">Your chats will appear here.</p>
       ) : (
         <ul className="max-h-[40vh] min-h-0 overflow-y-auto">
           {threads.map((t) => (
@@ -236,8 +239,8 @@ function ThreadList() {
                 title={t.title}
                 className={({ isActive }) =>
                   cn(
-                    'block min-h-9 truncate rounded-control px-3 py-2 text-sm',
-                    isActive ? 'bg-sunken font-semibold' : 'hover:bg-sunken',
+                    'block min-h-9 truncate rounded-control px-2.5 py-2 text-sm',
+                    isActive ? 'bg-sunken' : 'hover:bg-sunken',
                   )
                 }
               >
@@ -261,8 +264,8 @@ function DraftsGroup({ collapsed }: { collapsed: boolean }) {
         to="/drafts/x"
         title="Drafts"
         className={cn(
-          'flex min-h-11 flex-none items-center justify-center rounded-control',
-          onDrafts ? 'bg-sunken font-semibold' : 'hover:bg-sunken',
+          'flex min-h-9 flex-none items-center justify-center rounded-control',
+          onDrafts ? 'bg-sunken' : 'hover:bg-sunken',
         )}
       >
         <Icon name="drafts" />
@@ -280,8 +283,7 @@ function DraftsGroup({ collapsed }: { collapsed: boolean }) {
           setOpen(!open)
         }}
         className={cn(
-          'flex min-h-11 w-full items-center gap-3 rounded-control px-3 text-md hover:bg-sunken',
-          onDrafts && 'font-semibold',
+          'flex min-h-9 w-full items-center gap-3 rounded-control px-2.5 text-sm hover:bg-sunken',
         )}
       >
         <Icon name="drafts" />
@@ -289,7 +291,7 @@ function DraftsGroup({ collapsed }: { collapsed: boolean }) {
         <Icon name={open ? 'chevron-down' : 'chevron-right'} className="ml-auto size-4" />
       </button>
       {open && (
-        <ul id="drafts-platforms" className="ml-6 border-l border-line pl-2">
+        <ul id="drafts-platforms" className="ml-5 border-l border-line pl-2">
           {PLATFORMS.map((p) => (
             <li key={p}>
               <NavLink
@@ -297,7 +299,7 @@ function DraftsGroup({ collapsed }: { collapsed: boolean }) {
                 className={({ isActive }) =>
                   cn(
                     'flex min-h-9 items-center gap-2 rounded-control px-2 text-sm',
-                    isActive ? 'bg-sunken font-semibold' : 'hover:bg-sunken',
+                    isActive ? 'bg-sunken' : 'hover:bg-sunken',
                   )
                 }
               >
@@ -356,7 +358,7 @@ function MobileTabs() {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-line bg-paper md:hidden"
+      className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-4 border-t border-line bg-sidebar md:hidden"
     >
       {tabs.map((t) => (
         <NavLink

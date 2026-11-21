@@ -5,7 +5,7 @@ import { GetKeyLink, KeyPaste } from './KeyPaste'
 
 const SNOOZE = 'key-nudge'
 const choice =
-  'inline-flex min-h-12 flex-1 items-center justify-center rounded-control border border-edge px-4 text-sm font-semibold hover:bg-sunken'
+  'inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-edge px-4 text-sm font-semibold hover:bg-sunken'
 
 const TEXT = {
   limit: "You've used today's free drafts. Add a free key to keep going, or come back tomorrow.",

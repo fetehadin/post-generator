@@ -5,15 +5,13 @@ import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
 import { AppShell } from './components/AppShell'
 import { AuthGate } from './components/AuthGate'
-// Self-hosted fonts (no third-party requests from user pages). Archivo for the interface;
-// Source Serif 4 for the user's writing; Noto Ethiopic so Amharic renders in both.
-import '@fontsource/archivo/400.css'
-import '@fontsource/archivo/600.css'
+// Self-hosted fonts (no third-party requests from user pages). Inter for all text, JetBrains
+// Mono for code, Noto Sans Ethiopic so Amharic renders (Inter has no Ethiopic letters).
+import '@fontsource/inter/400.css'
+import '@fontsource/inter/600.css'
+import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/noto-sans-ethiopic/400.css'
 import '@fontsource/noto-sans-ethiopic/600.css'
-import '@fontsource/noto-serif-ethiopic/400.css'
-import '@fontsource/source-serif-4/400.css'
-import '@fontsource/source-serif-4/600.css'
 import './index.css'
 import { markVisit } from './lib/storage'
 import { applyTheme, savedTheme } from './lib/theme'

@@ -6,7 +6,7 @@ import { Icon } from './Icon'
 const TRIP = 'voxlace.keyTrip' // which "Get free key" page the user went to, this tab only
 const REFUSALS = new Set(['invalid_key', 'quota_exceeded', 'region_or_age_blocked'])
 const button =
-  'inline-flex min-h-12 items-center justify-center rounded-control border border-edge px-4 text-sm font-semibold'
+  'inline-flex min-h-12 items-center justify-center rounded-full border border-edge px-4 text-sm font-semibold'
 
 /** "Get free key ↗": opens the provider's key page in a new tab and remembers the trip, so
  * the paste field is ready (and offers the copied key) when the user comes back. */

@@ -42,9 +42,9 @@ export function EditorPage() {
 const tag = 'rounded-full border border-line px-2 text-xs text-muted'
 const aiTag = 'rounded-full border border-thread px-2 text-xs text-thread'
 const secondary =
-  'inline-flex min-h-10 items-center rounded-control border border-edge px-4 text-sm disabled:text-muted'
+  'inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm disabled:text-muted'
 const primary =
-  'inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
+  'inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
 
 function Editor({ draft }: { draft: DraftDetail }) {
   const [text, setText] = useState(draft.text)
@@ -139,7 +139,7 @@ function Editor({ draft }: { draft: DraftDetail }) {
                 const picked = t.value.slice(t.selectionStart, t.selectionEnd).trim()
                 if (picked.length > 2 && !dirty) setSelection(picked)
               }}
-              className="-ml-4 block min-h-40 w-[calc(100%+1rem)] resize-y border-l-2 border-transparent bg-transparent pl-4 font-serif text-lg leading-[1.7] outline-none [field-sizing:content] hover:border-line focus:border-thread read-only:hover:border-transparent"
+              className="-ml-4 block min-h-40 w-[calc(100%+1rem)] resize-y border-l-2 border-transparent bg-transparent pl-4 text-lg leading-[1.7] outline-none [field-sizing:content] hover:border-line focus:border-thread read-only:hover:border-transparent"
             />
           </>
         )}
@@ -305,14 +305,14 @@ function Versions({ draft, onDone }: { draft: DraftDetail; onDone: () => void })
                     type="button"
                     disabled={restore.isPending}
                     onClick={() => restore.mutate(v.id, { onSuccess: onDone })}
-                    className="ml-auto min-h-8 rounded-control border border-edge px-3"
+                    className="ml-auto min-h-8 rounded-full border border-edge px-3"
                   >
                     Restore
                   </button>
                 )
               )}
             </div>
-            <p className="mt-1 line-clamp-3 font-serif whitespace-pre-wrap text-muted">{v.text}</p>
+            <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-muted">{v.text}</p>
           </li>
         ))}
       </ol>

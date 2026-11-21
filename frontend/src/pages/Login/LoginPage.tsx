@@ -173,7 +173,7 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={busy}
-          className="mt-2 min-h-10 rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:bg-sunken disabled:text-muted"
+          className="mt-2 min-h-10 rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:bg-sunken disabled:text-muted"
         >
           {busy ? 'One moment…' : action}
         </button>

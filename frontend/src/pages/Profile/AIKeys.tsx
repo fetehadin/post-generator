@@ -3,7 +3,7 @@ import { GetKeyLink, KeyPaste } from '../../components/KeyPaste'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 
 const button =
-  'inline-flex min-h-12 items-center rounded-control border border-edge px-4 text-sm hover:bg-sunken'
+  'inline-flex min-h-12 items-center rounded-full border border-edge px-4 text-sm hover:bg-sunken'
 const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
 
 /**

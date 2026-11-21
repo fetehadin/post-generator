@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { useZone } from '../../api/me'
 import { useCreateThread, useThreads } from '../../api/threads'
+import { Icon } from '../../components/Icon'
 import { dateIn } from '../../lib/time'
 import { useNeedsWelcome } from '../../lib/welcome'
 
@@ -52,13 +53,13 @@ export function NewChatPage() {
   // Don't offer the box until we know, so nothing typed is thrown away by the redirect.
   if (needsWelcome === 'loading') return <p className="p-8 text-muted">Loading…</p>
   return (
-    <div className="mx-auto max-w-column px-4 pt-12 pb-16 md:px-6 md:pt-[12vh]">
-      <p className="text-sm text-muted">{today}</p>
-      <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+    <div className="mx-auto max-w-column px-4 pt-12 pb-16 md:px-6 md:pt-[22vh]">
+      <p className="text-center text-sm text-muted">{today}</p>
+      <h1 className="mt-1 text-center text-2xl font-semibold tracking-tight">
         <label htmlFor={boxId}>What did you do today?</label>
       </h1>
       <form
-        className="mt-8 rounded-panel border border-edge bg-surface p-3 focus-within:outline-2 focus-within:outline-thread"
+        className="mt-8 rounded-composer border border-line bg-composer px-4 pt-3 pb-2.5 shadow-composer focus-within:outline-2 focus-within:outline-thread"
         onSubmit={(e) => {
           e.preventDefault()
           if (!empty) start(true)
@@ -73,14 +74,14 @@ export function NewChatPage() {
           }}
           rows={3}
           placeholder="What you built, fixed or learned…"
-          className="block w-full resize-none bg-transparent px-1 font-serif text-lg leading-writing outline-none [field-sizing:content] placeholder:text-muted"
+          className="block w-full resize-none bg-transparent px-1 text-md leading-writing outline-none [field-sizing:content] placeholder:text-muted"
         />
         <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
             disabled={empty || create.isPending}
             onClick={() => start(false)}
-            className="min-h-10 rounded-control border border-edge px-4 text-sm hover:bg-sunken disabled:opacity-50"
+            className="min-h-9 rounded-full border border-edge px-4 text-sm hover:bg-sunken disabled:opacity-50"
           >
             {create.isPending && action === 'save' ? 'Saving…' : 'Save'}
           </button>
@@ -88,9 +89,10 @@ export function NewChatPage() {
             type="submit"
             disabled={empty || create.isPending}
             title="Ctrl+Enter"
-            className="min-h-10 rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:opacity-50"
+            className="flex min-h-9 items-center gap-1.5 rounded-full bg-primary pr-3 pl-4 text-sm font-semibold text-on-primary disabled:opacity-40"
           >
             {create.isPending && action === 'generate' ? 'Saving…' : 'Generate'}
+            <Icon name="arrow-up" className="size-4" />
           </button>
         </div>
       </form>
@@ -100,7 +102,7 @@ export function NewChatPage() {
         </p>
       )}
       {empty && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm">
           <span className="text-muted">Try:</span>
           {STARTERS.map((s) => (
             <button
@@ -110,7 +112,7 @@ export function NewChatPage() {
                 setText(s)
                 document.getElementById(boxId)?.focus()
               }}
-              className="min-h-9 rounded-full border border-edge px-3 hover:bg-sunken"
+              className="min-h-9 rounded-full border border-line px-3 text-muted hover:bg-sunken hover:text-ink"
             >
               {s.replace(/[: ]+$/, '')}
             </button>
@@ -118,7 +120,7 @@ export function NewChatPage() {
         </div>
       )}
       <RecentChats />
-      <p className="mt-12 text-sm">
+      <p className="mt-12 text-center text-sm">
         <Link to="/checkins" className="text-thread underline underline-offset-4">
           Past check-ins
         </Link>
