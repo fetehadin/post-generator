@@ -128,7 +128,6 @@ export function TimeGrid({
                   key={key}
                   data-drop-day={key}
                   data-drop-hour={h}
-                  title={isBest && bestFor ? `A best hour for your ${bestFor} audience` : undefined}
                   className={cn(
                     'relative flex flex-wrap content-start gap-1 border-t border-l border-line p-1 transition-colors duration-(--duration) ease-(--ease)',
                     isBest &&
