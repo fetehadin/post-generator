@@ -82,7 +82,7 @@ export function Composer({
           role="listbox"
           aria-label="Commands"
           className={cn(
-            'absolute inset-x-0 z-20 max-h-64 overflow-y-auto rounded-panel border border-line bg-composer p-1 shadow-float',
+            'absolute inset-x-0 z-20 max-h-64 overflow-y-auto overscroll-contain rounded-panel border border-line bg-composer p-1 shadow-float',
             menu === 'above' ? 'bottom-full mb-2' : 'top-full mt-2',
           )}
         >
@@ -109,7 +109,7 @@ export function Composer({
       )}
       <form
         className={cn(
-          'rounded-composer border border-line bg-composer shadow-composer transition-colors duration-(--duration) focus-within:border-edge',
+          'rounded-composer border border-line bg-composer shadow-composer transition-colors duration-(--duration) focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-thread',
           inline ? 'flex items-end gap-2 py-1.5 pr-1.5 pl-3' : 'px-3 pt-2.5 pb-2',
         )}
         onSubmit={(e) => {

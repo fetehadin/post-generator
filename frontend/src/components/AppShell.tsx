@@ -72,6 +72,13 @@ export function AppShell() {
         collapsed ? 'md:grid-cols-[64px_minmax(0,1fr)]' : 'md:grid-cols-[260px_minmax(0,1fr)]',
       )}
     >
+      {/* Keyboard users jump past the sidebar (WCAG 2.4.1). */}
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-on-primary focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        Skip to content
+      </a>
       <aside className="sticky top-0 hidden h-screen bg-sidebar md:block">
         <div className="flex h-full flex-col">
           <div
@@ -149,7 +156,11 @@ export function AppShell() {
         </div>
       </header>
 
-      <main id="main" className="relative min-w-0 bg-paper pb-16 md:pb-0">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="relative min-w-0 bg-paper pb-16 outline-none md:pb-0"
+      >
         <Outlet />
       </main>
 

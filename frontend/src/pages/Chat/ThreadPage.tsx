@@ -216,7 +216,7 @@ function ThreadView({ thread }: { thread: Thread }) {
       <section
         ref={panel}
         aria-label="Drafts"
-        className="scroll-mt-4 pt-6 xl:sticky xl:top-0 xl:col-start-2 xl:row-span-3 xl:row-start-1 xl:max-h-screen xl:overflow-y-auto xl:pt-10 xl:pb-10"
+        className="scroll-mt-4 pt-6 xl:sticky xl:top-0 xl:col-start-2 xl:row-span-3 xl:row-start-1 xl:max-h-screen xl:overflow-y-auto xl:overscroll-contain xl:pt-10 xl:pb-10"
       >
         <DraftPanel
           thread={thread}

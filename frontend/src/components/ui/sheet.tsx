@@ -54,7 +54,7 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          'fixed z-50 flex flex-col gap-4 bg-surface shadow-float',
+          'fixed z-50 flex flex-col gap-4 overscroll-contain bg-surface shadow-float',
           side === 'right' && 'inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm',
           side === 'left' && 'inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm',
           side === 'top' && 'inset-x-0 top-0 h-auto border-b',
