@@ -13,11 +13,15 @@ vi.mock('../../api/client', async (importOriginal) => ({
 }))
 
 let fail = false
+let profession = ''
 beforeEach(() => {
   fail = false
+  profession = ''
+  localStorage.clear()
   localStorage.setItem('voxlace-welcomed:u1', '1') // the first-run welcome has its own tests
   routeApi({
     'GET /me': () => ({ id: 'u1', email: 'a@b.c', timezone: 'UTC' }),
+    'GET /profile': () => ({ role: 'x', discipline: profession }),
     'GET /threads': () => ({ items: [] }),
     'POST /threads': () => {
       if (fail) throw new ApiError(429, 'rate_limited', 'The AI is busy right now.')
@@ -47,28 +51,57 @@ const renderPage = () =>
     </QueryClientProvider>,
   )
 
-test('Generate saves the check-in as a new chat and asks which platforms there', async () => {
+test('Enter saves the check-in and opens the chat writing the picked platforms', async () => {
   renderPage()
-  await userEvent.type(screen.getByLabelText('What did you do today?'), 'Fixed the counter')
-  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
-  expect(await screen.findByText('at /chat/t9 {"ask":true}')).toBeInTheDocument()
+  const box = screen.getByLabelText('What did you do today?')
+  await userEvent.click(screen.getByRole('button', { name: 'X' }))
+  await userEvent.type(box, 'Fixed the counter{Enter}')
+  expect(await screen.findByText('at /chat/t9 {"write":["telegram","x"]}')).toBeInTheDocument()
   expect(sent('POST /threads')[0]).toMatchObject({ text: 'Fixed the counter' })
 })
 
-test('Save opens the chat without asking; an empty box can do neither', async () => {
+test('Shift+Enter is a new line; an empty box sends nothing', async () => {
   renderPage()
-  expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
-  await userEvent.click(screen.getByRole('button', { name: 'Today I shipped' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  const box = screen.getByLabelText('What did you do today?')
+  await userEvent.type(box, '{Enter}')
+  expect(sent('POST /threads')).toEqual([])
+  await userEvent.type(box, 'One{Shift>}{Enter}{/Shift}Two')
+  expect(box).toHaveValue('One\nTwo')
+})
+
+test('Options → Save as a check-in opens the chat without writing', async () => {
+  renderPage()
+  await userEvent.click(screen.getByRole('button', { name: 'Something I finished today' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Options' }))
+  await userEvent.click(await screen.findByRole('menuitem', { name: /Save as a check-in/ }))
   expect(await screen.findByText('at /chat/t9 null')).toBeInTheDocument()
+})
+
+test('"/" lists commands: /linkedin writes for LinkedIn only', async () => {
+  renderPage()
+  const box = screen.getByLabelText('What did you do today?')
+  await userEvent.type(box, '/link')
+  expect(screen.getByRole('option', { name: /linkedin/ })).toBeInTheDocument()
+  await userEvent.keyboard('{Enter}')
+  expect(box).toHaveValue('')
+  expect(screen.getByRole('button', { name: 'LinkedIn' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByRole('button', { name: 'Telegram' })).toHaveAttribute('aria-pressed', 'false')
+})
+
+test('starters follow the profession, so a teacher never sees developer ideas', async () => {
+  profession = 'teacher'
+  renderPage()
+  expect(
+    await screen.findByRole('button', { name: 'A lesson that worked today' }),
+  ).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Today I shipped' })).not.toBeInTheDocument()
 })
 
 test('a failure keeps the text where it was (NFR-4)', async () => {
   fail = true
   renderPage()
   const box = screen.getByLabelText('What did you do today?')
-  await userEvent.type(box, 'Wrote the docs')
-  await userEvent.click(screen.getByRole('button', { name: 'Generate' }))
+  await userEvent.type(box, 'Wrote the docs{Enter}')
   expect(await screen.findByRole('alert')).toHaveTextContent('The AI is busy right now.')
   expect(box).toHaveValue('Wrote the docs')
 })

@@ -56,6 +56,8 @@ function ThreadView({ thread }: { thread: Thread }) {
   const live = thread.drafts.filter((d) => d.status !== 'discarded')
   const [replyTo, setReplyTo] = useState<ReplyTo>('auto')
   const [picking, setPicking] = useState(false)
+  // Platforms picked in the new-chat box: written as soon as the chat opens.
+  const [autoWrite, setAutoWrite] = useState<Platform[] | null>(null)
   const [selection, setSelection] = useState('')
   const [revising, setRevising] = useState<DraftRow | null>(null)
   const [announce, setAnnounce] = useState('')
@@ -72,9 +74,13 @@ function ThreadView({ thread }: { thread: Thread }) {
   // Arriving with intent (Generate, a notification, /drafts/:id): apply it once, then clear
   // it from history so a reload or Back doesn't ask again.
   useEffect(() => {
-    const state = location.state as { ask?: boolean; draft?: string } | null
+    const state = location.state as { ask?: boolean; draft?: string; write?: Platform[] } | null
     if (!state) return
     if (state.ask) setPicking(true)
+    if (state.write?.length) {
+      setAutoWrite(state.write)
+      setPicking(true)
+    }
     if (state.draft) {
       setReplyTo(state.draft)
       const card = document.getElementById(`card-${state.draft}`)
@@ -203,6 +209,7 @@ function ThreadView({ thread }: { thread: Thread }) {
         {picking ? (
           <PlatformPicker
             thread={thread}
+            autoWrite={autoWrite}
             canClose
             onClose={() => setPicking(false)}
             onDone={(n) => {
@@ -347,16 +354,18 @@ function Plain({ message }: { message: ThreadMessage }) {
 /** "Which platforms?" (§4.1): three toggles, remembering the last choice, then one card each. */
 function PlatformPicker({
   thread,
+  autoWrite,
   canClose,
   onClose,
   onDone,
 }: {
   thread: Thread
+  autoWrite?: Platform[] | null
   canClose: boolean
   onClose: () => void
   onDone: (notices: GenerateNotice[]) => void
 }) {
-  const [chosen, setChosen] = useState<Platform[]>(savedPlatforms)
+  const [chosen, setChosen] = useState<Platform[]>(() => autoWrite ?? savedPlatforms())
   const [failures, setFailures] = useState<GenerateFailure[]>([])
   const generate = useGenerateInThread()
   const seconds = useElapsed(generate.isPending)
@@ -390,6 +399,15 @@ function PlatformPicker({
       },
     )
   }
+
+  // Arriving from the new-chat box with platforms picked: write them once, no extra click.
+  const started = useRef(false)
+  useEffect(() => {
+    if (autoWrite?.length && !started.current) {
+      started.current = true
+      write(autoWrite)
+    }
+  }, [autoWrite]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>

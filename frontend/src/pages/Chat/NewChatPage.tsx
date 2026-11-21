@@ -1,48 +1,59 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { useZone } from '../../api/me'
+import { useProfile } from '../../api/profile'
 import { useCreateThread, useThreads } from '../../api/threads'
-import { Icon } from '../../components/Icon'
+import type { Platform } from '../../api/types'
+import { type Command, Composer } from '../../components/Composer'
+import { DropdownMenuItem } from '../../components/ui/dropdown-menu'
+import { savedPlatforms, savePlatforms } from '../../lib/platformChoice'
+import { LABEL, PLATFORMS } from '../../lib/platforms'
+import { starterLabel, startersFor } from '../../lib/starters'
 import { dateIn } from '../../lib/time'
+import { chip } from '../../lib/ui'
 import { useNeedsWelcome } from '../../lib/welcome'
 
-const STARTERS = ['Today I shipped ', 'A lesson from this week: ', 'A problem I solved: ']
+const BOX = 'new-chat-box'
 
 /**
- * A new chat (DESIGN.md §4.1, FR-6, FR-46): "What did you do today?" Save keeps it as today's
- * check-in and opens the chat; Generate also asks which platforms to write for. A failure
- * keeps the text exactly where it was (NFR-4).
+ * A new chat (DESIGN.md §4.1, FR-6, FR-46): "What did you do today?" Enter writes drafts for
+ * the platforms picked in the box, straight away; Options → "Save as a check-in" only saves
+ * it. A failure keeps the text exactly where it was (NFR-4).
  */
 export function NewChatPage() {
   // The welcome's last step may hand over a suggested first topic.
   const location = useLocation()
   const handed = (location.state as { text?: string } | null)?.text
   const [text, setText] = useState(handed ?? '')
+  const [platforms, setPlatforms] = useState<Platform[]>(savedPlatforms)
   const needsWelcome = useNeedsWelcome()
-  const [action, setAction] = useState<'save' | 'generate'>('generate')
+  const profession = useProfile().data?.discipline
+  const threads = useThreads().data?.items
   const zone = useZone()
   const create = useCreateThread()
   const navigate = useNavigate()
-  const boxId = useId()
   const empty = !text.trim()
+  const firstTime = threads !== undefined && threads.length === 0
 
-  function start(generate: boolean) {
+  function start(write: Platform[] | null) {
     if (empty || create.isPending) return
-    setAction(generate ? 'generate' : 'save')
+    if (write) savePlatforms(write)
     create.mutate(
       { text: text.trim(), day: dateIn(new Date(), zone) },
-      {
-        onSuccess: (t) => navigate(`/chat/${t.id}`, { state: generate ? { ask: true } : null }),
-      },
+      // The chat writes the drafts as it opens: no second "which platforms?" step.
+      { onSuccess: (t) => navigate(`/chat/${t.id}`, { state: write ? { write } : null }) },
     )
   }
 
-  const today = new Intl.DateTimeFormat(undefined, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    timeZone: zone,
-  }).format(new Date())
+  const commands: Command[] = [
+    ...PLATFORMS.map((p) => ({
+      name: p === 'x' ? 'x' : p,
+      hint: `Write for ${LABEL[p]} only`,
+      run: () => setPlatforms([p]),
+    })),
+    { name: 'all', hint: 'Write for every platform', run: () => setPlatforms([...PLATFORMS]) },
+    { name: 'save', hint: 'Save as a check-in, no drafts', run: () => start(null) },
+  ]
 
   // Used once: drop it from history, so Back or a reload doesn't suggest it again.
   useEffect(() => {
@@ -54,77 +65,73 @@ export function NewChatPage() {
   if (needsWelcome === 'loading') return <p className="p-8 text-muted">Loading…</p>
   return (
     <div className="mx-auto max-w-column px-4 pt-12 pb-16 md:px-6 md:pt-[22vh]">
-      <p className="text-center text-sm text-muted">{today}</p>
-      <h1 className="mt-1 text-center text-2xl font-semibold tracking-tight">
-        <label htmlFor={boxId}>What did you do today?</label>
+      <h1 className="text-center text-2xl font-semibold tracking-tight text-balance">
+        <label htmlFor={BOX}>What did you do today?</label>
       </h1>
-      <form
-        className="mt-8 rounded-composer border border-line bg-composer px-4 pt-3 pb-2.5 shadow-composer focus-within:outline-2 focus-within:outline-thread"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (!empty) start(true)
-        }}
-      >
-        <textarea
-          id={boxId}
+      {firstTime && (
+        <p className="mt-2 text-center text-muted">
+          One line is enough. You'll get a draft to edit in seconds.
+        </p>
+      )}
+      <div className="mt-8">
+        <Composer
+          id={BOX}
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) start(true)
-          }}
-          rows={3}
-          placeholder="What you built, fixed or learned…"
-          className="block w-full resize-none bg-transparent px-1 text-md leading-writing outline-none [field-sizing:content] placeholder:text-muted"
+          onChange={setText}
+          onSubmit={() => start(platforms)}
+          canSubmit={!empty && platforms.length > 0}
+          busy={create.isPending}
+          placeholder="What you made, fixed or learned…"
+          sendLabel={
+            platforms.length === 1 ? `Write a ${LABEL[platforms[0]]} draft` : 'Write drafts'
+          }
+          platforms={{ value: platforms, onChange: setPlatforms }}
+          commands={commands}
+          menu="below"
+          rows={2}
+          options={
+            <>
+              <DropdownMenuItem disabled={empty} onSelect={() => start(null)}>
+                Save as a check-in, no drafts
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/checkins')}>
+                Past check-ins
+              </DropdownMenuItem>
+            </>
+          }
         />
-        <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
-          <button
-            type="button"
-            disabled={empty || create.isPending}
-            onClick={() => start(false)}
-            className="min-h-9 rounded-full border border-edge px-4 text-sm hover:bg-sunken disabled:opacity-50"
-          >
-            {create.isPending && action === 'save' ? 'Saving…' : 'Save'}
-          </button>
-          <button
-            type="submit"
-            disabled={empty || create.isPending}
-            title="Ctrl+Enter"
-            className="flex min-h-9 items-center gap-1.5 rounded-full bg-primary pr-3 pl-4 text-sm font-semibold text-on-primary disabled:opacity-40"
-          >
-            {create.isPending && action === 'generate' ? 'Saving…' : 'Generate'}
-            <Icon name="arrow-up" className="size-4" />
-          </button>
-        </div>
-      </form>
+      </div>
+      {create.isPending && (
+        <p aria-live="polite" className="mt-3 text-center text-sm text-muted">
+          Saving your check-in…
+        </p>
+      )}
       {create.error && (
         <p role="alert" className="mt-3 text-sm text-danger">
           {create.error.message} Your text is still here.
         </p>
       )}
       {empty && (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm">
-          <span className="text-muted">Try:</span>
-          {STARTERS.map((s) => (
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          {startersFor(profession).map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => {
                 setText(s)
-                document.getElementById(boxId)?.focus()
+                document.getElementById(BOX)?.focus()
               }}
-              className="min-h-9 rounded-full border border-line px-3 text-muted hover:bg-sunken hover:text-ink"
+              className={chip}
             >
-              {s.replace(/[: ]+$/, '')}
+              {starterLabel(s)}
             </button>
           ))}
         </div>
       )}
+      {platforms.length === 0 && (
+        <p className="mt-3 text-center text-sm text-muted">Pick at least one platform.</p>
+      )}
       <RecentChats />
-      <p className="mt-12 text-center text-sm">
-        <Link to="/checkins" className="text-thread underline underline-offset-4">
-          Past check-ins
-        </Link>
-      </p>
     </div>
   )
 }
@@ -150,6 +157,12 @@ function RecentChats() {
           </li>
         ))}
       </ul>
+      <Link
+        to="/checkins"
+        className="mt-3 inline-block text-sm text-thread underline underline-offset-4"
+      >
+        Past check-ins
+      </Link>
     </section>
   )
 }
