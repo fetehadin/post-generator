@@ -63,7 +63,7 @@ export function DraftsPage({ platform }: { platform: Platform }) {
         <TabsList
           variant="line"
           aria-label="Status"
-          className="w-full justify-start border-b border-line"
+          className="w-full justify-start overflow-x-auto border-b border-line"
         >
           {TABS.map((t) => (
             <TabsTrigger key={t.status} value={t.status} className="flex-none px-3">
@@ -81,7 +81,18 @@ export function DraftsPage({ platform }: { platform: Platform }) {
                     {drafts.error.message}
                   </p>
                 )}
-                {drafts.isPending && <p className="text-muted">Loading…</p>}
+                {/* A skeleton in the list's own shape, so nothing jumps when it lands. */}
+                {drafts.isPending && (
+                  <ul aria-busy="true" aria-label="Loading drafts" className="flex flex-col gap-3">
+                    {[0, 1].map((i) => (
+                      <li key={i} className="rounded-panel border border-line p-5">
+                        <span className="block h-3 w-1/4 rounded-full bg-sunken" />
+                        <span className="mt-4 block h-3 w-11/12 rounded-full bg-sunken" />
+                        <span className="mt-3 block h-3 w-2/3 rounded-full bg-sunken" />
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {drafts.data &&
                   (drafts.data.items.length ? (
                     <ul className="flex flex-col gap-3">

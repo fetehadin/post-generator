@@ -45,10 +45,21 @@ export const useCreateThread = () =>
     api<Thread>('/threads', json('POST', input)),
   )
 
-/** POST /threads/{id}/generate: one card per platform; failures come back per platform. */
+/**
+ * POST /threads/{id}/generate: one card per platform; failures come back per platform.
+ * `signal` stops waiting (Stop); the server may still finish, and the cards then appear.
+ */
 export const useGenerateInThread = () =>
-  useThreadMutation(({ threadId, platforms }: { threadId: string; platforms: Platform[] }) =>
-    api<Thread>(`/threads/${threadId}/generate`, json('POST', { platforms })),
+  useThreadMutation(
+    ({
+      threadId,
+      platforms,
+      signal,
+    }: {
+      threadId: string
+      platforms: Platform[]
+      signal?: AbortSignal
+    }) => api<Thread>(`/threads/${threadId}/generate`, { ...json('POST', { platforms }), signal }),
   )
 
 /** POST /drafts/{id}/convert: "Make an X version" as a new draft in the same thread. */

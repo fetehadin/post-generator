@@ -88,7 +88,6 @@ function VoiceBody({ info, label }: { info: PlatformInfo; label: string }) {
           type="button"
           onClick={() => write.mutate()}
           disabled={busy || s.post_count === 0 || card !== info.voice_card}
-          title={card !== info.voice_card ? 'Save your edits first' : undefined}
           className="inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm disabled:text-muted"
         >
           {write.isPending
@@ -97,6 +96,10 @@ function VoiceBody({ info, label }: { info: PlatformInfo; label: string }) {
               ? 'Rewrite from my posts'
               : 'Write from my posts'}
         </button>
+        {/* Said in words, not a hover hint: why the button is off. */}
+        {card !== info.voice_card && (
+          <span className="text-sm text-muted">Save your edits first to rewrite it.</span>
+        )}
         {error && (
           <p role="alert" className="text-sm text-danger">
             {error.message}
@@ -105,7 +108,6 @@ function VoiceBody({ info, label }: { info: PlatformInfo; label: string }) {
       </div>
 
       {info.platform === 'x' && <PremiumSetting info={info} />}
-      {info.platform === 'telegram' && <ChannelSetting info={info} />}
 
       <details className="mt-4 text-sm">
         <summary className="cursor-pointer text-muted">{label} rules</summary>
@@ -155,8 +157,8 @@ function PremiumSetting({ info }: { info: PlatformInfo }) {
   )
 }
 
-/** FR-12: the Telegram channel the hand-off opens after copying a post. */
-function ChannelSetting({ info }: { info: PlatformInfo }) {
+/** FR-12: the Telegram channel the hand-off opens after copying a post (Profile → Connections). */
+export function ChannelSetting({ info }: { info: PlatformInfo }) {
   const save = useSavePlatformSettings('telegram')
   const [channel, setChannel] = useState(info.channel ?? '')
   const changed = channel.trim() !== (info.channel ?? '')

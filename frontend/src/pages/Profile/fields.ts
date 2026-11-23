@@ -2,7 +2,7 @@
 export const input =
   'mt-1 block min-h-10 w-full rounded-control border border-edge bg-surface px-3 text-sm'
 export const primaryButton =
-  'inline-flex min-h-10 items-center rounded-control bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
+  'inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted'
 
 /**
  * Whether the browser can use this zone. Aliases such as Asia/Calcutta count: the browser

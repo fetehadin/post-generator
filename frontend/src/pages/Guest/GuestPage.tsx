@@ -92,7 +92,7 @@ export function GuestPage() {
             }}
             rows={3}
             maxLength={4000}
-            placeholder="What you built, fixed or learned…"
+            placeholder="What you made, fixed or learned…"
             className="block w-full resize-none bg-transparent px-1 text-md leading-writing outline-none [field-sizing:content] placeholder:text-muted"
           />
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">

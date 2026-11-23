@@ -51,3 +51,11 @@ design/prototypes/screenshots/
 
 # Where the server is (deploy/local.env.example); kept out of the public repo
 deploy/local.env
+
+# UI audit screenshots (local only)
+ux-audit/
+# Third-party skills: restore with `npx skills experimental_install` (skills-lock.json)
+.claude/skills/building-ai-chat/
+.claude/skills/ui-ux-pro-max/
+.claude/skills/ux-writing/
+.claude/skills/web-design-guidelines/

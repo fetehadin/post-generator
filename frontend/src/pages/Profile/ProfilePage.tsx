@@ -1,12 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useMe } from '../../api/me'
 import type { Platform } from '../../api/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { LABEL, PLATFORMS } from '../../lib/platforms'
 import { AboutYou } from './AboutYou'
-import { AIKeys } from './AIKeys'
-import { GitHubPanel } from './GitHubPanel'
+import { Connections } from './Connections'
 import { AccountSettings } from './AccountSettings'
 import { AudiencePanel } from './AudiencePanel'
 import { Chip } from './Chip'
@@ -18,25 +17,42 @@ import { ZoneList } from './ZoneList'
 
 const TABS = [
   { id: 'about', label: 'About you' },
-  { id: 'resume', label: 'Resume & portfolio' },
-  { id: 'audience', label: 'Audience' },
-  { id: 'when', label: 'When you post' },
+  { id: 'audience', label: 'Audience & timing' },
   { id: 'voice', label: 'Voice & posts' },
-  { id: 'ai', label: 'AI keys' },
-  { id: 'github', label: 'GitHub' },
+  { id: 'connections', label: 'Connections' },
   { id: 'account', label: 'Account' },
 ] as const
+/** Old tab links keep working (the "Fix key" link, bookmarks): tab → its new home + section. */
+const MOVED: Record<string, [TabId, string?]> = {
+  resume: ['about', 'resume'],
+  when: ['audience', 'reminders'],
+  ai: ['connections', 'free-key'],
+  github: ['connections', 'github'],
+}
 type TabId = (typeof TABS)[number]['id']
 
 /**
- * Profile (DESIGN.md §4.4): everything about you, editable, in tabs. The tab lives in the
+ * Profile (DESIGN.md §4.4; five tabs since 21 Nov 2026): everything about you, editable, in
+ * tabs; optional things fold away. The tab lives in the
  * address (`?tab=audience`), so Back works and other screens can link straight to one.
  * Only the open tab is mounted, so each loads its data when you open it.
  */
 export function ProfilePage() {
   const me = useMe()
   const [params, setParams] = useSearchParams()
-  const tab: TabId = TABS.find((t) => t.id === params.get('tab'))?.id ?? 'about'
+  const asked = params.get('tab') ?? ''
+  const [tab, section] = MOVED[asked] ?? [TABS.find((t) => t.id === asked)?.id ?? 'about']
+
+  // A moved tab opens its section: scroll to it (and unfold it) once the tab has rendered.
+  useEffect(() => {
+    if (!section) return
+    const t = setTimeout(() => {
+      const el = document.getElementById(section)
+      if (el instanceof HTMLDetailsElement) el.open = true
+      el?.scrollIntoView?.({ block: 'start' })
+    }, 50)
+    return () => clearTimeout(t)
+  }, [section])
 
   return (
     <div className="mx-auto max-w-[720px] px-4 py-12 md:px-6 md:py-16">
@@ -65,13 +81,25 @@ export function ProfilePage() {
           <ZoneList />
           <TimeZoneField />
           <AboutYou />
-        </TabsContent>
-
-        <TabsContent value="resume">
-          <Intro>
-            Optional. What you check here can go into your summary card, so drafts know your work.
-          </Intro>
-          <Uploads />
+          <details
+            id="resume"
+            className="group mt-8 scroll-mt-6 rounded-panel border border-line px-4 py-1 open:pb-4"
+          >
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold">
+              <span
+                aria-hidden="true"
+                className="transition-transform duration-(--duration) group-open:rotate-90"
+              >
+                ›
+              </span>
+              Resume and portfolio
+              <span className="ml-auto font-normal text-muted">Optional</span>
+            </summary>
+            <Intro>
+              What you check here can go into your summary card, so drafts know your work.
+            </Intro>
+            <Uploads />
+          </details>
         </TabsContent>
 
         <TabsContent value="audience">
@@ -81,14 +109,16 @@ export function ProfilePage() {
           </Intro>
           <ZoneList />
           <PlatformSwitch>{(p) => <AudiencePanel platform={p} label={LABEL[p]} />}</PlatformSwitch>
-        </TabsContent>
-
-        <TabsContent value="when">
-          <Intro>
-            A nudge to check in, so there is something to post about. It shows in the bell; Voxlace
-            sends no email.
-          </Intro>
-          <RemindersPanel />
+          <section id="reminders" aria-labelledby="reminders-title" className="mt-10 scroll-mt-6">
+            <h2 id="reminders-title" className="font-semibold">
+              Check-in reminders
+            </h2>
+            <Intro>
+              A nudge to check in, so there is something to post about. It shows in the bell;
+              Voxlace sends no email.
+            </Intro>
+            <RemindersPanel />
+          </section>
         </TabsContent>
 
         <TabsContent value="voice">
@@ -106,20 +136,8 @@ export function ProfilePage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="ai">
-          <Intro>
-            Optional. Add a free key from Google Gemini, Groq or OpenRouter and your drafts have no
-            daily limit. Without one, Voxlace's free models write your drafts.
-          </Intro>
-          <AIKeys />
-        </TabsContent>
-
-        <TabsContent value="github">
-          <Intro>
-            Optional. Post ideas from the work you push to GitHub, suggested in the evening as
-            drafts you edit and approve.
-          </Intro>
-          <GitHubPanel />
+        <TabsContent value="connections">
+          <Connections />
         </TabsContent>
 
         <TabsContent value="account">

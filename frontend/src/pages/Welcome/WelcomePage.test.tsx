@@ -50,16 +50,16 @@ function renderAt(path: string) {
   )
 }
 
-test('a new account (no role yet) is sent from the new chat to the welcome', async () => {
-  renderAt('/')
-  expect(await screen.findByText('Where do you post?')).toBeTruthy()
-})
-
-test('an account with a role stays on the new chat, and this browser remembers it', async () => {
-  role = 'Backend developer'
+test('a new account (no role yet) is not sent to a setup: it writes first (§4.5, 21 Nov 2026)', async () => {
   renderAt('/')
   expect(await screen.findByText('What did you do today?')).toBeTruthy()
-  await vi.waitFor(() => expect(localStorage.getItem('voxlace-welcomed:u1')).toBe('1'))
+  expect(screen.queryByText('Where do you post?')).toBeNull()
+})
+
+test('the setup still opens when asked for at /welcome', async () => {
+  role = 'Backend developer'
+  renderAt('/welcome')
+  expect(await screen.findByText('Where do you post?')).toBeTruthy()
 })
 
 test('an account that already has chats never sees the welcome', async () => {

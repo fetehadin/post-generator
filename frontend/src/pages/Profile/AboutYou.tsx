@@ -27,23 +27,33 @@ type TextField = Exclude<
 >
 
 /** The About-you questions, grouped the way people think about themselves (FR-17, FR-33). */
-const GROUPS: Array<{ title: string; fields: Array<[TextField, string, string]> }> = [
+const GROUPS: Array<{
+  title: string
+  open?: boolean
+  fields: Array<[TextField, string, string]>
+}> = [
+  {
+    title: 'The basics',
+    open: true,
+    fields: [
+      ['discipline', 'Profession', 'Teacher, nurse, designer, developer…'],
+      ['current_projects', 'What you are working on', 'A course, a clinic, an app, a book…'],
+      ['focus', 'What you are getting better at', 'Public speaking, design, sales…'],
+    ],
+  },
   {
     title: 'Your work',
     fields: [
-      ['discipline', 'Profession', 'Developer, nurse, designer, teacher…'],
-      ['role', 'Role', 'Backend developer, student, founder…'],
-      ['seniority', 'Seniority', 'Student, junior, senior…'],
-      ['stack', 'Stack and tools', 'Python, FastAPI, Postgres'],
-      ['current_projects', 'Current projects', 'What you are building now'],
-      ['focus', 'Focus', 'What you are getting better at'],
-      ['portfolio_url', 'Portfolio', 'https://you.dev'],
+      ['role', 'Role or title', 'Head of science, founder, nurse manager…'],
+      ['seniority', 'Experience', 'Student, early career, senior…'],
+      ['stack', 'Tools you use', 'Figma, Excel, Canva, Python…'],
+      ['portfolio_url', 'Website or portfolio', 'https://yoursite.com'],
     ],
   },
   {
     title: 'Your posts',
     fields: [
-      ['goal', 'Why you post', 'Find a job, grow a community, learn in public…'],
+      ['goal', 'Why you post', 'Find work, grow a community, share what you learn…'],
       ['topics', 'Topics', 'What you usually write about'],
       ['audience', 'Audience', 'Who reads you, and where'],
       ['usual_hours', 'When you usually post', 'Weekday evenings'],
@@ -57,7 +67,7 @@ const GROUPS: Array<{ title: string; fields: Array<[TextField, string, string]> 
       ['emoji_habit', 'Emoji', 'None, one at the end, lots…'],
       ['hashtag_habit', 'Hashtags', 'Never, two at the end…'],
       ['avoid_list', 'Never say', 'Words, topics or claims to avoid'],
-      ['links', 'Links', 'GitHub, portfolio, channel'],
+      ['links', 'Links', 'Your site, portfolio, channel'],
     ],
   },
 ]
@@ -137,167 +147,179 @@ function AboutForm({ saved }: { saved: Profile }) {
       className="mt-4 flex flex-col gap-8"
     >
       {GROUPS.map((g) => (
-        <fieldset key={g.title}>
-          <legend className="text-sm font-semibold text-muted">{g.title}</legend>
-          <div className="mt-2 grid gap-4 sm:grid-cols-2">
-            {g.fields.map(([name, label, hint]) => (
-              <label key={name} className="text-sm">
-                {label}
-                <input
-                  value={form[name]}
-                  onChange={(e) => setForm({ ...form, [name]: e.target.value })}
-                  placeholder={hint}
-                  list={name === 'discipline' ? PROFESSION_LIST_ID : undefined}
-                  className={input}
-                />
-              </label>
-            ))}
-            {g.title === 'Your posts' && (
-              <>
-                <label className="text-sm">
-                  Writing mostly for
-                  <select
-                    value={form.audience_kind}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        audience_kind: e.target.value as Profile['audience_kind'],
-                      })
-                    }
+        // Progressive disclosure: the basics are open, the rest fold away with a count.
+        <Section
+          key={g.title}
+          title={g.title}
+          open={g.open}
+          filled={g.fields.filter(([n]) => String(form[n] ?? '').trim()).length}
+        >
+          <fieldset>
+            <legend className="sr-only">{g.title}</legend>
+            <div className="mt-2 grid gap-4 sm:grid-cols-2">
+              {g.fields.map(([name, label, hint]) => (
+                <label key={name} className="text-sm">
+                  {label}
+                  <input
+                    value={form[name]}
+                    onChange={(e) => setForm({ ...form, [name]: e.target.value })}
+                    placeholder={hint}
+                    list={name === 'discipline' ? PROFESSION_LIST_ID : undefined}
                     className={input}
-                  >
-                    {AUDIENCE_KINDS.map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
-                <label className="text-sm">
-                  Main goal
-                  <select
-                    value={form.main_goal}
-                    onChange={(e) =>
-                      setForm({ ...form, main_goal: e.target.value as Profile['main_goal'] })
-                    }
-                    className={input}
-                  >
-                    {MAIN_GOALS.map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </>
-            )}
-          </div>
-        </fieldset>
+              ))}
+              {g.title === 'Your posts' && (
+                <>
+                  <label className="text-sm">
+                    Writing mostly for
+                    <select
+                      value={form.audience_kind}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          audience_kind: e.target.value as Profile['audience_kind'],
+                        })
+                      }
+                      className={input}
+                    >
+                      {AUDIENCE_KINDS.map(([v, l]) => (
+                        <option key={v} value={v}>
+                          {l}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm">
+                    Main goal
+                    <select
+                      value={form.main_goal}
+                      onChange={(e) =>
+                        setForm({ ...form, main_goal: e.target.value as Profile['main_goal'] })
+                      }
+                      className={input}
+                    >
+                      {MAIN_GOALS.map(([v, l]) => (
+                        <option key={v} value={v}>
+                          {l}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
+            </div>
+          </fieldset>
+        </Section>
       ))}
 
-      <fieldset>
-        <legend className="text-sm font-semibold text-muted">Projects</legend>
-        <p className="mt-1 text-sm text-muted">
-          When you have more than one, the chat asks which one you mean.
-        </p>
-        <ul className="mt-2 flex flex-col gap-3">
-          {form.projects.map((p, i) => (
-            <li
-              key={i}
-              className="grid gap-2 rounded-control border border-line p-3 sm:grid-cols-2"
-            >
-              <label className="text-sm">
-                Project name
-                <input
-                  value={p.name}
-                  onChange={(e) => setProject(i, { name: e.target.value })}
-                  placeholder="Voxlace"
-                  className={input}
-                />
-              </label>
-              <label className="text-sm">
-                Status
-                <select
-                  value={p.status}
-                  onChange={(e) => setProject(i, { status: e.target.value as Project['status'] })}
-                  className={input}
-                >
-                  {STATUSES.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="text-sm">
-                In one line
-                <input
-                  value={p.line}
-                  onChange={(e) => setProject(i, { line: e.target.value })}
-                  placeholder="What it does"
-                  className={input}
-                />
-              </label>
-              <label className="text-sm">
-                Link
-                <input
-                  value={p.link}
-                  onChange={(e) => setProject(i, { link: e.target.value })}
-                  placeholder="https://"
-                  className={input}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() =>
-                  setForm({ ...form, projects: form.projects.filter((_, j) => j !== i) })
-                }
-                className="justify-self-start text-sm text-muted underline"
+      <Section title="Projects" filled={form.projects.filter((x) => x.name.trim()).length}>
+        <fieldset>
+          <legend className="sr-only">Projects</legend>
+          <p className="mt-1 text-sm text-muted">
+            When you have more than one, the chat asks which one you mean.
+          </p>
+          <ul className="mt-2 flex flex-col gap-3">
+            {form.projects.map((p, i) => (
+              <li
+                key={i}
+                className="grid gap-2 rounded-control border border-line p-3 sm:grid-cols-2"
               >
-                Remove {p.name || 'this project'}
-              </button>
-            </li>
-          ))}
-        </ul>
-        {form.projects.length < 20 && (
-          <button
-            type="button"
-            onClick={() => setForm({ ...form, projects: [...form.projects, NEW_PROJECT] })}
-            className="mt-2 inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm"
-          >
-            Add a project
-          </button>
-        )}
-      </fieldset>
-
-      <fieldset>
-        <legend className="text-sm font-semibold text-muted">Language and privacy</legend>
-        <div className="mt-2 grid gap-4 sm:grid-cols-2">
-          <label className="text-sm">
-            Write drafts in
-            <select
-              value={form.language}
-              onChange={(e) => setForm({ ...form, language: e.target.value })}
-              className={input}
+                <label className="text-sm">
+                  Project name
+                  <input
+                    value={p.name}
+                    onChange={(e) => setProject(i, { name: e.target.value })}
+                    placeholder="Voxlace"
+                    className={input}
+                  />
+                </label>
+                <label className="text-sm">
+                  Status
+                  <select
+                    value={p.status}
+                    onChange={(e) => setProject(i, { status: e.target.value as Project['status'] })}
+                    className={input}
+                  >
+                    {STATUSES.map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm">
+                  In one line
+                  <input
+                    value={p.line}
+                    onChange={(e) => setProject(i, { line: e.target.value })}
+                    placeholder="What it does"
+                    className={input}
+                  />
+                </label>
+                <label className="text-sm">
+                  Link
+                  <input
+                    value={p.link}
+                    onChange={(e) => setProject(i, { link: e.target.value })}
+                    placeholder="https://"
+                    className={input}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({ ...form, projects: form.projects.filter((_, j) => j !== i) })
+                  }
+                  className="justify-self-start text-sm text-muted underline"
+                >
+                  Remove {p.name || 'this project'}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {form.projects.length < 20 && (
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, projects: [...form.projects, NEW_PROJECT] })}
+              className="mt-2 inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm"
             >
-              {LANGUAGES.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm">
-            Skip posts with these hashtags
-            <input
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="#family, #me"
-              className={input}
-            />
-          </label>
-        </div>
-      </fieldset>
+              Add a project
+            </button>
+          )}
+        </fieldset>
+      </Section>
+
+      <Section title="Language and privacy">
+        <fieldset>
+          <legend className="sr-only">Language and privacy</legend>
+          <div className="mt-2 grid gap-4 sm:grid-cols-2">
+            <label className="text-sm">
+              Write drafts in
+              <select
+                value={form.language}
+                onChange={(e) => setForm({ ...form, language: e.target.value })}
+                className={input}
+              >
+                {LANGUAGES.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              Skip posts with these hashtags
+              <input
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="#family, #me"
+                className={input}
+              />
+            </label>
+          </div>
+        </fieldset>
+      </Section>
 
       <section aria-labelledby="card" className="rounded-panel border border-line bg-paper p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -356,5 +378,45 @@ function AboutForm({ saved }: { saved: Profile }) {
         ))}
       </datalist>
     </form>
+  )
+}
+
+/** A folded group of answers; says how many are filled so nothing feels lost. */
+function Section({
+  title,
+  open = false,
+  filled,
+  children,
+}: {
+  title: string
+  open?: boolean
+  filled?: number
+  children: React.ReactNode
+}) {
+  if (open)
+    return (
+      <div>
+        <h3 className="text-sm font-semibold text-muted">{title}</h3>
+        {children}
+      </div>
+    )
+  return (
+    <details className="group rounded-panel border border-line px-4 py-1 open:pb-4">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold">
+        <span
+          className="transition-transform duration-(--duration) group-open:rotate-90"
+          aria-hidden="true"
+        >
+          ›
+        </span>
+        {title}
+        {filled !== undefined && (
+          <span className="ml-auto font-normal text-muted">
+            {filled ? `${filled} filled` : 'Optional'}
+          </span>
+        )}
+      </summary>
+      {children}
+    </details>
   )
 }

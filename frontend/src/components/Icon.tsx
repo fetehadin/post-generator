@@ -23,6 +23,20 @@ const PATHS = {
   alert: 'M12 3l9.5 17h-19zM12 10v4M12 17h.01',
   clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18zM12 7v5l3 2',
   'arrow-up': 'M12 19V5M6 11l6-6 6 6',
+  /** The composer's options. */
+  sliders: 'M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M10 15v4',
+  /** Stop waiting for the AI. */
+  stop: 'M8 8h8v8H8z',
+  undo: 'M9 14l-5-5 5-5M4 9h10a6 6 0 0 1 0 12h-3',
+  copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
+  more: 'M6 12h.01M12 12h.01M18 12h.01',
+  pencil: 'M4 20h4L19 9l-4-4L4 16zM14 6l4 4',
+  eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 1 0 0-6z',
+  refresh: 'M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4',
+  globe:
+    'M12 3a9 9 0 1 0 0 18 9 9 0 1 0 0-18zM3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z',
+  /** The AI's one honest mark: a pen nib, not the sparkle cliché. */
+  nib: 'M12 3l6 8-6 10-6-10zM12 11v4M12 11a1 1 0 1 0 0 .01',
 } as const
 
 export type IconName = keyof typeof PATHS

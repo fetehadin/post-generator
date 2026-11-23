@@ -1,5 +1,5 @@
 /**
- * Light ⇄ dark (DESIGN.md §5 v3). Saved per browser; the system preference is the default.
+ * Light ⇄ dark (DESIGN.md §5 v4). Saved per browser; the system preference is the default.
  * A saved value from an older version ("mixed") is ignored, so the system preference wins.
  */
 export const THEMES = ['light', 'dark'] as const
@@ -16,9 +16,17 @@ export function savedTheme(): Theme | null {
   }
 }
 
+/** The browser bar matches the page (--paper): white in light, near-black in dark. */
+const BAR: Record<Theme, string> = { light: '#ffffff', dark: '#0a0a0a' }
+
 export function applyTheme(theme: Theme | null) {
   if (theme) document.documentElement.dataset.theme = theme
   else delete document.documentElement.dataset.theme
+  // A chosen theme overrides the system one: point both theme-color tags at it.
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    const media = meta.getAttribute('media') ?? ''
+    meta.content = theme ? BAR[theme] : media.includes('dark') ? BAR.dark : BAR.light
+  }
 }
 
 export function nextTheme(current: Theme | null): Theme {
