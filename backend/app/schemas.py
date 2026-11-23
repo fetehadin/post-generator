@@ -650,3 +650,24 @@ class GitHubSettingsIn(BaseModel):
 
 class GitHubRepoIn(BaseModel):
     mention_ok: bool
+
+
+class TelegramChannelOut(BaseModel):
+    title: str
+    username: str | None
+    can_post: bool
+
+
+class TelegramOut(BaseModel):
+    """GET /telegram (FR-36). `enabled`: the bot is set up on this server."""
+
+    enabled: bool
+    bot_username: str | None
+    linked: bool
+    tg_username: str | None
+    channel: TelegramChannelOut | None
+    connect_url: str | None
+
+
+class TelegramLinkOut(BaseModel):
+    url: str

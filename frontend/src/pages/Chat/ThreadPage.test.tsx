@@ -213,3 +213,26 @@ test('the check-in that opens a chat can be edited there (FR-6)', async () => {
   expect(sent('PATCH /checkins/c1')).toEqual([{ text: 'Finished the importer and its tests' }])
   expect(await screen.findByText('Finished the importer and its tests')).toBeInTheDocument()
 })
+
+test('with the bot connected, an approved Telegram draft is posted on one click (FR-36)', async () => {
+  thread = makeThread([row({ id: 'd1', platform: 'telegram', status: 'approved' })])
+  routeApi({
+    'GET /threads/:id': () => thread,
+    'GET /me': () => ({ id: 'u1', email: 'fete@example.com' }),
+    'GET /platforms/telegram': () => ({ channel: null }),
+    'GET /telegram': () => ({
+      enabled: true,
+      bot_username: 'VoxlaceBot',
+      linked: true,
+      tg_username: 'fete',
+      channel: { title: 'FeteScript', username: 'fetescript', can_post: true },
+      connect_url: null,
+    }),
+    'POST /drafts/:id/publish': () => detail({ id: 'd1', status: 'published' }),
+  })
+  renderThread()
+  const open = await screen.findByRole('article', { name: 'Telegram draft, version 2' })
+  expect(await within(open).findByText('Posts to FeteScript when you tap it.')).toBeInTheDocument()
+  await userEvent.click(within(open).getByRole('button', { name: 'Post to Telegram now' }))
+  await vi.waitFor(() => expect(calls()).toContain('POST /drafts/d1/publish'))
+})

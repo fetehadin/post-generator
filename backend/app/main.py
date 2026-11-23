@@ -24,6 +24,7 @@ from app.api import (
     platforms,
     posts,
     profile,
+    telegram,
     threads,
     uploads,
 )
@@ -90,9 +91,11 @@ def create_app() -> FastAPI:
         drafts,
         guest,
         github,
+        telegram,
     ):
         app.include_router(module.router, prefix=API_PREFIX)
     app.include_router(github.webhooks, prefix=API_PREFIX)
+    app.include_router(telegram.webhooks, prefix=API_PREFIX)
     return app
 
 

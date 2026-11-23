@@ -15,10 +15,14 @@ from app.models.drafts import (
 )
 from app.models.github import GitHubConnection, GitHubDigest, GitHubItem, GitHubRepo
 from app.models.imports import Import, SourcePost
+from app.models.telegram import TelegramAccount, TelegramChannel, TelegramLinkToken
 from app.models.user import User
 from app.models.voice import PlatformSettings, PostingCurve, VoiceCard
 
 __all__ = [
+    "TelegramAccount",
+    "TelegramChannel",
+    "TelegramLinkToken",
     "GitHubConnection",
     "GitHubDigest",
     "GitHubItem",
