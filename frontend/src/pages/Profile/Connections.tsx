@@ -1,20 +1,18 @@
-import { usePlatform } from '../../api/platforms'
 import { useProfile } from '../../api/profile'
 import { AIKeys } from './AIKeys'
 import { GitHubPanel } from './GitHubPanel'
-import { ChannelSetting } from './VoicePanel'
+import { TelegramConnection } from './TelegramConnection'
 
 /** A developer profession: GitHub ideas are offered up front only to them (DESIGN.md §4.4). */
 const DEVELOPER = /develop|engineer|program|software|devops|data sci|coder/i
 
 /**
  * Profile → Connections (DESIGN.md §4.4, 21 Nov 2026): everything optional you can connect,
- * in one place, none of it needed to write a draft. A free AI key (FR-48), the Telegram
- * channel the hand-off opens (FR-12), and GitHub ideas (FR-14), folded away unless you
+ * in one place, none of it needed to write a draft. A free AI key (FR-48), the Telegram bot
+ * that posts to your channel (FR-36; or the channel name for copy and open, FR-12), and GitHub ideas (FR-14), folded away unless you
  * said you're a developer.
  */
 export function Connections() {
-  const telegram = usePlatform('telegram')
   const developer = DEVELOPER.test(useProfile().data?.discipline ?? '')
   return (
     <div className="mt-4 flex flex-col gap-8">
@@ -27,9 +25,9 @@ export function Connections() {
 
       <section id="telegram" aria-labelledby="telegram-title" className="scroll-mt-6">
         <h2 id="telegram-title" className="font-semibold">
-          Telegram channel
+          Telegram
         </h2>
-        {telegram.data && <ChannelSetting info={telegram.data} />}
+        <TelegramConnection />
       </section>
 
       <details

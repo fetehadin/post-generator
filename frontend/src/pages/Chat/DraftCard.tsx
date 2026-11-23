@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePatchAnyDraft, useRestoreVersion } from '../../api/drafts'
 import { useMe, useZone } from '../../api/me'
 import { usePlatform } from '../../api/platforms'
+import { usePublishDraft, useTelegram } from '../../api/telegram'
 import { useConvertDraft, useScheduleDraft } from '../../api/threads'
 import type { DraftRow, ScheduleResult, ThreadCard } from '../../api/types'
 import { DayChips } from '../../components/DayChips'
@@ -450,6 +451,62 @@ function Status({
 
   // Approved: on the calendar at the picked hour, with why, and the hand-off.
   return (
+    <Approved
+      draft={draft}
+      text={text}
+      zone={zone}
+      picked={picked}
+      over={over}
+      mode={mode}
+      channel={channel}
+      busy={busy}
+      onChangeTime={onChangeTime}
+      onPick={onPick}
+      onPost={onPost}
+      onCancel={onCancel}
+      onNote={onNote}
+    />
+  )
+}
+
+/**
+ * An approved draft: when it's planned, and how it leaves. With the Telegram bot connected
+ * (FR-36), "Post to Telegram now" sends it to the channel on this click (rule 4); otherwise
+ * the hand-off copies the text and opens the platform (FR-12).
+ */
+function Approved({
+  draft,
+  text,
+  zone,
+  picked,
+  over,
+  mode,
+  channel,
+  busy,
+  onChangeTime,
+  onPick,
+  onPost,
+  onCancel,
+  onNote,
+}: {
+  draft: DraftRow
+  text: string
+  zone?: string
+  picked: ScheduleResult | null
+  over: boolean
+  mode: string
+  channel?: string | null
+  busy: boolean
+  onChangeTime: () => void
+  onPick: (day: string, at?: string) => void
+  onPost: () => void
+  onCancel: () => void
+  onNote: (note: string) => void
+}) {
+  const bot = useTelegram().data
+  const publish = usePublishDraft()
+  const viaBot = draft.platform === 'telegram' && Boolean(bot?.channel?.can_post)
+  return (
     <div className="mt-4 border-t border-line pt-4 text-sm">
       {draft.scheduled_for &&
         (Date.parse(draft.scheduled_for) < Date.now() - 30 * 60_000 ? (
@@ -465,11 +522,22 @@ function Status({
         ))}
       {picked?.warning && <p className="mt-1 text-signal">{picked.warning}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" disabled={over} onClick={onPost} className={primary}>
-          {handOffLabel(draft.platform, channel)}
-        </button>
+        {viaBot ? (
+          <button
+            type="button"
+            disabled={over || publish.isPending}
+            onClick={() => publish.mutate(draft.id)}
+            className={primary}
+          >
+            {publish.isPending ? 'Posting…' : 'Post to Telegram now'}
+          </button>
+        ) : (
+          <button type="button" disabled={over} onClick={onPost} className={primary}>
+            {handOffLabel(draft.platform, channel)}
+          </button>
+        )}
         {/* Only when the main button also opens a site; else it already just copies. */}
-        {!handOffLabel(draft.platform, channel).startsWith('Copy text') && (
+        {(viaBot || !handOffLabel(draft.platform, channel).startsWith('Copy text')) && (
           <Tooltip content="Copy the text only">
             <button
               type="button"
@@ -493,6 +561,14 @@ function Status({
           Change time
         </button>
       </div>
+      {viaBot && bot?.channel && !publish.error && (
+        <p className="mt-2 text-muted">Posts to {bot.channel.title} when you tap it.</p>
+      )}
+      {publish.error && (
+        <p role="alert" className="mt-2 text-danger">
+          {publish.error.message}
+        </p>
+      )}
       {mode === 'time' && (
         <ChangeTime draft={draft} zone={zone} busy={busy} onPick={onPick} onCancel={onCancel} />
       )}

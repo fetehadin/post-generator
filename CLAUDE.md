@@ -28,7 +28,7 @@ Read the relevant doc before changing behaviour. Don't contradict it; if the cod
 | AI | Gemini via `google-genai`: `gemini-embedding-2` at 768 dims; Gemini Flash for text; Groq (over `httpx`) as the generation fallback |
 | Frontend | React + Vite + TypeScript, React Router, TanStack Query, Tailwind CSS, FullCalendar |
 | Auth | Supabase Auth for login only (JWT); all data lives in our own Postgres |
-| Publishing | Hand-off only in V1: X web intent, LinkedIn copy + open composer, Telegram copy + open channel (no bot; SRS 1.3) |
+| Publishing | X web intent, LinkedIn copy + open composer, Telegram copy + open channel, or the Telegram bot posting an approved draft when the user taps "Post to Telegram now" (SRS 1.4, FR-36) |
 | Hosting | One Contabo VPS: Docker Compose with Caddy, api, db, behind the server's shared Caddy |
 | Quality | Ruff, pytest, Vitest, Prettier, GitHub Actions |
 
@@ -124,4 +124,4 @@ Run the checks for every part you touched before saying a task is done.
 - X length is weighted (twitter-text v3): URLs count 23; a whole emoji (with skin tone, joiners or a flag pair) counts 2; characters outside U+0000–U+10FF and a few punctuation ranges count 2, which includes **Amharic (Ethiopic)** and CJK. Never use plain `len()`. Both counters must pass `samples/x_counter_cases.json`.
 - pgvector: start without a vector index (exact search). Query shape is `ORDER BY embedding <=> :q LIMIT :n`.
 - Gemini free tier returns 429 under load. Back off and retry; keep the user's input.
-- No Telegram bot in V1 (SRS 1.3). When it comes back: bots can't use Telegram's native scheduled messages, so a worker must send at the due time.
+- The Telegram bot (SRS 1.4) posts only on the user's click. Automatic sends at the scheduled time come after V1: bots can't use Telegram's native scheduled messages, so a worker must send at the due time. The webhook is checked by its secret header; never log the bot token (it is in Telegram's API URL).

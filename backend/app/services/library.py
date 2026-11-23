@@ -189,6 +189,13 @@ def update(user_id: uuid.UUID, draft_id: uuid.UUID, changes: dict) -> DraftDetai
     return detail(user_id, draft_id)
 
 
+def mark_published(s, user_id: uuid.UUID, d: Draft, current: DraftDetail) -> None:
+    """Posted, inside the caller's transaction: the same rules and learning as PATCH status
+    (used when the Telegram bot posts the draft, FR-36)."""
+    _move(d, "published", current, None)
+    _learn_from(s, user_id, d, current.text)
+
+
 def _move(d: Draft, status: str, current: DraftDetail, new_text: str | None) -> None:
     if d.status == "published":
         raise DraftError("already_published", "This post is already published.", 409)

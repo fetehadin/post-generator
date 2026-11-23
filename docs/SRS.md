@@ -111,7 +111,7 @@ flowchart LR
 | C-3 | **No platform passwords, no scraping.** Only the user's own exports and official bot tokens. |
 | C-4 | **X API costs money** ($0.015 per post, $0.20 with a URL), so X is hand-off only. |
 | C-5 | **LinkedIn cannot be pre-filled**, so it is copy + open composer. |
-| C-6 | **No Telegram bot in V1** (decided 22 Oct 2026). Telegram is a hand-off like LinkedIn: copy the text and open the user's channel. Bot publishing (FR-36, FR-43) waits until after V1. |
+| C-6 | **Telegram bot in V1, posting only on a click** (changed 23 Nov 2026; was "no bot in V1", 22 Oct). A user may connect their channel to the app's bot (FR-36); "Post to Telegram now" on an approved draft sends it. The bot never posts by itself: automatic sends at the scheduled time and replies as check-ins (FR-43) wait until after V1. Without the bot, Telegram stays a hand-off (copy the text and open the channel). |
 | C-7 | **Embedding models are fixed per vector space.** Vectors from different models cannot be compared, so there is no embedding fallback. Users' posts use Gemini (768 dims); the shared inspiration pool and the originality check use a local model (384 dims). The two spaces are never mixed. |
 | C-8 | **Free AI quota is shared** by every user of the project and resets at midnight Pacific time. |
 | C-9 | **Free-tier Gemini data may be used to improve Google's products.** Users must be told before uploading. |
@@ -184,7 +184,7 @@ flowchart LR
 | FR-35 | A due post shows a reminder in the app's notification panel. A post still not "Posted" 30 minutes after its time moves to a **Missed** list with "Post now" and "Reschedule". | Must | Schedule an approved draft for the next minute; within 2 minutes it shows as due, and 30 minutes after its time it shows under Missed. |
 | FR-42 | The user sets daily check-in reminders (days and a local time). From that time the app shows the reminder in its notification panel, and stops for the day once there is a check-in. | Must | Set a reminder for the next minute; it shows within 2 minutes, and disappears after a check-in. |
 | FR-43 | Replying to a reminder in the Telegram bot saves the reply as that day's check-in and offers a draft back in the same chat. | Later (after V1) | Reply to the bot; the check-in appears on the chat board. |
-| FR-36 | A user connects a Telegram channel by adding the app's bot as an admin and entering the channel. The app confirms it can post before saving. | Later (after V1) | Connect a channel without admin rights; it is refused with a message. |
+| FR-36 | A user connects a Telegram channel to the app's bot in Telegram: "Connect Telegram" pairs the accounts through a one-time link, then one tap opens Telegram's channel picker with the admin rights filled in; the channel connects by itself, with no typing. "Post to Telegram now" on an approved Telegram draft sends it and marks it Posted. The app says when the bot can't post (no "Post messages" right, or removed). | Should (V1, since 23 Nov 2026) | Connect a channel; post an approved draft; it appears once. Remove the bot's post right; posting says what to turn on. |
 | FR-16 | The app ranks each day's hours per platform by audience activity: the audience's places (time zones with shares) and profession, a study-based curve per platform, and only hours the user can post. Times are shown in the user's own zone with a one-line reason. | Must | Change the audience place on Profile; the best hours shift. |
 | FR-45 | Approving a draft asks only for the **day**. The app picks the hour: the first post on that platform that day gets the best hour, the second the next best that keeps a minimum gap, and so on. The user can change the time. | Must | Approve two X drafts for the same day; they get the best and second-best hours, at least 2 hours apart. |
 | FR-34 | Posting-time suggestions start from study-based defaults and blend in the user's own archive data once they have at least 50 posts with engagement numbers on that platform. | Must | Import 60 posts with likes; the suggestion cites the user's own data. |
@@ -319,7 +319,9 @@ erDiagram
 | `exemplar_posts` | id, platform, post_type, position, text, source (template, creator), author, text_hash, hook_type, structure, tone, goal, source_profession, tagged_at, embedding `vector(384)`, structure_embedding `vector(384)`, embedding_model, created_at | The shared inspiration pool per platform (FR-41): the team's templates and creators' posts, for structure only. Never shown to users. HNSW cosine indexes on both vectors. |
 | `invites` | code, email, used_by, created_at | Who may sign up. |
 | `provider_usage` | id, user_id, provider, model, purpose, status, created_at | Limits and fallback debugging. |
-| `telegram_connections` | user_id, channel_id, verified_at | After V1: the channel the bot may post to (FR-36). |
+| `telegram_link_tokens` | token_hash (SHA-256), user_id, expires_at, used_at, created_at | One-time links that pair a Voxlace account with a Telegram account (FR-36). |
+| `telegram_accounts` | user_id, tg_user_id (unique), tg_username, created_at | Which Telegram user this account is (FR-36). |
+| `telegram_channels` | user_id, chat_id (unique), title, username, can_post, created_at | The channel the bot may post to, one per account (FR-36). |
 
 **Indexing:** start with no vector index. pgvector's exact search is fast enough for a few thousand rows per user. Use B-tree indexes on `(user_id, platform)`. Query shape: `ORDER BY embedding <=> :q LIMIT :n`.
 
@@ -341,7 +343,7 @@ Seed values for `platform_profiles`, as of October 2026.
 
 - Billing, paid plans, teams, admin dashboard.
 - Automatic posting to X and LinkedIn through their APIs.
-- The Telegram bot: channel connect, automatic sends, replies as check-ins (FR-36, FR-43). Planned after V1.
+- The Telegram bot's automatic sends at the scheduled time and replies as check-ins (FR-43). Planned after V1; channel connect and "Post now" (FR-36) are in V1.
 - Reminders outside the app (Telegram DM, email, browser push).
 - Trend feeds, niche outlier tracking, reply queues.
 - AI-generated images.
@@ -376,7 +378,7 @@ Seed values for `platform_profiles`, as of October 2026.
 | 6 — SaaS hardening and deploy | FR-30, FR-31, FR-32, FR-38, NFR-1, NFR-3, NFR-4, NFR-10, NFR-11, NFR-17 |
 | 7 — Private beta | FR-14, FR-15, FR-41, FR-48, FR-49, NFR-19, NFR-20, success metrics |
 | Stretch | FR-14 |
-| After V1 | FR-36, FR-43 (Telegram bot) |
+| After V1 | FR-43 (Telegram bot replies; automatic sends) |
 
 ---
 
@@ -386,6 +388,7 @@ Seed values for `platform_profiles`, as of October 2026.
 |---|---|---|
 | 1.4 | 19 Nov 2026 | New FR-48 (your own AI keys), NFR-19 (secrets encrypted at rest), NFR-20 (AI call log and circuit breaker). New tables `user_ai_keys`, `ai_calls`; `prompt_logs` gains `key_source`. FR-30's limit counts only drafts on the app's keys. |
 | 1.3 | 22 Oct 2026 | No Telegram bot in V1: Telegram is copy + open channel (C-6, FR-12, FR-35; FR-36 and FR-43 move after V1), and reminders live in the app (FR-42). Chat board threads with a new draft card per revision (FR-40, new FR-46). Posting times move into V1: best hours from audience places and profession (FR-16, FR-34) and the app picks the hour on approve (new FR-45). Resume and portfolio import move into V1 (FR-20, FR-21, NFR-12). FR-23 rules change through migrations. Groq is the fallback provider. NFR-14 is now the background embedding retry. New tables `threads`, `posting_curves`; `profiles`, `platform_settings`, `drafts`, `draft_messages`, `reminder_settings`, `uploads` change. |
+| 1.4 | 23 Nov 2026 | The Telegram bot comes into V1 for connecting a channel and "Post to Telegram now" (C-6, FR-36); it never posts by itself (automatic sends and FR-43 stay after V1). New tables `telegram_link_tokens`, `telegram_accounts`, `telegram_channels` replace the planned `telegram_connections`. |
 | 1.2 | 17 Oct 2026 | Added FR-40 (chat panel on each draft), FR-41 (inspiration picked by post type), FR-42 (daily check-in reminders), FR-43 (reply to the bot = check-in), FR-44 (excluded hashtags, best-1,000 import cap). New tables `imports`, `draft_messages`, `inspiration_posts`, `reminder_settings`; `source_posts` gains `origin`, `import_id`, `embedding_model`. Decisions behind them: OPEN_QUESTIONS Q2, Q3, Q5, Q24–Q27. |
 | 1.1 | 14 Oct 2026 | Hosting moved to the team's Contabo VPS: always-on worker replaces the external cron; Supabase used for login only; added NFR-17 (backups) and NFR-18 (server hardening). |
 | 1.0 | 13 Oct 2026 | First locked V1. Built from the Pre-Build Plan. Clarified: Telegram is sent by the app at the due time because bots cannot schedule natively (FR-12, FR-35); NFR-6 reworded to "never without explicit approval"; NFR-11 reworded for a hosted app; added NFR-15, NFR-16 and a priority column. |
