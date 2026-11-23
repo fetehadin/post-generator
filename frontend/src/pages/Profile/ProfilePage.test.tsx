@@ -87,9 +87,9 @@ function renderAt(path: string) {
   )
 }
 
-test('the tab comes from the address', async () => {
+test('the tab comes from the address; an old tab link opens its new home', async () => {
   renderAt('/profile?tab=when')
-  expect(screen.getByRole('tab', { name: 'When you post' })).toHaveAttribute(
+  expect(screen.getByRole('tab', { name: 'Audience & timing' })).toHaveAttribute(
     'aria-selected',
     'true',
   )

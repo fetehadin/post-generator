@@ -15,16 +15,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu'
-import { cn } from '../../lib/utils'
-import { handOff, handOffLabel } from '../../lib/handoff'
+import { Tooltip } from '../../components/ui/tooltip'
+import { copyText, handOff, handOffLabel } from '../../lib/handoff'
 import { LABEL, PLATFORMS, RULES, STATUS_LABEL } from '../../lib/platforms'
 import { dateIn, formatShort, formatWhen, localToUtc } from '../../lib/time'
+import { chip, ghost, iconButton, primary, secondary } from '../../lib/ui'
+import { cn } from '../../lib/utils'
 import { Preview } from '../Editor/Preview'
+import { useReveal } from './AiStatus'
 
-const button =
-  'min-h-9 rounded-full border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
-const primary =
-  'min-h-9 rounded-full bg-primary px-3 text-sm font-semibold text-on-primary disabled:opacity-50'
+/** One-click changes under a draft (DESIGN.md §1.4): sent as the instruction, like a reply. */
+export const QUICK = ['Shorter', 'Punchier', 'More casual', 'Add a hook']
+export const AGAIN = 'Write another version with the same facts and fresh wording.'
+const LANGUAGES = ['English', 'Amharic', 'French', 'Spanish', 'Arabic', 'German']
+export const translate = (lang: string) =>
+  `Translate it into ${lang}. Keep the meaning, the tone and about the same length.`
 
 /** An older version, folded to its first line (DESIGN.md §4.1). Opens to read or restore. */
 export function FoldedCard({ card, draft }: { card: ThreadCard; draft: DraftRow }) {
@@ -53,7 +58,7 @@ export function FoldedCard({ card, draft }: { card: ThreadCard; draft: DraftRow 
               type="button"
               disabled={restore.isPending}
               onClick={() => restore.mutate(card.version_id)}
-              className={cn(button, 'mt-2')}
+              className={cn(secondary, 'mt-2 min-h-9')}
             >
               Restore v{card.number}
             </button>
@@ -70,21 +75,29 @@ export function FoldedCard({ card, draft }: { card: ThreadCard; draft: DraftRow 
 }
 
 /**
- * The newest version of a draft, in full (DESIGN.md §4.1): the text in the serif, the length
- * counter and "AI draft" (FR-9, FR-11). Approve asks only for the day; the app picks the hour
- * (FR-45). Copy and open appears only once approved (rule 4).
+ * The newest version of a draft (DESIGN.md §4.1, FR-9, FR-10, FR-11): the text, the length
+ * counter and "AI draft". Changes are one click away under the text; Undo goes back a
+ * version. One primary action: Approve (it asks only for the day, FR-45), then, once
+ * approved, the hand-off (nothing leaves before approval, rule 4).
  */
 export function DraftCard({
   card,
   draft,
-  selected,
-  onSelect,
+  previous,
+  fresh = false,
+  busy = false,
+  onRevise,
   onSelectText,
 }: {
   card: ThreadCard
   draft: DraftRow
-  selected: boolean
-  onSelect: () => void
+  /** The version before this one, for Undo. */
+  previous?: ThreadCard
+  /** Just written: the text arrives with a short reveal. */
+  fresh?: boolean
+  /** A change is being written for this draft. */
+  busy?: boolean
+  onRevise: (instruction: string) => void
   onSelectText: (text: string) => void
 }) {
   const [mode, setMode] = useState<'read' | 'preview' | 'edit' | 'approve' | 'time'>('read')
@@ -97,22 +110,26 @@ export function DraftCard({
   const patch = usePatchAnyDraft()
   const schedule = useScheduleDraft()
   const convert = useConvertDraft()
-  const label = `${LABEL[draft.platform]} draft · v${card.number}`
+  const restore = useRestoreVersion(draft.id)
+  const label = `${LABEL[draft.platform]} draft`
   const textRef = useRef<HTMLParagraphElement>(null)
+  const reveal = useReveal(card.text, fresh)
+  const editable = draft.status === 'draft' || draft.status === 'approved'
+
   // A selection inside the draft scopes the next change (§4.1); mouse, keyboard or touch.
   useEffect(() => {
     function changed() {
       const sel = window.getSelection()
       const el = textRef.current
       if (!sel || !el || sel.isCollapsed || !el.contains(sel.anchorNode)) return
-      const picked = sel.toString().trim()
-      if (picked && card.text.includes(picked)) onSelectText(picked)
+      const text = sel.toString().trim()
+      if (text && card.text.includes(text)) onSelectText(text)
     }
     document.addEventListener('selectionchange', changed)
     return () => document.removeEventListener('selectionchange', changed)
   }, [card.text, onSelectText])
   const over = card.length.over
-  const error = patch.error ?? schedule.error ?? convert.error
+  const error = patch.error ?? schedule.error ?? convert.error ?? restore.error
 
   function approveOn(day: string, at?: string) {
     schedule.mutate(
@@ -133,7 +150,7 @@ export function DraftCard({
         copied === false
           ? "Couldn't copy: select the text and copy it by hand."
           : draft.platform === 'telegram' && !channel
-            ? 'Copied. Open your channel in Telegram and paste it. Add the channel name in Profile.'
+            ? 'Copied. Open your channel in Telegram and paste it. Add the channel name in Profile → Connections.'
             : copied
               ? 'Copied.'
               : '',
@@ -145,42 +162,57 @@ export function DraftCard({
 
   return (
     <article
-      aria-label={label}
-      className={cn(
-        'rounded-panel border bg-surface p-5',
-        selected ? 'border-primary' : 'border-line',
-      )}
+      aria-label={`${label}, version ${card.number}`}
+      className="rounded-panel border border-line bg-surface p-5"
     >
-      <header className="flex flex-wrap items-center gap-2 text-sm">
+      <header className="flex items-center gap-2 text-sm">
         <PlatformMark platform={draft.platform} />
-        <span className="font-semibold">{label}</span>
-        <span className="rounded-full bg-sunken px-2 py-0.5 text-xs text-muted">
-          {STATUS_LABEL[draft.status]}
+        <span className="min-w-0 truncate font-semibold">
+          {LABEL[draft.platform]}
+          <span className="max-sm:sr-only"> draft</span>
         </span>
-        <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            aria-pressed={mode === 'preview'}
-            onClick={() => setMode(mode === 'preview' ? 'read' : 'preview')}
-            className={cn(button, 'border-transparent', mode === 'preview' && 'bg-sunken')}
+        {card.number > 1 && <span className="text-muted">v{card.number}</span>}
+        {draft.status !== 'draft' && (
+          <span className="rounded-full bg-sunken px-2 py-0.5 text-xs text-muted max-sm:hidden">
+            {STATUS_LABEL[draft.status]}
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-0.5">
+          <Tooltip
+            content={mode === 'preview' ? 'Show the text' : 'Preview on ' + LABEL[draft.platform]}
           >
-            Preview
-          </button>
-          <button
-            type="button"
-            aria-pressed={selected}
-            onClick={onSelect}
-            className={cn(button, 'border-transparent', selected && 'bg-sunken font-semibold')}
-          >
-            Reply
-          </button>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label={`More for the ${LABEL[draft.platform]} draft`}
-              className="grid size-9 place-items-center rounded-control text-lg hover:bg-sunken"
+            <button
+              type="button"
+              aria-label="Preview"
+              aria-pressed={mode === 'preview'}
+              onClick={() => setMode(mode === 'preview' ? 'read' : 'preview')}
+              className={cn(iconButton, mode === 'preview' && 'bg-sunken text-ink')}
             >
-              ⋯
-            </DropdownMenuTrigger>
+              <Icon name="eye" />
+            </button>
+          </Tooltip>
+          {editable && (
+            <Tooltip content="Edit by hand">
+              <button
+                type="button"
+                aria-label="Edit by hand"
+                aria-pressed={mode === 'edit'}
+                onClick={() => {
+                  setEdited(card.text)
+                  setMode(mode === 'edit' ? 'read' : 'edit')
+                }}
+                className={cn(iconButton, mode === 'edit' && 'bg-sunken text-ink')}
+              >
+                <Icon name="pencil" />
+              </button>
+            </Tooltip>
+          )}
+          <DropdownMenu>
+            <Tooltip content="More">
+              <DropdownMenuTrigger aria-label={`More for the ${label}`} className={iconButton}>
+                <Icon name="more" />
+              </DropdownMenuTrigger>
+            </Tooltip>
             <DropdownMenuContent align="end" className="min-w-56">
               {PLATFORMS.filter((p) => p !== draft.platform).map((p) => (
                 <DropdownMenuItem
@@ -192,17 +224,7 @@ export function DraftCard({
                   Make {p === 'x' ? 'an' : 'a'} {LABEL[p]} version
                 </DropdownMenuItem>
               ))}
-              {draft.status !== 'published' && (
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setEdited(card.text)
-                    setMode('edit')
-                  }}
-                >
-                  Edit by hand
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
+              {draft.status !== 'published' && <DropdownMenuSeparator />}
               {draft.status === 'discarded' ? (
                 <DropdownMenuItem onSelect={() => patch.mutate({ id: draft.id, status: 'draft' })}>
                   Restore draft
@@ -231,17 +253,18 @@ export function DraftCard({
           }}
         >
           <label className="sr-only" htmlFor={`edit-${draft.id}`}>
-            Edit the {LABEL[draft.platform]} draft
+            Edit the {label}
           </label>
           <textarea
             id={`edit-${draft.id}`}
             value={edited}
             onChange={(e) => setEdited(e.target.value)}
+            onKeyDown={(e) => e.key === 'Escape' && setMode('read')}
             className="block w-full resize-y rounded-control border border-edge bg-surface p-3 text-md leading-writing [field-sizing:content]"
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <LengthCounter text={edited} rule={RULES[draft.platform]} limit={card.length.limit} />
-            <button type="button" onClick={() => setMode('read')} className={cn(button, 'ml-auto')}>
+            <button type="button" onClick={() => setMode('read')} className={cn(ghost, 'ml-auto')}>
               Cancel
             </button>
             <button
@@ -258,20 +281,82 @@ export function DraftCard({
           <Preview platform={draft.platform} text={card.text} name={name} />
         </div>
       ) : (
-        <p ref={textRef} className="mt-3 text-md leading-writing whitespace-pre-wrap">
-          {card.text}
+        <p
+          ref={textRef}
+          aria-busy={!reveal.done}
+          className={cn(
+            'mt-3 text-md leading-writing whitespace-pre-wrap transition-opacity duration-(--duration)',
+            busy && 'opacity-50',
+          )}
+        >
+          {reveal.text}
         </p>
       )}
 
-      <footer className="mt-3 flex flex-wrap items-center gap-3">
+      <footer className="mt-3 flex flex-wrap items-center gap-3 text-xs">
         {mode !== 'edit' && (
           <LengthCounter text={card.text} rule={RULES[draft.platform]} limit={card.length.limit} />
         )}
-        <span className="rounded-full border border-thread px-2 text-xs text-thread">AI draft</span>
+        <span className="inline-flex items-center gap-1 text-thread">
+          <Icon name="nib" className="size-3.5" />
+          AI draft
+        </span>
       </footer>
+
+      {editable && mode !== 'edit' && (
+        <div role="group" aria-label="Quick changes" className="mt-4 flex flex-wrap gap-1.5">
+          {QUICK.map((q) => (
+            <button
+              key={q}
+              type="button"
+              disabled={busy}
+              onClick={() => onRevise(q)}
+              className={cn(chip, 'text-muted hover:text-ink')}
+            >
+              {q}
+            </button>
+          ))}
+          <DropdownMenu>
+            <DropdownMenuTrigger disabled={busy} className={cn(chip, 'text-muted hover:text-ink')}>
+              <Icon name="globe" className="size-4" />
+              Translate
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {LANGUAGES.map((lang) => (
+                <DropdownMenuItem key={lang} onSelect={() => onRevise(translate(lang))}>
+                  {lang}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onRevise(AGAIN)}
+            className={cn(chip, 'text-muted hover:text-ink')}
+          >
+            <Icon name="refresh" className="size-4" />
+            Another version
+          </button>
+          {previous && (
+            <Tooltip content={`Back to v${previous.number}`}>
+              <button
+                type="button"
+                disabled={busy || restore.isPending}
+                onClick={() => restore.mutate(previous.version_id)}
+                className={cn(chip, 'text-muted hover:text-ink')}
+              >
+                <Icon name="undo" className="size-4" />
+                Undo
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      )}
 
       <Status
         draft={draft}
+        text={card.text}
         zone={zone}
         picked={picked}
         over={over}
@@ -283,6 +368,7 @@ export function DraftCard({
         onPick={approveOn}
         onPost={() => void post()}
         onCancel={() => setMode('read')}
+        onNote={setNote}
       />
       {note && (
         <p aria-live="polite" className="mt-2 text-sm">
@@ -300,6 +386,7 @@ export function DraftCard({
 
 function Status({
   draft,
+  text,
   zone,
   picked,
   over,
@@ -311,8 +398,10 @@ function Status({
   onPick,
   onPost,
   onCancel,
+  onNote,
 }: {
   draft: DraftRow
+  text: string
   zone?: string
   picked: ScheduleResult | null
   over: boolean
@@ -324,19 +413,20 @@ function Status({
   onPick: (day: string, at?: string) => void
   onPost: () => void
   onCancel: () => void
+  onNote: (note: string) => void
 }) {
   if (draft.status === 'published')
     return (
-      <p className="mt-3 text-sm text-muted">
+      <p className="mt-4 text-sm text-muted">
         Posted{draft.published_at ? ` ${formatWhen(draft.published_at, zone)}` : ''}.
       </p>
     )
   if (draft.status === 'discarded')
-    return <p className="mt-3 text-sm text-muted">Discarded. Restore it from the ⋯ menu.</p>
+    return <p className="mt-4 text-sm text-muted">Discarded. Restore it from the ⋯ menu.</p>
 
   if (draft.status === 'draft')
     return (
-      <div className="mt-3">
+      <div className="mt-4 border-t border-line pt-4">
         <button
           type="button"
           disabled={over}
@@ -348,9 +438,9 @@ function Status({
         </button>
         {over && <span className="ml-3 text-sm text-danger">Cut it to fit before approving.</span>}
         {mode === 'approve' && (
-          <div className="mt-3 rounded-panel border border-line p-3">
+          <div className="mt-3">
             <DayChips timeZone={zone} busy={busy} onPick={(day) => onPick(day)} />
-            <button type="button" onClick={onCancel} className={cn(button, 'mt-3')}>
+            <button type="button" onClick={onCancel} className={cn(ghost, 'mt-2')}>
               Cancel
             </button>
           </div>
@@ -360,29 +450,45 @@ function Status({
 
   // Approved: on the calendar at the picked hour, with why, and the hand-off.
   return (
-    <div className="mt-3 text-sm">
+    <div className="mt-4 border-t border-line pt-4 text-sm">
       {draft.scheduled_for &&
         (Date.parse(draft.scheduled_for) < Date.now() - 30 * 60_000 ? (
           <p className="text-danger">
-            {formatShort(draft.scheduled_for, zone)} passed. Post now or reschedule.
+            {formatShort(draft.scheduled_for, zone)} passed. Post now or pick another time.
           </p>
         ) : (
           <p>
-            <span className="font-semibold">Approved · on your calendar</span>{' '}
+            <span className="font-semibold">On your calendar</span>{' '}
             {formatWhen(draft.scheduled_for, zone)} your time
             {picked && <span className="block text-muted">{picked.reason}</span>}
           </p>
         ))}
       {picked?.warning && <p className="mt-1 text-signal">{picked.warning}</p>}
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" disabled={over} onClick={onPost} className={primary}>
           {handOffLabel(draft.platform, channel)}
         </button>
+        {/* Only when the main button also opens a site; else it already just copies. */}
+        {!handOffLabel(draft.platform, channel).startsWith('Copy text') && (
+          <Tooltip content="Copy the text only">
+            <button
+              type="button"
+              aria-label="Copy text"
+              disabled={over}
+              onClick={async () =>
+                onNote((await copyText(text)) ? 'Copied.' : "Couldn't copy: select the text.")
+              }
+              className={iconButton}
+            >
+              <Icon name="copy" />
+            </button>
+          </Tooltip>
+        )}
         <button
           type="button"
           aria-expanded={mode === 'time'}
           onClick={onChangeTime}
-          className={button}
+          className={ghost}
         >
           Change time
         </button>
@@ -411,7 +517,7 @@ function ChangeTime({
   const day = draft.scheduled_for ? dateIn(draft.scheduled_for, zone) : dateIn(new Date(), zone)
   const [time, setTime] = useState('')
   return (
-    <div className="mt-3 rounded-panel border border-line p-3">
+    <div className="mt-3">
       <DayChips
         timeZone={zone}
         busy={busy}
@@ -433,12 +539,12 @@ function ChangeTime({
           type="time"
           value={time}
           onChange={(e) => setTime(e.target.value)}
-          className="min-h-9 rounded-control border border-edge bg-surface px-2 text-sm"
+          className="min-h-10 rounded-control border border-edge bg-surface px-2 text-sm"
         />
-        <button type="submit" disabled={busy || !time} className={button}>
+        <button type="submit" disabled={busy || !time} className={secondary}>
           Use this time
         </button>
-        <button type="button" onClick={onCancel} className={button}>
+        <button type="button" onClick={onCancel} className={ghost}>
           Cancel
         </button>
       </form>

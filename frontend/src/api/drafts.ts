@@ -90,9 +90,34 @@ export const usePatchDraft = (id: string) =>
 
 /** POST /drafts/{id}/revise: the chat (FR-10, FR-40). */
 export const useReviseDraft = (id: string) =>
-  useDraftMutation(id, (input: { instruction: string; selection?: string }) =>
-    api<DraftDetail>(`/drafts/${id}/revise`, json('POST', input)),
+  useDraftMutation(
+    id,
+    ({ signal, ...input }: { instruction: string; selection?: string; signal?: AbortSignal }) =>
+      api<DraftDetail>(`/drafts/${id}/revise`, { ...json('POST', input), signal }),
   )
+
+/** POST /drafts/{id}/revise for any draft, by id per call (the chat's draft panel). */
+export function useReviseAnyDraft() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      signal,
+      ...input
+    }: {
+      id: string
+      instruction: string
+      selection?: string
+      signal?: AbortSignal
+    }) => api<DraftDetail>(`/drafts/${id}/revise`, { ...json('POST', input), signal }),
+    onSuccess: (draft) => {
+      client.setQueryData(['drafts', 'one', draft.id], draft)
+      void client.invalidateQueries({ queryKey: ['drafts', 'list'] })
+      void client.invalidateQueries({ queryKey: ['threads'] })
+      void client.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}
 
 export const useRestoreVersion = (id: string) =>
   useDraftMutation(id, (versionId: string) =>

@@ -72,7 +72,7 @@ const bodies = () =>
 
 test('saves the answers, language and cleaned hashtags', async () => {
   renderAbout()
-  await userEvent.type(await screen.findByLabelText('Role'), 'Backend developer')
+  await userEvent.type(await screen.findByLabelText('Role or title'), 'Backend developer')
   await userEvent.selectOptions(screen.getByLabelText('Write drafts in'), 'Amharic')
   const tags = screen.getByLabelText('Skip posts with these hashtags')
   await userEvent.clear(tags)
@@ -90,7 +90,7 @@ test('saves the answers, language and cleaned hashtags', async () => {
 
 test('saves typed answers first, then shows the card the AI wrote', async () => {
   renderAbout()
-  await userEvent.type(await screen.findByLabelText('Current projects'), 'Voxlace')
+  await userEvent.type(await screen.findByLabelText('What you are working on'), 'Voxlace')
   await userEvent.click(screen.getByRole('button', { name: 'Write it from my answers' }))
 
   expect(await screen.findByDisplayValue('I build Voxlace.')).toBeInTheDocument()
@@ -98,7 +98,7 @@ test('saves typed answers first, then shows the card the AI wrote', async () => 
   const order = vi.mocked(api).mock.calls.map((c) => `${c[1]?.method ?? 'GET'} ${c[0]}`)
   expect(order.indexOf('PUT /profile')).toBeLessThan(order.indexOf('POST /profile/summary'))
   // The answer typed before the rewrite is still there.
-  expect(screen.getByLabelText('Current projects')).toHaveValue('Voxlace')
+  expect(screen.getByLabelText('What you are working on')).toHaveValue('Voxlace')
 })
 
 test('keeps what was typed when the AI is busy', async () => {

@@ -1,6 +1,6 @@
 import { afterEach, vi } from 'vitest'
 import { accessToken } from '../lib/auth'
-import { api, ApiError } from './client'
+import { api, ApiError, plainError } from './client'
 
 vi.mock('../lib/auth', () => ({ accessToken: vi.fn().mockResolvedValue(null), supabase: null }))
 
@@ -45,4 +45,13 @@ test('sends no Authorization header when logged out', async () => {
   await api('/me')
   const init = vi.mocked(fetch).mock.calls[0][1] as RequestInit
   expect(new Headers(init.headers).has('Authorization')).toBe(false)
+})
+
+test('an error with no message is said in plain words, never as a status code', async () => {
+  answer(503, null)
+  const err = await api('/x').catch((e: unknown) => e)
+  expect((err as ApiError).message).toBe(plainError(503))
+  for (const status of [400, 401, 404, 429, 500, 503]) {
+    expect(plainError(status)).not.toMatch(/\d{3}/)
+  }
 })

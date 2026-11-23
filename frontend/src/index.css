@@ -149,8 +149,42 @@ samp {
 }
 
 :root {
+  /* Hover, color and small state changes. */
   --duration: 150ms;
+  /* Something appearing or opening: a panel, a new draft's text. */
+  --duration-reveal: 200ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Touch screens: every control is at least 44px (WCAG 2.5.5, DESIGN.md §9). Un-layered on
+   purpose, so it beats the smaller mouse sizes set by utilities. */
+@media (pointer: coarse) {
+  button:not([data-compact]),
+  select,
+  input:not([type='checkbox'], [type='radio'], [type='range']),
+  a[data-button] {
+    min-height: 44px;
+  }
+  button.grid:not([data-compact]) {
+    min-width: 44px;
+  }
+}
+
+/* No double-tap zoom delay; the tap highlight is the hover tint instead. */
+html {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A draft's text arriving (the one signature moment, DESIGN.md §5): it fades up once. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+.animate-reveal {
+  animation: reveal var(--duration-reveal) var(--ease) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

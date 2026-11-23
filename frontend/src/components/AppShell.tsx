@@ -4,7 +4,6 @@ import { useMe, useNotifications, useSetTimezone } from '../api/me'
 import { useThreads } from '../api/threads'
 import { remember, remembered } from '../lib/storage'
 import { cn } from '../lib/utils'
-import { useMedia } from '../lib/useMedia'
 import { LABEL, PLATFORMS } from '../lib/platforms'
 import { applyTheme, nextTheme, savedTheme, type Theme } from '../lib/theme'
 import { Icon, type IconName } from './Icon'
@@ -12,6 +11,7 @@ import { needsAction, NotificationsPanel } from './NotificationsPanel'
 import { PlatformMark } from './PlatformMark'
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from './ui/sheet'
 import { LogoMark, Wordmark } from './Logo'
+import { Tooltip } from './ui/tooltip'
 
 const THEME_ICON: Record<Theme, IconName> = { light: 'sun', dark: 'moon' }
 const NEXT: Record<Theme, Theme> = { light: 'dark', dark: 'light' }
@@ -20,10 +20,11 @@ const DRAFTS_OPEN_KEY = 'voxlace-drafts-open'
 const TZ_SENT_KEY = 'voxlace-timezone-sent'
 
 /**
- * DESIGN.md §2 (decided 22 Oct 2026; restyled 20 Nov 2026). Left: a flat, full-height sidebar with New chat, the chat
- * history, Drafts → X · LinkedIn · Telegram, Calendar, and at the bottom the collapse button
- * and the avatar → Profile. Right (1280px and up): Notifications and Missed, hidden when
- * empty; narrower, a bell opens the same panel. Mobile: a top bar and a bottom tab bar.
+ * DESIGN.md §2 (decided 22 Oct 2026; restyled 20 Nov 2026; bell only, 21 Nov 2026). Left: a
+ * flat, full-height sidebar with New chat, the chat history, Drafts → X · LinkedIn · Telegram,
+ * Calendar, and at the bottom the collapse button and the avatar → Profile. Notifications and
+ * missed posts open from a bell, at every width, so the page keeps its room. Mobile: a top bar
+ * and a bottom tab bar.
  */
 export function AppShell() {
   const [theme, setTheme] = useState<Theme | null>(savedTheme)
@@ -31,8 +32,6 @@ export function AppShell() {
   const me = useMe()
   const notifications = useNotifications().data
   const count = needsAction(notifications)
-  // One panel at a time: beside the page from 1280px, behind the bell below that.
-  const wide = useMedia('(min-width: 1280px)')
   useSendTimezoneOnce(me.data?.id, me.data?.timezone)
 
   const current: Theme =
@@ -54,15 +53,16 @@ export function AppShell() {
   }
 
   const themeButton = (
-    <button
-      type="button"
-      onClick={switchTheme}
-      aria-label={themeLabel}
-      title={themeLabel}
-      className="grid size-9 place-items-center rounded-control text-muted hover:bg-sunken hover:text-ink"
-    >
-      <Icon name={THEME_ICON[current]} />
-    </button>
+    <Tooltip content={themeLabel}>
+      <button
+        type="button"
+        onClick={switchTheme}
+        aria-label={themeLabel}
+        className="grid size-9 place-items-center rounded-control text-muted hover:bg-sunken hover:text-ink"
+      >
+        <Icon name={THEME_ICON[current]} />
+      </button>
+    </Tooltip>
   )
 
   return (
@@ -70,13 +70,15 @@ export function AppShell() {
       className={cn(
         'min-h-screen md:grid',
         collapsed ? 'md:grid-cols-[64px_minmax(0,1fr)]' : 'md:grid-cols-[260px_minmax(0,1fr)]',
-        count > 0 &&
-          wide &&
-          (collapsed
-            ? 'xl:grid-cols-[64px_minmax(0,1fr)_300px]'
-            : 'xl:grid-cols-[260px_minmax(0,1fr)_300px]'),
       )}
     >
+      {/* Keyboard users jump past the sidebar (WCAG 2.4.1). */}
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-on-primary focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        Skip to content
+      </a>
       <aside className="sticky top-0 hidden h-screen bg-sidebar md:block">
         <div className="flex h-full flex-col">
           <div
@@ -89,7 +91,7 @@ export function AppShell() {
               {collapsed ? <LogoMark className="size-6" /> : <Wordmark className="h-6 w-auto" />}
             </span>
             <div className={cn('flex items-center gap-1', collapsed && 'flex-col')}>
-              {count > 0 && !wide && <Bell count={count} />}
+              {count > 0 && <Bell count={count} />}
               {themeButton}
             </div>
           </div>
@@ -107,38 +109,40 @@ export function AppShell() {
               collapsed ? 'flex-col items-center' : 'items-center',
             )}
           >
-            <NavLink
-              to="/profile"
-              title={collapsed ? 'Profile' : undefined}
-              className={({ isActive }) =>
-                cn(
-                  'flex min-w-0 flex-1 items-center gap-3 rounded-control p-2',
-                  collapsed && 'justify-center',
-                  isActive ? 'bg-sunken' : 'hover:bg-sunken',
-                )
-              }
-            >
-              <span
-                aria-hidden="true"
-                className="grid size-8 flex-none place-items-center rounded-full bg-primary text-sm font-semibold text-on-primary"
+            <Tip content="Profile" show={collapsed}>
+              <NavLink
+                to="/profile"
+                className={({ isActive }) =>
+                  cn(
+                    'flex min-w-0 flex-1 items-center gap-3 rounded-control p-2',
+                    collapsed && 'justify-center',
+                    isActive ? 'bg-sunken' : 'hover:bg-sunken',
+                  )
+                }
               >
-                {name.charAt(0).toUpperCase()}
-              </span>
-              <span className={collapsed ? 'sr-only' : 'min-w-0 leading-tight'}>
-                <span className="block truncate text-sm font-semibold">{name}</span>
-                <span className="block text-xs text-muted">Profile &amp; settings</span>
-              </span>
-            </NavLink>
-            <button
-              type="button"
-              onClick={toggleCollapsed}
-              aria-expanded={!collapsed}
-              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="grid size-9 flex-none place-items-center rounded-control text-muted hover:bg-sunken hover:text-ink"
-            >
-              <Icon name={collapsed ? 'expand' : 'collapse'} />
-            </button>
+                <span
+                  aria-hidden="true"
+                  className="grid size-8 flex-none place-items-center rounded-full bg-primary text-sm font-semibold text-on-primary"
+                >
+                  {name.charAt(0).toUpperCase()}
+                </span>
+                <span className={collapsed ? 'sr-only' : 'min-w-0 leading-tight'}>
+                  <span className="block truncate text-sm font-semibold">{name}</span>
+                  <span className="block text-xs text-muted">Profile &amp; settings</span>
+                </span>
+              </NavLink>
+            </Tip>
+            <Tooltip content={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-expanded={!collapsed}
+                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                className="grid size-9 flex-none place-items-center rounded-control text-muted hover:bg-sunken hover:text-ink"
+              >
+                <Icon name={collapsed ? 'expand' : 'collapse'} />
+              </button>
+            </Tooltip>
           </div>
         </div>
       </aside>
@@ -152,18 +156,13 @@ export function AppShell() {
         </div>
       </header>
 
-      <main id="main" className="relative min-w-0 bg-paper pb-16 md:pb-0">
+      <main
+        id="main"
+        tabIndex={-1}
+        className="relative min-w-0 bg-paper pb-16 outline-none md:pb-0"
+      >
         <Outlet />
       </main>
-
-      {count > 0 && wide && (
-        <aside
-          aria-label="Notifications and missed posts"
-          className="sticky top-0 h-screen overflow-y-auto border-l border-line p-4"
-        >
-          <NotificationsPanel />
-        </aside>
-      )}
 
       <MobileTabs />
     </div>
@@ -202,21 +201,22 @@ function NavItem({
   end?: boolean
 }) {
   return (
-    <NavLink
-      to={to}
-      end={end}
-      title={collapsed ? label : undefined}
-      className={({ isActive }) =>
-        cn(
-          'flex min-h-9 flex-none items-center gap-3 rounded-control text-sm text-ink',
-          collapsed ? 'justify-center' : 'px-2.5',
-          isActive ? 'bg-sunken' : 'hover:bg-sunken',
-        )
-      }
-    >
-      <Icon name={icon} />
-      <span className={collapsed ? 'sr-only' : ''}>{label}</span>
-    </NavLink>
+    <Tip content={label} show={collapsed}>
+      <NavLink
+        to={to}
+        end={end}
+        className={({ isActive }) =>
+          cn(
+            'flex min-h-9 flex-none items-center gap-3 rounded-control text-sm text-ink',
+            collapsed ? 'justify-center' : 'px-2.5',
+            isActive ? 'bg-sunken' : 'hover:bg-sunken',
+          )
+        }
+      >
+        <Icon name={icon} />
+        <span className={collapsed ? 'sr-only' : ''}>{label}</span>
+      </NavLink>
+    </Tip>
   )
 }
 
@@ -234,18 +234,21 @@ function ThreadList() {
         <ul className="max-h-[40vh] min-h-0 overflow-y-auto">
           {threads.map((t) => (
             <li key={t.id}>
-              <NavLink
-                to={`/chat/${t.id}`}
-                title={t.title}
-                className={({ isActive }) =>
-                  cn(
-                    'block min-h-9 truncate rounded-control px-2.5 py-2 text-sm',
-                    isActive ? 'bg-sunken' : 'hover:bg-sunken',
-                  )
-                }
-              >
-                {t.title}
-              </NavLink>
+              <Tooltip content={t.title} side="right">
+                <span className="block">
+                  <NavLink
+                    to={`/chat/${t.id}`}
+                    className={({ isActive }) =>
+                      cn(
+                        'block min-h-9 truncate rounded-control px-2.5 py-2 text-sm',
+                        isActive ? 'bg-sunken' : 'hover:bg-sunken',
+                      )
+                    }
+                  >
+                    {t.title}
+                  </NavLink>
+                </span>
+              </Tooltip>
             </li>
           ))}
         </ul>
@@ -260,17 +263,18 @@ function DraftsGroup({ collapsed }: { collapsed: boolean }) {
   const [open, setOpen] = useState(() => remembered(DRAFTS_OPEN_KEY, true))
   if (collapsed)
     return (
-      <NavLink
-        to="/drafts/x"
-        title="Drafts"
-        className={cn(
-          'flex min-h-9 flex-none items-center justify-center rounded-control',
-          onDrafts ? 'bg-sunken' : 'hover:bg-sunken',
-        )}
-      >
-        <Icon name="drafts" />
-        <span className="sr-only">Drafts</span>
-      </NavLink>
+      <Tooltip content="Drafts" side="right">
+        <NavLink
+          to="/drafts/x"
+          className={cn(
+            'flex min-h-9 flex-none items-center justify-center rounded-control',
+            onDrafts ? 'bg-sunken' : 'hover:bg-sunken',
+          )}
+        >
+          <Icon name="drafts" />
+          <span className="sr-only">Drafts</span>
+        </NavLink>
+      </Tooltip>
     )
   return (
     <div className="flex-none">
@@ -314,14 +318,13 @@ function DraftsGroup({ collapsed }: { collapsed: boolean }) {
   )
 }
 
-/** Below 1280px the panel lives behind a bell (DESIGN.md §2). */
+/** Notifications and missed posts live behind a bell (DESIGN.md §2). */
 function Bell({ count, className }: { count: number; className?: string }) {
   const label = count === 1 ? '1 thing needs you' : `${count} things need you`
   return (
     <Sheet>
       <SheetTrigger
         aria-label={label}
-        title={label}
         className={cn(
           'relative grid size-9 place-items-center rounded-control text-signal hover:bg-sunken',
           className,
@@ -377,5 +380,26 @@ function MobileTabs() {
         </NavLink>
       ))}
     </nav>
+  )
+}
+
+/** A tooltip only when the label is hidden (the collapsed rail); otherwise just the child. */
+function Tip({
+  content,
+  show,
+  children,
+}: {
+  content: string
+  show: boolean
+  children: React.ReactElement
+}) {
+  // The tooltip sits on a wrapper: NavLink's className is a function, which the tooltip's
+  // trigger can't merge into.
+  return show ? (
+    <Tooltip content={content} side="right">
+      <span className="flex justify-center">{children}</span>
+    </Tooltip>
+  ) : (
+    children
   )
 }

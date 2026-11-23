@@ -52,7 +52,7 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 - **Calendar**;
 - at the bottom: the collapse button and **your avatar → Profile**.
 
-**Right sidebar** (new): **Notifications** (a post is due now, today's check-in reminder) and **Missed** (approved posts whose time passed without "Posted", each with Post now and Reschedule). It hides when empty. On narrow screens it becomes a bell in the header that opens the same panel.
+**Notifications** (a post is due now, today's check-in reminder) and **Missed** (approved posts whose time passed without "Posted", each with Post now and Reschedule) open from a **bell** in the sidebar header, or the phone's top bar, at every width. *(Changed 21 Nov 2026: the right sidebar is gone, so the chat canvas keeps its room; the bell shows only when something needs you.)*
 
 On mobile, Chat · Drafts · Calendar · Profile become a bottom tab bar.
 
@@ -71,7 +71,7 @@ There's no separate editor page any more: a draft is edited in its thread. `/dra
 
 ### First run: from sign-up to first draft in under 5 minutes
 
-Activation is a success metric (SRS §9), so onboarding asks only what the first draft needs. Everything else can wait.
+Activation is a success metric (SRS §9), so onboarding asks only what the first draft needs. Everything else can wait. *(21 Nov 2026: the flow below is now "write first, optional questions after the draft"; see §4.5.)*
 
 ```mermaid
 flowchart LR
@@ -112,7 +112,7 @@ Wireframes show layout and hierarchy, not final styling.
 
 ### 4.1 Chat board (home)
 
-The home screen is a ChatGPT-style thread with one question at the top.
+**Changed 21 Nov 2026 (product owner): a canvas, not an endless thread.** The new chat is one question and one box: Enter writes drafts for the platforms picked as chips inside the box (remembered), Shift+Enter is a new line, Options holds "Save as a check-in" and "Past check-ins", and "/" lists commands (`/x`, `/linkedin`, `/telegram`, `/all`, `/save`). Starters under the box follow the user's profession. A chat then shows the check-in, the history (older versions folded, the user's notes) and the message box on the left, and the **draft panel** on the right from 1280px (stacked under the check-in below that): one tab per draft, the newest version open, with one-click changes under the text (Shorter, Punchier, More casual, Add a hook, Translate, Another version, Undo), Preview and Edit as icon buttons, and one primary action (Approve, then the hand-off). "+" writes for a platform the chat doesn't have yet. The wireframe below is the earlier thread, kept for its card contents.
 
 ```
 ┌────────────┐                                                         ┌──────────────┐
@@ -156,11 +156,13 @@ The home screen is a ChatGPT-style thread with one question at the top.
 
 ### 4.4 Profile
 
+**Changed 21 Nov 2026: five tabs, optional things folded.** About you (the basics open: profession, what you're working on, what you're getting better at; the other groups, projects, language and resume fold away and say how many answers are filled) · Audience & timing (with check-in reminders) · Voice & posts · **Connections** (free AI key, Telegram channel, GitHub, which is open only for developers) · Account. Old tab links (`?tab=ai`, `github`, `resume`, `when`) open the new tab at the right section. The list below is the earlier tab set, kept for what each holds.
+
 Tabs: **About you** (role, experience, discipline, your time zone, language), **Work** (projects with name, one line and link; stack; focus areas; facts the AI may use), **Resume & portfolio** (upload a PDF/DOCX, enter a URL, review the cleaned text before it's used), **Audience** (per platform: profession, places with shares on a time-zone search, goal, posts per week, and a preview of the best hours), **When you post** (posting window, days off, reminders), **Voice & posts** (per platform: voice card, stats, pin/exclude, import, Telegram channel name), **Account** (usage, export, delete).
 
 ### 4.5 First run
 
-Invite → privacy → pick platforms → role and focus → audience profession and place (pre-filled from your time zone, saved for each picked platform) → import an export, or "skip, write a first draft" with a topic suggested from your focus. Shown once, to accounts with no role yet (`/welcome`, linked from the new chat). Everything else waits in Profile.
+**Changed 21 Nov 2026 (product owner): one question, then a draft.** After sign-up (and the invite and privacy steps), a new account lands on "What did you do today?" with "One line is enough. You'll get a draft to edit in seconds." Editing beats a blank page, so nothing is asked first. Under the first drafts, an optional card asks two one-tap questions (what you do, why you post) and offers "Import your past posts"; "Not now" hides it for a week, and accounts that already have a role never see it. The old four-step setup still opens at `/welcome` but nothing sends anyone there. Everything else waits in Profile.
 
 ---
 
@@ -265,15 +267,18 @@ Rules: never set "voxlace" in a font; use the component. Keep space around it eq
 
 ### Motion
 
-- `--duration` 150ms with `--ease` `cubic-bezier(0.2, 0, 0, 1)`, for color and background only.
-- The one signature moment is the draft text streaming in (§10).
-- `prefers-reduced-motion` sets the duration to 0.
+- `--duration` 150ms for hover and color, `--duration-reveal` 200ms for something appearing (a panel, a draft's text), both with `--ease` `cubic-bezier(0.2, 0, 0, 1)`. Transform and opacity only.
+- The one signature moment is the draft text arriving (§10): it fades up once (`.animate-reveal`).
+- `prefers-reduced-motion` sets every duration to 0.
+- **Touch:** every control is at least 44px on a touch screen (a global rule in `index.css`); 40px with a mouse.
 
 ---
 
 ## 6. Components
 
 **Recommendation: [shadcn/ui](https://ui.shadcn.com/docs).** It copies accessible component source into your repo (built on headless primitives and Tailwind), so you own and restyle the code instead of fighting a library's look. **Agreed by the product owner, 2 Nov 2026:** used for menus, dialogs and tabs, restyled with the tokens in §5.
+
+**Recipes (21 Nov 2026), `frontend/src/lib/ui.ts`:** `primary` (the one main action), `secondary` (outlined pill), `ghost` (text only), `iconButton` (needs `aria-label` + `Tooltip`), `chip` / `chipOn`, `field`, `panel`. Screens use these instead of writing their own button classes. Tooltips and shortcut hints use `components/ui/tooltip.tsx` (`Tooltip`, `Kbd`), never the browser's `title`. The same system in the ui-ux-pro-max layout: `design-system/voxlace/MASTER.md`.
 
 Product components to build on top:
 
@@ -298,13 +303,13 @@ Product components to build on top:
 
 | Situation | What the user sees |
 |---|---|
-| Generating | A draft card or editor placeholder appears instantly with "Writing your X draft…", and text streams in. The input stays editable. Screen readers hear "Draft ready" when done (`aria-live="polite"`). |
+| Generating | A placeholder in the draft card's frame appears at once and names the step ("Reading your check-in", "Finding examples in your posts", "Writing your X draft", "Checking the length and the facts"), with **Stop**. The API returns the whole draft, so the text then arrives with a short word-by-word reveal (off under reduced motion). Screen readers hear each step once and "Draft ready" when done (`aria-live="polite"`). Stop cancels the wait; if the server finishes anyway, the draft appears. |
 | Slow response | After 3 seconds the placeholder adds "Still working…"; after 20 seconds (NFR-3) offer **Cancel** and **Try again**. Never a blank screen. |
 | Rate-limited (429) | "The AI is busy right now. Your text is saved. Try again in a minute." with **Try again**. |
-| AI unavailable (503) | "Drafts are unavailable right now. Your check-in is saved." |
-| Daily limit reached | "You've used today's 30 drafts. You can generate more tomorrow." (Which "day" is still OPEN_QUESTIONS Q10.) |
+| AI unavailable (503) | "Drafts are unavailable right now. Your check-in is saved." with Try again, the free-key offer, and **Copy your check-in** so the user can still post by hand today. |
+| Daily limit reached | The limit line in quiet grey (it isn't an error), then "You've used today's free drafts. Add a free key to keep going, or come back tomorrow." with **Add a free key** and **Maybe later** (equal weight). Saving a key writes the failed drafts at once. In a first session, or after Maybe later, one line instead: "Come back tomorrow, or add a free key to keep going today." No "Try again" (it would only fail again). |
 | Under 20 posts | Voice strength badge: "Still learning: import more posts for a closer match." (FR-5) |
-| Empty chat | Prompt starters + "Write today's check-in". |
+| Empty chat | Starters by profession under the box. A chat with no drafts: "Your drafts appear here" + platform chips + **Write drafts**. |
 | Empty Drafts | "Your drafts will appear here. Start a chat." with a button. |
 | Empty Calendar | "Approve a draft and pick a time to see it here." |
 | Import failed | Names the problem and the fix: "This isn't a Telegram export. Export your channel as JSON from Telegram Desktop." |

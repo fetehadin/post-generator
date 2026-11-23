@@ -223,7 +223,7 @@ export function WelcomePage() {
               className={input}
               value={role}
               required
-              placeholder="Backend developer, CS student, founder…"
+              placeholder="Head of science, founder, nurse manager…"
               onChange={(e) => setRole(e.target.value)}
             />
           </label>
@@ -232,7 +232,7 @@ export function WelcomePage() {
             <input
               className={input}
               value={focus}
-              placeholder="A FastAPI side project, system design…"
+              placeholder="A course, a clinic, an app, a book…"
               onChange={(e) => setFocus(e.target.value)}
             />
           </label>
@@ -333,7 +333,7 @@ export function WelcomePage() {
                 finish('/', {
                   text: focus.trim()
                     ? `A lesson from working on ${focus.trim()}: `
-                    : 'Today I shipped ',
+                    : 'Something I finished today: ',
                 })
               }
             >

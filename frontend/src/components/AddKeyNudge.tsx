@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { type AIKey, activeKey, useAIKeys } from '../api/aiKeys'
 import { isFirstSession, snooze, snoozed } from '../lib/storage'
 import { GetKeyLink, KeyPaste } from './KeyPaste'
@@ -15,7 +16,8 @@ const TEXT = {
 /**
  * FR-48 + FR-30: the one place that offers a free key, shown when a draft couldn't be written
  * (the daily limit, or the shared AI busy). Never blocks: "Maybe later" hides it for 7 days.
- * Hidden in the user's first session and once they have a working key.
+ * Hidden in the user's first session and once they have a working key; at the limit it then
+ * shrinks to one quiet line with a link, so the page is never a dead end.
  */
 export function AddKeyNudge({
   reason,
@@ -30,8 +32,19 @@ export function AddKeyNudge({
   // Stays shown after a save, so the success line in KeyPaste can be read.
   const [saved, setSaved] = useState(false)
 
-  if (hidden || !keys.data?.enabled) return null
+  if (!keys.data?.enabled) return null
   if (activeKey(keys.data) && !saved) return null
+  // Offer hidden (first session, or "Maybe later"): still never a dead end at the limit.
+  if (hidden)
+    return reason === 'limit' ? (
+      <p className="text-sm text-muted">
+        Come back tomorrow, or{' '}
+        <Link to="/profile?tab=connections" className="text-thread underline underline-offset-4">
+          add a free key
+        </Link>{' '}
+        to keep going today.
+      </p>
+    ) : null
   const free = keys.data.providers.filter((p) => p.free)
 
   return (
