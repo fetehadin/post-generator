@@ -235,17 +235,19 @@ function ThreadList() {
           {threads.map((t) => (
             <li key={t.id}>
               <Tooltip content={t.title} side="right">
-                <NavLink
-                  to={`/chat/${t.id}`}
-                  className={({ isActive }) =>
-                    cn(
-                      'block min-h-9 truncate rounded-control px-2.5 py-2 text-sm',
-                      isActive ? 'bg-sunken' : 'hover:bg-sunken',
-                    )
-                  }
-                >
-                  {t.title}
-                </NavLink>
+                <span className="block">
+                  <NavLink
+                    to={`/chat/${t.id}`}
+                    className={({ isActive }) =>
+                      cn(
+                        'block min-h-9 truncate rounded-control px-2.5 py-2 text-sm',
+                        isActive ? 'bg-sunken' : 'hover:bg-sunken',
+                      )
+                    }
+                  >
+                    {t.title}
+                  </NavLink>
+                </span>
               </Tooltip>
             </li>
           ))}
@@ -391,9 +393,11 @@ function Tip({
   show: boolean
   children: React.ReactElement
 }) {
+  // The tooltip sits on a wrapper: NavLink's className is a function, which the tooltip's
+  // trigger can't merge into.
   return show ? (
     <Tooltip content={content} side="right">
-      {children}
+      <span className="flex justify-center">{children}</span>
     </Tooltip>
   ) : (
     children
