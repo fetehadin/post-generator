@@ -206,6 +206,11 @@ const profile: Profile = {
 
 const uploads: Upload[] = []
 const aiKeys = new Map<string, Record<string, unknown>>()
+// The Telegram bot (FR-36): "Connect Telegram" links and connects a demo channel at once.
+let telegram = {
+  linked: false,
+  channel: null as null | { title: string; username: string; can_post: boolean },
+}
 // Mirrors backend/app/ai/providers.py (same order: free ones first).
 const AI_PROVIDERS = [
   {
@@ -629,6 +634,27 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
   }
 
   const keyMatch = path.match(/^\/me\/ai-keys\/(google|groq|openai|anthropic|openrouter|mistral)$/)
+  if (path === '/telegram')
+    return json(200, {
+      enabled: true,
+      bot_username: 'VoxlaceBot',
+      linked: telegram.linked,
+      tg_username: telegram.linked ? 'you' : null,
+      channel: telegram.channel,
+      connect_url:
+        'https://t.me/VoxlaceBot?startchannel&admin=post_messages+edit_messages+delete_messages',
+    })
+  if (path === '/telegram/link' && init?.method === 'POST') {
+    telegram = {
+      linked: true,
+      channel: { title: 'My channel', username: 'mychannel', can_post: true },
+    }
+    return json(200, { url: 'https://t.me/VoxlaceBot?start=mock-token' })
+  }
+  if (path === '/telegram/channel' && init?.method === 'DELETE') {
+    telegram = { ...telegram, channel: null }
+    return new Response(null, { status: 204 })
+  }
   if (path === '/me/ai-keys')
     return json(200, {
       enabled: true,
@@ -827,6 +853,14 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
     if (!d) return json(404, { error: { code: 'not_found', message: 'Not found.' } })
     const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, string>) : {}
     const now = new Date().toISOString()
+    if (draftMatch[2] === '/publish' && init?.method === 'POST') {
+      if (d.status !== 'approved')
+        return json(409, {
+          error: { code: 'not_approved', message: 'Approve the draft before posting it.' },
+        })
+      Object.assign(d, { status: 'published', published_at: now })
+      return json(200, d)
+    }
     const addVersion = (text: string, instruction: string) => {
       const v = {
         id: crypto.randomUUID(),

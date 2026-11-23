@@ -88,6 +88,12 @@ ruff check . --fix && ruff format .
 - Webhooks (`/webhooks/github`) are checked with `X-Hub-Signature-256` and handled in a background thread. They and the hourly job find users through the narrow functions `user_for_github_installation()` and `github_connected_users()` (ids only), then work as that user under RLS.
 - `score()` is pure (stage 1, no AI); `judge()` is one small AI call (stage 2, purpose `github_judge`, on the user's key first). Only `mention_ok` repos reach the AI or a draft.
 
+## Telegram bot (`services/telegram.py`, FR-36)
+
+- Optional: off until `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` are set. Bot API calls live in `services/telegram_api.py` (httpx); tests pass a fake. The token is in Telegram's URL, so it never goes into an error or a log line.
+- Linking: a one-time token (SHA-256 stored, 15 minutes) in `t.me/<bot>?start=<token>`; the webhook pairs it with the sender's Telegram id. Connecting: Telegram's `my_chat_member` update when the user makes the bot a channel admin; matched to the account by the adder's Telegram id. The webhook finds users through `user_for_telegram_token/user/chat()` (ids only), then works as that user under RLS.
+- `post_draft` locks the draft row, sends, then marks it Posted in the same transaction: a double click never posts twice. Only on the user's click (rule 4); no automatic sends in V1.
+
 ## Importers
 
 - Pure functions: `parse_telegram(data: bytes) -> ParseResult(posts, skipped)`. No DB or network.
@@ -101,7 +107,7 @@ ruff check . --fix && ruff format .
 - No separate worker in V1 (SRS 1.3). The API starts one daemon thread at startup (`lifespan` in `main.py`) that every `settings.embedding_retry_seconds` (default 300; 0 = off) embeds posts still waiting.
 - It finds waiting users through the narrow database function `users_waiting_for_embeddings()` (ids only), then works as each user under RLS. A Postgres advisory lock per user (`embed_in_background`) keeps two API processes from embedding the same user at once (NFR-14).
 - Reminders, due and missed posts are worked out when the app asks (`GET /me/notifications`); nothing is sent, so there is nothing to double-send.
-- A Telegram sending worker comes back after V1 (FR-36, FR-43). When it does: `FOR UPDATE SKIP LOCKED`, set `published_at` in the same transaction, never double-send.
+- Automatic Telegram sends at the scheduled time come after V1 (FR-43). When they do: `FOR UPDATE SKIP LOCKED`, set `published_at` in the same transaction, never double-send.
 
 ## Tests
 

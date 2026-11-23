@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     github_app_slug: str = ""  # github.com/apps/<slug>
     github_app_private_key: str = ""  # PEM; "\n" in one line is fine
     github_webhook_secret: str = ""
+    # Telegram bot (FR-36): posts approved drafts to the user's channel when they tap Post.
+    telegram_bot_token: str = ""  # from @BotFather; never logged
+    telegram_bot_username: str = ""  # without the @, e.g. VoxlaceBot
+    telegram_webhook_secret: str = ""  # sent back by Telegram in X-Telegram-Bot-Api-Secret-Token
+    telegram_link_minutes: int = 15  # how long a "link your account" token lasts
     github_suggest_hour: int = 19  # suggestions appear at this hour, the user's own clock
     # Stage 1 (no LLM): weights per signal and the score a day/week needs to reach the LLM.
     github_score_weights: str = (
@@ -126,6 +131,12 @@ class Settings(BaseSettings):
     @property
     def github_enabled(self) -> bool:
         return bool(self.github_client_id and self.github_client_secret)
+
+    @property
+    def telegram_enabled(self) -> bool:
+        return bool(
+            self.telegram_bot_token and self.telegram_bot_username and self.telegram_webhook_secret
+        )
 
     @property
     def github_app_enabled(self) -> bool:

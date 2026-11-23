@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Response
 from app.ai.client import AIClient, AIUnavailable, EmbeddingUnavailable
 from app.api.deps import get_ai
 from app.api.shapes import row_out, thread_out
+from app.api.telegram import get_telegram, require_enabled
 from app.core.auth import current_user
 from app.core.errors import AppError
 from app.schemas import (
@@ -31,9 +32,10 @@ from app.schemas import (
     ThreadOut,
     VersionOut,
 )
-from app.services import library, scheduling, threads
+from app.services import library, scheduling, telegram, threads
 from app.services.drafting import DraftError, generate_draft, prompt_for
 from app.services.revising import revise
+from app.services.telegram_api import TelegramAPI
 
 router = APIRouter(prefix="/drafts", tags=["drafts"])
 
@@ -224,3 +226,17 @@ def get_prompt(draft_id: uuid.UUID, user_id: uuid.UUID = Depends(current_user)) 
     return PromptOut(
         prompt=log.prompt, model=log.model, model_version=log.model_version, provider=log.provider
     )
+
+
+@router.post("/{draft_id}/publish", response_model=DraftDetailOut)
+def publish_draft(
+    draft_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(current_user),
+    api: TelegramAPI = Depends(get_telegram),
+) -> DraftDetailOut:
+    """Post to Telegram now (FR-36, rule 4): only an approved draft, only on this click."""
+    require_enabled()
+    try:
+        return _detail(telegram.post_draft(user_id, draft_id, api))
+    except DraftError as e:
+        raise _fail(e) from e
