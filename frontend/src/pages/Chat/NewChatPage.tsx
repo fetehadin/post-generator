@@ -154,7 +154,8 @@ function RecentChats() {
       </ul>
       <Link
         to="/checkins"
-        className="mt-3 inline-block text-sm text-thread underline underline-offset-4"
+        className="mt-3 inline-flex items-center text-sm text-thread underline underline-offset-4"
+        data-button
       >
         Past check-ins
       </Link>

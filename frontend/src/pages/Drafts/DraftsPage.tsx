@@ -329,7 +329,8 @@ function DraftItem({ draft, onDiscarded }: { draft: DraftRow; onDiscarded: () =>
           <Link
             to={draft.thread_id ? `/chat/${draft.thread_id}` : `/drafts/${draft.id}`}
             state={{ draft: draft.id }}
-            className="ml-auto min-h-9 px-1 py-2 text-sm text-thread underline underline-offset-4"
+            className="ml-auto inline-flex min-h-9 items-center px-1 text-sm text-thread underline underline-offset-4"
+            data-button
           >
             Edit in chat
           </Link>
