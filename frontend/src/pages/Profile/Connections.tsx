@@ -8,7 +8,7 @@ const DEVELOPER = /develop|engineer|program|software|devops|data sci|coder/i
 
 /**
  * Profile → Connections (DESIGN.md §4.4, 21 Nov 2026): everything optional you can connect,
- * in one place, none of it needed to write a draft. A free AI key (FR-48), the Telegram bot
+ * in one place, none of it needed to write a draft. An AI API key (FR-48), the Telegram bot
  * that posts to your channel (FR-36; or the channel name for copy and open, FR-12), and GitHub ideas (FR-14), folded away unless you
  * said you're a developer.
  */
@@ -18,7 +18,7 @@ export function Connections() {
     <div className="mt-4 flex flex-col gap-8">
       <section id="free-key" aria-labelledby="free-key-title" className="scroll-mt-6">
         <h2 id="free-key-title" className="font-semibold">
-          Free AI key
+          API key
         </h2>
         <AIKeys />
       </section>

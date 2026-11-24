@@ -61,7 +61,7 @@ export function CommandBar({
           ['about', 'Profile: About you'],
           ['audience', 'Profile: Audience & timing'],
           ['voice', 'Profile: Voice & posts'],
-          ['connections', 'Profile: Connections (free key, Telegram, GitHub)'],
+          ['connections', 'Profile: Connections (API key, Telegram, GitHub)'],
           ['account', 'Profile: Account'],
         ] as const
       ).map(([tab, label]) => ({

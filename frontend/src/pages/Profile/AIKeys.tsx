@@ -7,7 +7,7 @@ const button =
 const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
 
 /**
- * Profile → AI keys (FR-48): "Get a free key". One paste field that tells which service the
+ * Profile → AI keys (FR-48): "Add an API key". One paste field that tells which service the
  * key is from and checks it at once; cards for the three free services, the paid ones folded
  * away. Your key is tried first; if it fails, the free models write the draft and say so.
  * Keys are stored encrypted and never shown again: only a masked "sk-…a9F2".
@@ -56,7 +56,7 @@ export function AIKeys() {
         className="flex flex-col gap-3 rounded-panel border border-line p-4"
       >
         <h3 id="add-key-title" className="font-semibold">
-          {keys.data.keys.length ? 'Add or replace a free key' : 'Add a free key'}
+          {keys.data.keys.length ? 'Add or replace an API key' : 'Add an API key'}
         </h3>
         <KeyPaste providers={providers} />
         <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
@@ -106,13 +106,13 @@ function WhatIsAKey() {
     <Popover>
       <PopoverTrigger asChild>
         <button type="button" className="min-h-10 text-thread underline">
-          What is a free key?
+          What is an API key?
         </button>
       </PopoverTrigger>
       <PopoverContent className="max-w-xs text-sm">
-        A free key (an "API key") is a long code that lets Voxlace ask an AI service to write on
-        your account, within that service's free limits. A ChatGPT Plus, Claude Pro or Gemini
-        subscription is not a key.
+        An API key is a long code that lets Voxlace ask an AI service to write on your account.
+        Gemini and Groq give one for free, within their free limits. A ChatGPT Plus, Claude Pro or
+        Gemini subscription is not a key.
       </PopoverContent>
     </Popover>
   )

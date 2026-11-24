@@ -54,6 +54,16 @@ def test_a_portfolio_page_is_saved_as_text(api, monkeypatch):
     assert (r.json()["source"], r.json()["text"]) == ("https://me.dev", "I'm Sara.\nMail me:")
 
 
+def test_a_portfolio_address_without_https_works_and_the_same_page_replaces(api, monkeypatch):
+    seen = []
+    monkeypatch.setattr(uploads, "fetch_page", lambda url: seen.append(url) or "I'm Sara.")
+    for typed in ("abdunuri.me", "www.abdunuri.me", "https://www.abdunuri.me/"):
+        assert api.post("/api/v1/uploads/portfolio", json={"url": typed}).status_code == 201
+    assert seen == ["https://abdunuri.me", "https://www.abdunuri.me", "https://www.abdunuri.me/"]
+    items = api.get("/api/v1/uploads").json()["items"]
+    assert [i["source"] for i in items] == ["https://www.abdunuri.me/"]  # one copy, the latest
+
+
 def test_edited_text_is_cleaned_again_and_counts_add_up(api):
     uid = send_resume(api).json()["id"]
     r = api.patch(f"/api/v1/uploads/{uid}", json={"text": "Backend dev. Call +1 555 123 4567"})

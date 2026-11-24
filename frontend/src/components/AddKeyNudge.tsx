@@ -9,12 +9,12 @@ const choice =
   'inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-edge px-4 text-sm font-semibold hover:bg-sunken'
 
 const TEXT = {
-  limit: "You've used today's free drafts. Add a free key to keep going, or come back tomorrow.",
-  busy: "The free AI is busy right now. Add a free key so your drafts don't wait, or try again in a minute.",
+  limit: "You've used today's free drafts. Add an API key to keep going, or come back tomorrow.",
+  busy: "The free AI is busy right now. Add an API key so your drafts don't wait, or try again in a minute.",
 }
 
 /**
- * FR-48 + FR-30: the one place that offers a free key, shown when a draft couldn't be written
+ * FR-48 + FR-30: the one place that offers an API key, shown when a draft couldn't be written
  * (the daily limit, or the shared AI busy). Never blocks: "Maybe later" hides it for 7 days.
  * Hidden in the user's first session and once they have a working key; at the limit it then
  * shrinks to one quiet line with a link, so the page is never a dead end.
@@ -40,7 +40,7 @@ export function AddKeyNudge({
       <p className="text-sm text-muted">
         Come back tomorrow, or{' '}
         <Link to="/profile?tab=connections" className="text-thread underline underline-offset-4">
-          add a free key
+          add an API key
         </Link>{' '}
         to keep going today.
       </p>
@@ -49,14 +49,14 @@ export function AddKeyNudge({
 
   return (
     <section
-      aria-label="Add a free key"
+      aria-label="Add an API key"
       className="mb-3 flex flex-col gap-3 rounded-panel border border-line bg-surface p-4"
     >
       <p className="text-sm">{TEXT[reason]}</p>
       {!open ? (
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => setOpen(true)} className={choice}>
-            Add a free key
+            Add an API key
           </button>
           <button
             type="button"

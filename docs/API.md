@@ -220,7 +220,7 @@ Everything the user told Voxlace (FR-17, FR-18, FR-24, FR-33, FR-44). Created wi
 - `excluded_hashtags`: the user's list (lower-case, with `#`), used by every import. The default list until the user edits it.
 - `summary_card`: allowed facts for every draft, next to the day's topic (FR-19). Empty means the prompt is exactly as before.
 
-**Profession, audience and goal (FR-17, FR-41; 19 Nov 2026):** `discipline` is the user's profession (the form calls it "Profession"; existing empty values became `"developer"`). `audience_kind` is one of `""`, `peers`, `clients`, `employers`, `public`; `main_goal` one of `""`, `teach`, `sell`, `hire`, `network`, `announce`. Both are in `GET` and `PUT /profile`. Drafts use them to pick shape examples and to write in that field's words.
+**Profession, audience and goal (FR-17, FR-41; 19 Nov 2026):** `discipline` is the user's profession (the form calls it "Profession"; existing empty values became `"developer"`). `audience_kind` is one of `""`, `peers`, `clients`, `employers`, `public`; `main_goal` one of `""`, `teach`, `sell`, `hire`, `network`, `announce`. Both are in `GET` and `PUT /profile`. Drafts use them to pick shape examples and to write in that field's words. Several professions are saved comma-separated (`"student, developer"`; FR-53) and drafts read them as "student and developer". `portfolio_url` and project `link`s are saved as full addresses: `me.dev` becomes `https://me.dev`.
 
 ### `PUT /profile`
 
@@ -243,7 +243,7 @@ Text from a resume or a public portfolio page, used only for the summary card. T
 ```
 
 - `POST /uploads/resume`: multipart `file`, a PDF or DOCX up to 5 MB → `201` and the upload. Errors: `400 invalid_file` (wrong type, too large, unreadable or password-protected) and `400 no_text` (a scanned PDF, or no text left).
-- `POST /uploads/portfolio`: `{"url": "https://me.dev"}` → `201`. Only `http`/`https` on ports 80 and 443, where the name resolves to public addresses only. Every redirect is checked again (at most 3), with a 10-second timeout and a 2 MB limit. The server connects to the address it checked, so a name can't switch to a private address between check and fetch. The whole fetch stops after 15 seconds. Errors: `400 invalid_url` (localhost, private networks or a bad address) and `400 fetch_failed` (unreachable, slow, not a web page, too large, or a non-200 answer).
+- `POST /uploads/portfolio`: `{"url": "https://me.dev"}` → `201`. `me.dev` and `www.me.dev` work too: an address without a scheme gets `https://`. Reading the same page again (ignoring the scheme, `www.` and a trailing slash) replaces the old copy. Only `http`/`https` on ports 80 and 443, where the name resolves to public addresses only. Every redirect is checked again (at most 3), with a 10-second timeout and a 2 MB limit. The server connects to the address it checked, so a name can't switch to a private address between check and fetch. The whole fetch stops after 15 seconds. Errors: `400 invalid_url` (localhost, private networks or a bad address) and `400 fetch_failed` (unreachable, slow, not a web page, too large, or a non-200 answer).
 - `GET /uploads` → `{"items": [upload, …]}`, newest first.
 - `PATCH /uploads/{id}`: `{"text"?: "…", "reviewed"?: true}`. Edited text is cleaned again, so a pasted phone number is still removed, and the counts in `removed` add up. Blank `text` → `400 missing_text`.
 - `DELETE /uploads/{id}` → `204`.
@@ -417,6 +417,19 @@ Today's use against the daily limits (FR-30), per UTC day:
 - `drafts` counts every AI writing call: new drafts and chat revisions. At the limit, `POST /drafts/generate` and `POST /drafts/{id}/revise` return `429 daily_limit` (the user's text is in their own request, so nothing is lost).
 - `posts` counts posts added by imports today (each is embedded once). An import that would add more new posts than are left returns `429 daily_limit` and saves nothing. Re-importing known posts costs nothing.
 - Limits come from settings (`DAILY_DRAFT_LIMIT`, `DAILY_POST_LIMIT`).
+
+### `GET /me/profile-strength`
+
+How complete the profile is (FR-53). `percent` is the sum of the done items' weights (they add up to 100); items come in the order to suggest them, so the first not done is the next step. `tab` and `section` say where in Profile to fix it.
+
+```json
+{ "percent": 65, "items": [
+  { "id": "profession", "label": "Add your profession", "weight": 10, "done": true, "tab": "about", "section": "field-discipline" },
+  { "id": "posts", "label": "Import your posts so drafts sound like you", "weight": 25, "done": false, "tab": "voice", "section": "import-posts" }
+] }
+```
+
+Item ids: `profession`, `posts`, `summary`, `working_on`, `getting_better`, `projects`, `audience`, `resume`, `connection`.
 
 ### `GET /me/export`
 

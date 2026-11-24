@@ -8,7 +8,15 @@ import pytest
 from docx import Document
 
 from app.services import uploads
-from app.services.uploads import UploadError, check_url, fetch_page, resume_text, strip_contacts
+from app.services.uploads import (
+    UploadError,
+    check_url,
+    fetch_page,
+    normalize_url,
+    resume_text,
+    same_page,
+    strip_contacts,
+)
 
 
 def make_docx(*lines: str) -> bytes:
@@ -263,3 +271,23 @@ def test_a_docx_that_unzips_huge_is_refused(monkeypatch):
     with pytest.raises(UploadError) as e:
         resume_text(make_docx("Backend developer"))
     assert e.value.code == "invalid_file"
+
+
+@pytest.mark.parametrize(
+    ("typed", "full"),
+    [
+        ("abdunuri.me", "https://abdunuri.me"),
+        (" www.Abdunuri.me/work ", "https://www.abdunuri.me/work"),
+        ("http://abdunuri.me", "http://abdunuri.me"),
+        ("https://www.abdunuri.me", "https://www.abdunuri.me"),
+        ("", ""),
+    ],
+)
+def test_addresses_without_a_scheme_get_https(typed, full):
+    assert normalize_url(typed) == full
+
+
+def test_www_scheme_and_trailing_slash_mean_the_same_page():
+    keys = {same_page(u) for u in ("https://www.abdunuri.me", "www.abdunuri.me", "abdunuri.me/")}
+    assert keys == {"abdunuri.me"}
+    assert same_page("abdunuri.me/blog") != same_page("abdunuri.me")

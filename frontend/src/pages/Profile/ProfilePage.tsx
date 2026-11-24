@@ -9,6 +9,7 @@ import { Connections } from './Connections'
 import { AccountSettings } from './AccountSettings'
 import { AudiencePanel } from './AudiencePanel'
 import { Chip } from './Chip'
+import { StrengthCard } from './StrengthCard'
 import { RemindersPanel } from './RemindersPanel'
 import { TimeZoneField } from './TimeZoneField'
 import { Uploads } from './Uploads'
@@ -41,23 +42,35 @@ export function ProfilePage() {
   const me = useMe()
   const [params, setParams] = useSearchParams()
   const asked = params.get('tab') ?? ''
-  const [tab, section] = MOVED[asked] ?? [TABS.find((t) => t.id === asked)?.id ?? 'about']
+  const [tab, movedTo] = MOVED[asked] ?? [TABS.find((t) => t.id === asked)?.id ?? 'about']
+  // `?section=` comes from the strength card's links (FR-53): a field or a folded section.
+  const section = params.get('section') ?? movedTo
 
-  // A moved tab opens its section: scroll to it (and unfold it) once the tab has rendered.
+  // Scroll to the section (unfolding it), and put the cursor in it if it's a field. The tab's
+  // data may still be loading, so look for it a few times.
   useEffect(() => {
     if (!section) return
-    const t = setTimeout(() => {
+    let tries = 0
+    const t = setInterval(() => {
       const el = document.getElementById(section)
+      if (!el && ++tries < 40) return
+      clearInterval(t)
+      if (!el) return
       if (el instanceof HTMLDetailsElement) el.open = true
-      el?.scrollIntoView?.({ block: 'start' })
+      const fold = el.closest('details')
+      if (fold) fold.open = true
+      el.scrollIntoView?.({ block: 'center' })
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)
+        el.focus({ preventScroll: true })
     }, 50)
-    return () => clearTimeout(t)
+    return () => clearInterval(t)
   }, [section])
 
   return (
     <div className="mx-auto max-w-[720px] px-4 py-12 md:px-6 md:py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
       {me.data && <p className="mt-1 text-muted">{me.data.email}</p>}
+      <StrengthCard />
 
       <Tabs
         value={tab}
@@ -125,6 +138,7 @@ export function ProfilePage() {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <Intro>Your voice per platform, and the posts it's learned from.</Intro>
             <Link
+              id="import-posts"
               to="/import"
               className="inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm"
               data-button
@@ -161,7 +175,7 @@ function PlatformSwitch({ children }: { children: (p: Platform) => React.ReactNo
   const [platform, setPlatform] = useState<Platform>('x')
   const [opened, setOpened] = useState<Platform[]>(['x'])
   return (
-    <div className="mt-4">
+    <div id="audience" className="mt-4 scroll-mt-6">
       <div role="group" aria-label="Platform" className="flex flex-wrap gap-2">
         {PLATFORMS.map((p) => (
           <Chip
