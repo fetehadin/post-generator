@@ -100,6 +100,22 @@ class MeOut(BaseModel):
     timezone: str = Field("UTC", description='IANA name, e.g. "Africa/Addis_Ababa" (NFR-16)')
 
 
+class StrengthItemOut(BaseModel):
+    id: str
+    label: str
+    weight: int
+    done: bool
+    tab: str
+    section: str
+
+
+class ProfileStrengthOut(BaseModel):
+    """GET /me/profile-strength (FR-53): 0–100, and what to do next."""
+
+    percent: int
+    items: list[StrengthItemOut]
+
+
 class MePatchIn(BaseModel):
     timezone: str = Field(min_length=1, max_length=64)
 

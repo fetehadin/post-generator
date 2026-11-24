@@ -209,6 +209,29 @@ def _public_address(host: str) -> str:
     return str(addresses[0])
 
 
+def normalize_url(url: str) -> str:
+    """What people type, as a full address: "abdunuri.me" and "www.abdunuri.me" get
+    "https://"; the host is lowercased. Anything with a scheme is left for check_url."""
+    url = url.strip()
+    if not url:
+        return ""
+    if "://" not in url:
+        url = "https://" + url.lstrip("/")
+    try:
+        parts = urlsplit(url)
+        return parts._replace(netloc=parts.netloc.lower()).geturl()
+    except ValueError:
+        return url  # check_url explains what is wrong with it
+
+
+def same_page(url: str) -> str:
+    """One key for the addresses that mean the same page: scheme, "www." and a trailing
+    slash don't matter (https://www.you.dev/ = you.dev)."""
+    parts = urlsplit(normalize_url(url))
+    host = (parts.hostname or "").removeprefix("www.")
+    return f"{host}{parts.path.rstrip('/')}" + (f"?{parts.query}" if parts.query else "")
+
+
 def check_url(url: str) -> str:
     try:
         parts = urlsplit(url.strip())
@@ -291,6 +314,13 @@ def save(user_id: uuid.UUID, kind: str, source: str, raw_text: str) -> Upload:
     if not cleaned:
         raise UploadError("no_text", "We couldn't find any text there.")
     with user_session(user_id) as s:
+        if kind == "portfolio":
+            # Reading the same page again (with or without www/https) replaces the old copy.
+            for old in s.scalars(
+                select(Upload).where(Upload.user_id == user_id, Upload.kind == "portfolio")
+            ):
+                if same_page(old.source) == same_page(source):
+                    s.delete(old)
         row = Upload(
             user_id=user_id, kind=kind, source=source[:500], cleaned_text=cleaned, removed=removed
         )

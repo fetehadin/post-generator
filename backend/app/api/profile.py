@@ -12,6 +12,7 @@ from app.importers.common import normalize_hashtags
 from app.models import Profile
 from app.schemas import ProfileIn, ProfileOut
 from app.services import profile as service
+from app.services.uploads import normalize_url
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -52,6 +53,13 @@ def edit_profile(body: ProfileIn, user_id: uuid.UUID = Depends(current_user)) ->
         end = changes.get("post_window_end", current.post_window_end)
         if start == end:
             raise AppError("empty_window", "Your posting hours need a start and a later end.")
+    # "you.dev", "www.you.dev" and "https://you.dev" are all fine; store a full address.
+    if "portfolio_url" in changes:
+        changes["portfolio_url"] = normalize_url(changes["portfolio_url"])
+    if "projects" in changes:
+        changes["projects"] = [
+            {**p, "link": normalize_url(p.get("link") or "")} for p in changes["projects"]
+        ]
     if "excluded_hashtags" in changes:
         changes["excluded_hashtags"] = sorted(normalize_hashtags(changes["excluded_hashtags"]))
     return _out(service.update_profile(user_id, changes))

@@ -210,6 +210,11 @@ def test_who_is_writing_line():
     )
     assert who_is_writing("") == ""
     assert who_is_writing("designer", "nonsense") == "They are a designer."
+    # Several professions from the Profile chips (FR-53).
+    assert who_is_writing("student, developer") == "They are a student and developer."
+    assert who_is_writing("student, ,designer, writer") == (
+        "They are a student, designer and writer."
+    )
 
 
 def test_a_nurses_prompt_has_shape_examples_and_who_is_writing(make_user, embedder):

@@ -45,7 +45,7 @@ const FAQ = [
   ],
   [
     'Is it free?',
-    'Yes, with a daily number of free drafts. If you need more, create an account and add your own free AI key, for example from Google Gemini or Groq.',
+    'Yes, with a daily number of free drafts. If you need more, create an account and add your own AI API key, for example a free one from Google Gemini or Groq.',
   ],
   [
     'Will it make things up?',

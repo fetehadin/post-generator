@@ -33,7 +33,7 @@ export function GetKeyLink({
       }}
       className={className}
     >
-      {children ?? `Get free ${shortName(provider)} key ↗`}
+      {children ?? `Get a free ${shortName(provider)} API key ↗`}
     </a>
   )
 }
@@ -65,7 +65,7 @@ type Status =
   | { kind: 'error'; message: string; other?: AIProviderInfo }
 
 /**
- * FR-48: one field for a free key. The provider is detected from how the key starts, a
+ * FR-48: one field for an API key. The provider is detected from how the key starts, a
  * pasted key is checked at once (no Save click), and the outcome is announced in a status
  * line that always keeps its space, so nothing jumps while checking.
  */
@@ -178,7 +178,7 @@ export function KeyPaste({
         </button>
       )}
       <label htmlFor={ids.key} className="text-sm font-semibold">
-        Paste your free key
+        Paste your API key
       </label>
       <div className="flex gap-2">
         <input

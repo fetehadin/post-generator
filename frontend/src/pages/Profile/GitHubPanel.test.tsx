@@ -94,7 +94,8 @@ test('private repos start off and can be allowed one by one', async () => {
 test('quiet days say so and offer to post anyway; good days link to the drafts', async () => {
   renderPanel()
   expect(await screen.findByText(/Nothing worth posting today/)).toBeInTheDocument()
-  expect(screen.getByText('Commit in app: "Small tweak"')).toBeInTheDocument()
+  // The day's summary is enough; the raw commit lines aren't shown.
+  expect(screen.queryByText('Commit in app: "Small tweak"')).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Want to post anyway?' }))
   expect(calls()).toContain('POST /github/digests/d1/draft')
   expect(screen.getByRole('link', { name: 'Open the suggested drafts' })).toHaveAttribute(

@@ -234,13 +234,6 @@ function Digests({ digests }: { digests: GitHubDigest[] }) {
             {d.status === 'suggested' ? 'Drafts suggested' : 'Nothing worth posting'}
           </p>
           <p className="mt-1 text-muted">{d.reason}</p>
-          {d.based_on.length > 0 && (
-            <ul className="mt-2 list-disc pl-5">
-              {d.based_on.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          )}
           {d.thread_id ? (
             <Link to={`/chat/${d.thread_id}`} className="mt-2 inline-block text-thread underline">
               Open the suggested drafts
