@@ -79,6 +79,7 @@ beforeEach(() => {
     'GET /me': () => ({ id: 'u1', email: 'fete@example.com', timezone: 'Africa/Addis_Ababa' }),
     'GET /platforms/telegram': () => ({ channel: null }),
     'POST /drafts/:id/revise': () => detail({ id: 'd1' }),
+    'PATCH /drafts/:id': () => detail({ id: 'd1', status: 'published' }),
     'POST /drafts/:id/versions/:v/restore': () => detail({ id: 'd1' }),
     'GET /me/ai-keys': () => ({ enabled: false, providers: [], keys: [] }),
     'POST /drafts/:id/schedule': () => {
@@ -168,9 +169,11 @@ test('nothing is handed off before approval; approve asks for one date and time 
   const tab = vi.spyOn(window, 'open').mockReturnValue(null)
   await userEvent.click(await within(open).findByRole('button', { name: 'Open in X' }))
   expect(tab).toHaveBeenCalledOnce()
-  // The chat doesn't ask "Did you post it?" yet (a follow-up adds it).
-  expect(within(open).queryByText('Did you post it?')).not.toBeInTheDocument()
   tab.mockRestore()
+  // Then the same question as Drafts, the calendar and the bell; yes marks it Posted.
+  expect(await within(open).findByText('Did you post it?')).toBeInTheDocument()
+  await userEvent.click(within(open).getByRole('button', { name: 'Yes, mark as posted' }))
+  await vi.waitFor(() => expect(sent('PATCH /drafts/d1')).toEqual([{ status: 'published' }]))
 })
 
 test('arriving from the new-chat box writes straight away and reports a platform that failed', async () => {
