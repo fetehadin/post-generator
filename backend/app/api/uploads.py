@@ -61,8 +61,9 @@ def upload_resume(
 def upload_portfolio(body: PortfolioIn, user_id: uuid.UUID = Depends(current_user)) -> UploadOut:
     _require_privacy(user_id)
     try:
-        text = service.fetch_page(body.url)
-        return _out(service.save(user_id, "portfolio", body.url.strip(), text))
+        url = service.normalize_url(body.url)  # "you.dev" and "www.you.dev" work too
+        text = service.fetch_page(url)
+        return _out(service.save(user_id, "portfolio", url, text))
     except UploadError as e:
         raise _fail(e) from e
 

@@ -74,10 +74,13 @@ export function Uploads() {
           <div className="mt-1 flex gap-2">
             <input
               id="portfolio-url"
-              type="url"
+              type="text"
+              inputMode="url"
+              autoComplete="url"
+              spellCheck={false}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://you.dev"
+              placeholder="yoursite.com"
               className={`${input} mt-0`}
             />
             <button type="submit" disabled={portfolio.isPending || !url.trim()} className={button}>
