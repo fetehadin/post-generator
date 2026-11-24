@@ -67,9 +67,13 @@ function renderPage(path = '/calendar') {
 const slot = (container: HTMLElement, day: string, hour: number) =>
   container.querySelector(`[data-drop-day="${day}"][data-drop-hour="${hour}"]`) as HTMLElement
 
-/** The time as the app writes it in this locale (e.g. "18:30" or "06:30 PM"). */
+/** The time as the app writes it: 24-hour, e.g. "18:30". */
 const hm = (iso: string) =>
-  new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
+  new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(iso))
 
 /** The post's chip in the week grid (the phone list holds a second copy in jsdom). */
 async function chip(container: HTMLElement, day = '2026-10-22', hour = 18, iso = thu1830) {

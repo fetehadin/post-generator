@@ -17,7 +17,12 @@ const dayName = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
   month: 'short',
 })
-const hourFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric' })
+/** 24-hour like every other time in the app (lib/time.ts): "07:00", never "7 AM". */
+const hourFormat = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
 const HOUR_LABELS = HOURS.map((h) => hourFormat.format(new Date(2000, 0, 1, h)))
 
 type Shared = {
