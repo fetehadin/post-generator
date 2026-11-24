@@ -24,7 +24,7 @@ frontend/src/
 ├── pages/              One folder per screen: Upload, Generate, Onboarding, Settings, ChatBoard, Drafts, Calendar
 ├── components/         Shared UI: DraftCard, LengthCounter, PlatformBadge, AiLabel …
 │   └── ui/             shadcn/ui parts (dialog, dropdown-menu, tabs, popover, sheet), adapted
-├── lib/                auth.ts, time.ts (UTC ↔ local), handoff.ts (X link, LinkedIn copy)
+├── lib/                auth.ts, time.ts (UTC ↔ local), handoff.ts (X link, LinkedIn copy), useHandOff.ts (the hand-off module every screen uses)
 └── test/               Test setup
 ```
 

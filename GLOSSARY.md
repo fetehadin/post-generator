@@ -57,7 +57,7 @@ An approved draft whose time passed without it being posted, including one the b
 _Avoid_: Overdue, failed, expired
 
 **Hand-off**:
-Voxlace opens the platform with the draft's text ready and the user presses that platform's own post button.
+Voxlace opens the platform with the draft's text ready and the user presses that platform's own post button; then Voxlace asks "Did you post it?" and marks the draft Posted on yes.
 _Avoid_: Share, export, publish
 
 **Posted**:

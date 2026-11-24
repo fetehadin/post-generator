@@ -5,7 +5,8 @@ import { useScheduleDraft } from '../api/threads'
 import type { DraftRow, Notifications } from '../api/types'
 import { LABEL } from '../lib/platforms'
 import { formatShort } from '../lib/time'
-import { usePostNow } from '../lib/usePostNow'
+import { useHandOff } from '../lib/useHandOff'
+import { HandOffPrompt } from './HandOffPrompt'
 import { WhenPicker } from './WhenPicker'
 import { PlatformMark } from './PlatformMark'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
@@ -63,14 +64,12 @@ export function NotificationsPanel() {
 
 function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) {
   const zone = useMe().data?.timezone
-  const now = usePostNow(draft)
+  const hand = useHandOff(draft)
   const schedule = useScheduleDraft()
   const [open, setOpen] = useState(false)
   const name = LABEL[draft.platform]
   const when = draft.scheduled_for ? formatShort(draft.scheduled_for, zone) : ''
   const firstLine = draft.text.split('\n').find((l) => l.trim()) ?? ''
-  const { asked, note, post } = now
-  const patch = now.patch
 
   return (
     <li
@@ -90,46 +89,21 @@ function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) 
             : 'Post now or reschedule.'}
         </p>
       )}
-      {!asked && note && (
+      {!hand.asked && hand.failed && (
         <p role="alert" className="mt-1 text-danger">
-          {note}
+          {hand.failed}
         </p>
       )}
-      {asked ? (
-        <div className="mt-2" aria-live="polite">
-          {note && <p>{note}</p>}
-          <p className="mt-1">Did you post it?</p>
-          <div className="mt-1 flex gap-2">
-            <button
-              type="button"
-              disabled={patch.isPending}
-              onClick={now.markPosted}
-              className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
-            >
-              Yes, mark as posted
-            </button>
-            <button
-              type="button"
-              onClick={now.notYet}
-              className="min-h-9 rounded-full border border-edge px-3 hover:bg-sunken"
-            >
-              Not yet
-            </button>
-          </div>
-          {patch.error && (
-            <p role="alert" className="mt-1 text-danger">
-              {patch.error.message}
-            </p>
-          )}
-        </div>
+      {hand.asked ? (
+        <HandOffPrompt hand={hand} className="mt-2" />
       ) : (
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => void post()}
+            onClick={() => void hand.post()}
             className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
           >
-            {now.label}
+            {hand.label}
           </button>
           {kind === 'missed' && (
             <Popover open={open} onOpenChange={setOpen}>
