@@ -55,9 +55,9 @@ test('Telegram: the channel is saved here, and shown as the server keeps it (FR-
   expect(screen.getByLabelText('Your Telegram channel')).toHaveValue('fetescript_demo')
 })
 
-test('the free key comes first; GitHub is folded away unless you are a developer', async () => {
+test('the API key comes first; GitHub is folded away unless you are a developer', async () => {
   renderTab()
-  expect(screen.getByRole('heading', { name: 'Free AI key' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'API key' })).toBeInTheDocument()
   const github = screen.getByText('GitHub').closest('details')!
   await screen.findByLabelText('Your Telegram channel')
   expect(github).not.toHaveAttribute('open')
