@@ -264,8 +264,13 @@ export function KeyPaste({
         </button>
       )}
 
-      {/* Always rendered, with room for two lines, so the layout doesn't shift. */}
-      <div aria-live="polite" role="status" className="min-h-12 text-sm">
+      {/* Always rendered; room for two lines once there's a key to check, so the layout doesn't
+          shift while checking, and no empty gap before that. */}
+      <div
+        aria-live="polite"
+        role="status"
+        className={value.trim() ? 'min-h-12 text-sm' : 'text-sm'}
+      >
         {status.kind === 'checking' && <p>Checking your {status.name} key…</p>}
         {status.kind === 'ok' && (
           <p className="flex items-center gap-1 font-semibold">

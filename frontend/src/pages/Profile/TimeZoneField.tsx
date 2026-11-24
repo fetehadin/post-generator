@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMe, useSetTimezone } from '../../api/me'
+import { cityOf, zoneInWords } from '../../lib/zones'
 import { input, isZone, primaryButton, ZONE_LIST_ID } from './fields'
 
 /**
@@ -50,13 +51,13 @@ export function TimeZoneField() {
           disabled={set.isPending}
           onClick={() => set.mutate(browser, { onSuccess: () => setZone(null) })}
         >
-          Use this device's zone ({browser})
+          Use this device's zone ({cityOf(browser)})
         </button>
       )}
       <p id="zone-help" className="w-full text-sm text-muted">
         {known
-          ? 'Best hours, reminders and "today" follow this zone.'
-          : 'Pick a zone from the list, like Africa/Addis_Ababa.'}
+          ? `${zoneInWords(value)}. Best hours, reminders and "today" follow this zone.`
+          : 'Start typing your city, then pick it from the list.'}
         {set.isSuccess && !zone && ' Saved.'}
       </p>
       {set.isError && (
