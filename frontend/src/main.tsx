@@ -1,5 +1,5 @@
 import { GitHubCallbackPage } from './pages/GitHub/GitHubCallbackPage'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router'
@@ -31,7 +31,12 @@ import { WelcomePage } from './pages/Welcome/WelcomePage'
 applyTheme(savedTheme())
 markVisit()
 
-const queryClient = new QueryClient()
+const queryClient: QueryClient = new QueryClient({
+  // Any save may fill a profile item (FR-53): refresh the strength ring and card after each.
+  mutationCache: new MutationCache({
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile-strength'] }),
+  }),
+})
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },

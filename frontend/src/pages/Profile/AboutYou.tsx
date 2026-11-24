@@ -1,11 +1,7 @@
 import { useState } from 'react'
 import { input } from './fields'
-import {
-  AUDIENCE_KINDS,
-  MAIN_GOALS,
-  PROFESSION_LIST_ID,
-  PROFESSION_SUGGESTIONS,
-} from '../../lib/profession'
+import { AUDIENCE_KINDS, MAIN_GOALS } from '../../lib/profession'
+import { ProfessionInput } from './ProfessionInput'
 import {
   type Profile,
   type ProfileChange,
@@ -47,7 +43,7 @@ const GROUPS: Array<{
       ['role', 'Role or title', 'Head of science, founder, nurse manager…'],
       ['seniority', 'Experience', 'Student, early career, senior…'],
       ['stack', 'Tools you use', 'Figma, Excel, Canva, Python…'],
-      ['portfolio_url', 'Website or portfolio', 'https://yoursite.com'],
+      ['portfolio_url', 'Website or portfolio', 'yoursite.com'],
     ],
   },
   {
@@ -101,27 +97,43 @@ export function AboutYou() {
   return <AboutForm key={profile.data.summary_updated_at ?? 'new'} saved={profile.data} />
 }
 
+/** What the form would save: compared with the saved copy to tell whether anything changed. */
+function answersOf(form: Profile, tags: string): ProfileChange {
+  const change: ProfileChange = {}
+  for (const g of GROUPS) for (const [name] of g.fields) change[name] = form[name].trim()
+  change.projects = form.projects
+    .map((p) => ({ ...p, name: p.name.trim(), line: p.line.trim(), link: p.link.trim() }))
+    .filter((p) => p.name)
+  change.audience_kind = form.audience_kind
+  change.main_goal = form.main_goal
+  change.language = form.language
+  change.excluded_hashtags = tags
+    .split(/[\s,]+/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+  return change
+}
+
 function AboutForm({ saved }: { saved: Profile }) {
   const [form, setForm] = useState(saved)
   const [tags, setTags] = useState(saved.excluded_hashtags.join(', '))
   const save = useSaveProfile()
   const summary = useWriteSummary()
 
-  const answers = (): ProfileChange => {
-    const change: ProfileChange = {}
-    for (const g of GROUPS) for (const [name] of g.fields) change[name] = form[name]
-    change.projects = form.projects
-      .map((p) => ({ ...p, name: p.name.trim() }))
-      .filter((p) => p.name)
-    change.audience_kind = form.audience_kind
-    change.main_goal = form.main_goal
-    change.language = form.language
-    change.excluded_hashtags = tags
-      .split(/[\s,]+/)
-      .map((t) => t.trim())
-      .filter(Boolean)
-    return change
-  }
+  // A profession typed but not yet turned into a chip still counts, and is saved with the rest.
+  const [typedProfession, setTypedProfession] = useState('')
+  const answers = () =>
+    answersOf(
+      typedProfession.trim()
+        ? { ...form, discipline: [form.discipline, typedProfession].filter(Boolean).join(', ') }
+        : form,
+      tags,
+    )
+  // Save turns on only when something differs from what is saved (an edit, an addition).
+  const changed =
+    JSON.stringify(answers()) !==
+      JSON.stringify(answersOf(saved, saved.excluded_hashtags.join(', '))) ||
+    form.summary_card.trim() !== saved.summary_card.trim()
 
   async function writeCard() {
     // The card is written from the saved answers, so save what was typed first.
@@ -157,18 +169,31 @@ function AboutForm({ saved }: { saved: Profile }) {
           <fieldset>
             <legend className="sr-only">{g.title}</legend>
             <div className="mt-2 grid gap-4 sm:grid-cols-2">
-              {g.fields.map(([name, label, hint]) => (
-                <label key={name} className="text-sm">
-                  {label}
-                  <input
-                    value={form[name]}
-                    onChange={(e) => setForm({ ...form, [name]: e.target.value })}
-                    placeholder={hint}
-                    list={name === 'discipline' ? PROFESSION_LIST_ID : undefined}
-                    className={input}
-                  />
-                </label>
-              ))}
+              {g.fields.map(([name, label, hint]) =>
+                name === 'discipline' ? (
+                  // Not a wrapping <label>: a click on it would press the first chip's ×.
+                  <div key={name} className="text-sm">
+                    <label htmlFor="field-discipline">{label}</label>
+                    <ProfessionInput
+                      id="field-discipline"
+                      value={form.discipline}
+                      onChange={(discipline) => setForm({ ...form, discipline })}
+                      onTyping={setTypedProfession}
+                    />
+                  </div>
+                ) : (
+                  <label key={name} className="text-sm">
+                    {label}
+                    <input
+                      id={`field-${name}`}
+                      value={form[name]}
+                      onChange={(e) => setForm({ ...form, [name]: e.target.value })}
+                      placeholder={hint}
+                      className={input}
+                    />
+                  </label>
+                ),
+              )}
               {g.title === 'Your posts' && (
                 <>
                   <label className="text-sm">
@@ -213,7 +238,11 @@ function AboutForm({ saved }: { saved: Profile }) {
         </Section>
       ))}
 
-      <Section title="Projects" filled={form.projects.filter((x) => x.name.trim()).length}>
+      <Section
+        id="projects"
+        title="Projects"
+        filled={form.projects.filter((x) => x.name.trim()).length}
+      >
         <fieldset>
           <legend className="sr-only">Projects</legend>
           <p className="mt-1 text-sm text-muted">
@@ -262,7 +291,7 @@ function AboutForm({ saved }: { saved: Profile }) {
                   <input
                     value={p.link}
                     onChange={(e) => setProject(i, { link: e.target.value })}
-                    placeholder="https://"
+                    placeholder="yourproject.com"
                     className={input}
                   />
                 </label>
@@ -358,13 +387,13 @@ function AboutForm({ saved }: { saved: Profile }) {
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          disabled={busy}
+          disabled={busy || !changed}
           className="inline-flex min-h-10 items-center rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:cursor-not-allowed disabled:bg-sunken disabled:text-muted"
         >
           {save.isPending ? 'Saving…' : 'Save profile'}
         </button>
         <span role="status" className="text-sm text-muted">
-          {save.isSuccess && !busy ? 'Saved' : ''}
+          {changed ? 'You have unsaved changes' : save.isSuccess && !busy ? 'Saved' : ''}
         </span>
         {error && (
           <p role="alert" className="text-sm text-danger">
@@ -372,22 +401,19 @@ function AboutForm({ saved }: { saved: Profile }) {
           </p>
         )}
       </div>
-      <datalist id={PROFESSION_LIST_ID}>
-        {PROFESSION_SUGGESTIONS.map((p) => (
-          <option key={p} value={p} />
-        ))}
-      </datalist>
     </form>
   )
 }
 
 /** A folded group of answers; says how many are filled so nothing feels lost. */
 function Section({
+  id,
   title,
   open = false,
   filled,
   children,
 }: {
+  id?: string
   title: string
   open?: boolean
   filled?: number
@@ -401,7 +427,10 @@ function Section({
       </div>
     )
   return (
-    <details className="group rounded-panel border border-line px-4 py-1 open:pb-4">
+    <details
+      id={id}
+      className="group scroll-mt-6 rounded-panel border border-line px-4 py-1 open:pb-4"
+    >
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold">
         <span
           className="transition-transform duration-(--duration) group-open:rotate-90"

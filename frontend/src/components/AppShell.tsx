@@ -6,6 +6,7 @@ import { remember, remembered } from '../lib/storage'
 import { cn } from '../lib/utils'
 import { LABEL, PLATFORMS } from '../lib/platforms'
 import { applyTheme, nextTheme, savedTheme, type Theme } from '../lib/theme'
+import { StrengthRing } from './StrengthRing'
 import { Icon, type IconName } from './Icon'
 import { needsAction, NotificationsPanel } from './NotificationsPanel'
 import { PlatformMark } from './PlatformMark'
@@ -147,12 +148,14 @@ export function AppShell() {
                   )
                 }
               >
-                <span
-                  aria-hidden="true"
-                  className="grid size-8 flex-none place-items-center rounded-full bg-primary text-sm font-semibold text-on-primary"
-                >
-                  {name.charAt(0).toUpperCase()}
-                </span>
+                <StrengthRing>
+                  <span
+                    aria-hidden="true"
+                    className="grid size-8 flex-none place-items-center rounded-full bg-primary text-sm font-semibold text-on-primary"
+                  >
+                    {name.charAt(0).toUpperCase()}
+                  </span>
+                </StrengthRing>
                 <span className={collapsed ? 'sr-only' : 'min-w-0 leading-tight'}>
                   <span className="block truncate text-sm font-semibold">{name}</span>
                   <span className="block text-xs text-muted">Profile &amp; settings</span>

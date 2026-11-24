@@ -17,10 +17,12 @@ from app.schemas import (
     MeOut,
     MePatchIn,
     NotificationsOut,
+    ProfileStrengthOut,
     ReminderIO,
+    StrengthItemOut,
     UsageOut,
 )
-from app.services import account, notifications, usage
+from app.services import account, notifications, strength, usage
 from app.services.clock import valid_zone
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -58,6 +60,13 @@ def update_me(
     with user_session(user_id) as s:
         s.get(User, user_id).timezone = body.timezone
     return _me(who)
+
+
+@router.get("/profile-strength", response_model=ProfileStrengthOut)
+def get_profile_strength(user_id=Depends(current_user)) -> ProfileStrengthOut:
+    """FR-53: how complete the profile is, and the next thing to fill in."""
+    percent, items = strength.profile_strength(user_id)
+    return ProfileStrengthOut(percent=percent, items=[StrengthItemOut(**vars(i)) for i in items])
 
 
 @router.get("/notifications", response_model=NotificationsOut)

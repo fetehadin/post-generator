@@ -15,6 +15,26 @@ export function useMe(enabled = true) {
   return useQuery({ queryKey: ['me'], queryFn: () => api<Me>('/me'), enabled, retry: false })
 }
 
+/** GET /me/profile-strength (FR-53): how complete the profile is, and what to fill next. */
+export type StrengthItem = {
+  id: string
+  label: string
+  weight: number
+  done: boolean
+  tab: string
+  section: string
+}
+export type ProfileStrength = { percent: number; items: StrengthItem[] }
+
+/** Refetched after any save anywhere (main.tsx), so the ring and the card stay current. */
+export function useProfileStrength(enabled = true) {
+  return useQuery({
+    queryKey: ['profile-strength'],
+    queryFn: () => api<ProfileStrength>('/me/profile-strength'),
+    enabled,
+  })
+}
+
 /** The user's saved zone for showing times (rule 6); the browser's until /me has loaded. */
 export const useZone = (): string | undefined => useMe().data?.timezone
 
