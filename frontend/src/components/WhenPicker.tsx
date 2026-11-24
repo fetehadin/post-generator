@@ -57,6 +57,8 @@ export function WhenPicker({
     setEcho({ text: formatWhen(utc, zone), past: Date.parse(utc) <= Date.now() })
   }
 
+  // Typed text it can't read blocks Approve: Enter must never approve an older time (FR-52).
+  const unread = Boolean(typed.trim()) && !echo
   const [day, time] = value.split('T')
   const past = Boolean(day && time) && Date.parse(localToUtc(day, time, zone)) <= Date.now()
   return (
@@ -64,8 +66,7 @@ export function WhenPicker({
       className="mt-3 flex flex-wrap items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault()
-        const [day, time] = value.split('T')
-        if (day && time) onPick(day, localToUtc(day, time, zone))
+        if (!unread && !past && day && time) onPick(day, localToUtc(day, time, zone))
       }}
     >
       <div className="flex w-full flex-col gap-1">
@@ -115,7 +116,7 @@ export function WhenPicker({
         }}
         className="min-h-10 rounded-control border border-edge bg-surface px-2 text-sm"
       />
-      <button type="submit" disabled={busy || !value || past} className={primary}>
+      <button type="submit" disabled={busy || !value || past || unread} className={primary}>
         {submit}
       </button>
       <button type="button" onClick={onCancel} className={ghost}>

@@ -28,6 +28,9 @@ test.each([
   ['in 2 hours', '2026-11-25', '13:00'],
   ['in 30 min', '2026-11-25', '11:30'],
   ['in a day', '2026-11-26', '11:00'],
+  ['fri 9', '2026-11-27', '09:00'], // a bare hour after a day
+  ['tomorrow 18', '2026-11-26', '18:00'],
+  ['nov 26', '2026-11-26', '09:00'], // still a date, not 'nov' at 26:00
 ])('%s → %s %s', (text, day, time) => {
   expect(p(text)).toEqual({ day, time })
 })
@@ -44,4 +47,13 @@ test('the zone decides "today": late evening UTC is already tomorrow in Addis Ab
   expect(parseWhen('9am', late, zone)).toEqual({ day: '2026-11-26', time: '09:00' })
   expect(parseWhen('9am', late, 'UTC')).toEqual({ day: '2026-11-26', time: '09:00' })
   expect(parseWhen('11pm', late, 'UTC')).toEqual({ day: '2026-11-25', time: '23:00' })
+})
+
+test('"in 3 days" keeps the clock time across a daylight-saving change', () => {
+  // Fri 27 Mar 2026, 10:00 in Berlin (UTC+1); clocks go forward on Sun 29 Mar.
+  const before = new Date('2026-03-27T09:00:00Z')
+  expect(parseWhen('in 3 days', before, 'Europe/Berlin')).toEqual({
+    day: '2026-03-30',
+    time: '10:00',
+  })
 })

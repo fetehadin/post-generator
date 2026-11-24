@@ -116,14 +116,26 @@ export function parseWhen(input: string, now = new Date(), zone?: string): Parse
   if (rel) {
     const n = /^\d+$/.test(rel[1]) ? Number(rel[1]) : 1
     const unit = rel[2][0]
-    const ms = n * (unit === 'm' ? 60_000 : unit === 'h' ? 3_600_000 : 86_400_000)
+    // Days are calendar days at the same clock time, so a daylight-saving change can't shift it.
+    if (unit === 'd') return { day: addDays(today, n), time: clock }
+    const ms = n * (unit === 'm' ? 60_000 : 3_600_000)
     const at = new Date(now.getTime() + ms)
     return { day: dateIn(at, zone), time: clockIn(at, zone) }
   }
 
-  const found = readTime(text)
-  const dayText = (found ? found.rest : text).replace(/\b(on|at)\b/g, ' ').trim()
-  const day = readDay(dayText.replace(/\s+/g, ' '), today)
+  let found = readTime(text)
+  let dayText = (found ? found.rest : text).replace(/\b(on|at)\b/g, ' ').trim()
+  let day = readDay(dayText.replace(/\s+/g, ' '), today)
+  // "fri 9": a bare hour after a day is that hour on a 24-hour clock (shown back in words).
+  const bare = !found && day === null ? dayText.match(/^(.*\S)\s+(\d{1,2})$/) : null
+  if (bare && Number(bare[2]) <= 23) {
+    const before = readDay(bare[1].replace(/\s+/g, ' '), today)
+    if (before !== null && before !== 'none') {
+      found = { time: `${pad(Number(bare[2]))}:00`, rest: bare[1] }
+      dayText = bare[1]
+      day = before
+    }
+  }
   if (day === null) return null
   if (!found && day === 'none') return null
   const time = found?.time ?? (/\btonight\b/.test(text) ? PARTS.tonight : DEFAULT_TIME)
