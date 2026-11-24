@@ -125,3 +125,17 @@ Run the checks for every part you touched before saying a task is done.
 - pgvector: start without a vector index (exact search). Query shape is `ORDER BY embedding <=> :q LIMIT :n`.
 - Gemini free tier returns 429 under load. Back off and retry; keep the user's input.
 - The Telegram bot (SRS 1.4) posts only on the user's click. Automatic sends at the scheduled time come after V1: bots can't use Telegram's native scheduled messages, so a worker must send at the due time. The webhook is checked by its secret header; never log the bot token (it is in Telegram's API URL).
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues in fetehadin/post-generator, through the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default roles as label names: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root, with SRS, OPEN_QUESTIONS and DESIGN as the source of truth beside them. See `docs/agents/domain.md`.

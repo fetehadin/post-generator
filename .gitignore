@@ -59,3 +59,14 @@ ux-audit/
 .claude/skills/ui-ux-pro-max/
 .claude/skills/ux-writing/
 .claude/skills/web-design-guidelines/
+
+# Third-party skills (mattpocock/skills and others) are restored from skills-lock.json:
+# `npx skills experimental_install`. Our own skills stay in git.
+.claude/skills/*
+!.claude/skills/check/
+!.claude/skills/design-screen/
+!.claude/skills/frontend-design/
+!.claude/skills/migration/
+!.claude/skills/pr-check/
+!.claude/skills/run-voxlace/
+!.claude/skills/slice/
