@@ -83,7 +83,13 @@ function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) 
         </span>
       </p>
       <p className="mt-1 truncate text-muted">{firstLine}</p>
-      {kind === 'missed' && <p className="mt-1 text-danger">Post now or reschedule.</p>}
+      {kind === 'missed' && (
+        <p className="mt-1 text-danger">
+          {draft.bot_error
+            ? `The bot couldn't post it: ${draft.bot_error}`
+            : 'Post now or reschedule.'}
+        </p>
+      )}
       {!asked && note && (
         <p role="alert" className="mt-1 text-danger">
           {note}

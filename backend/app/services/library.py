@@ -186,6 +186,7 @@ def update(user_id: uuid.UUID, draft_id: uuid.UUID, changes: dict) -> DraftDetai
                 if when < datetime.now(UTC) - PAST_GRACE:
                     raise DraftError("in_the_past", "Pick a time that hasn't passed yet.")
             d.scheduled_for = when
+            d.bot_failed_at = d.bot_error = None  # a new time: the bot may try again
     return detail(user_id, draft_id)
 
 
@@ -211,6 +212,7 @@ def _move(d: Draft, status: str, current: DraftDetail, new_text: str | None) -> 
         d.published_at = datetime.now(UTC)
     elif status in ("draft", "discarded"):
         d.scheduled_for = None  # back to editing or thrown away: off the calendar
+        d.bot_failed_at = d.bot_error = None
         if status == "discarded":  # FR-14: count discarded GitHub suggestions
             from app.services.github import count_discard
 

@@ -54,3 +54,23 @@ def start_github_loop(interval_seconds: int = 3600) -> threading.Event:
 
     threading.Thread(target=loop, name="github-digests", daemon=True).start()
     return stop
+
+
+def start_telegram_loop(interval_seconds: int = 60) -> threading.Event:
+    """ADR 0001: every minute, the bot posts approved Telegram drafts whose time has come. Each
+    draft is locked while it is sent, so two API processes never post the same one."""
+    from app.services import telegram
+    from app.services.telegram_api import TelegramAPI
+
+    stop = threading.Event()
+
+    def loop() -> None:
+        api = TelegramAPI()
+        while not stop.wait(interval_seconds):
+            try:
+                telegram.send_due(api)
+            except Exception:  # the database or Telegram may be down; try again next minute
+                logger.exception("telegram send pass failed")
+
+    threading.Thread(target=loop, name="telegram-sender", daemon=True).start()
+    return stop

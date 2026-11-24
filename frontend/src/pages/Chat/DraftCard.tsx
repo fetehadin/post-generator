@@ -441,6 +441,7 @@ function Status({
         {mode === 'approve' && (
           <div className="mt-3">
             <DayChips timeZone={zone} busy={busy} onPick={(day) => onPick(day)} />
+            <BotWillPost draft={draft} />
             <button type="button" onClick={onCancel} className={cn(ghost, 'mt-2')}>
               Cancel
             </button>
@@ -508,18 +509,27 @@ function Approved({
   const viaBot = draft.platform === 'telegram' && Boolean(bot?.channel?.can_post)
   return (
     <div className="mt-4 border-t border-line pt-4 text-sm">
-      {draft.scheduled_for &&
+      {draft.bot_error ? (
+        // The bot tried at its time and Telegram said no (ADR 0001): say why, offer a way on.
+        <p className="text-danger">
+          The bot couldn't post it: {draft.bot_error} Post now or pick another time.
+        </p>
+      ) : (
+        draft.scheduled_for &&
         (Date.parse(draft.scheduled_for) < Date.now() - 30 * 60_000 ? (
           <p className="text-danger">
             {formatShort(draft.scheduled_for, zone)} passed. Post now or pick another time.
           </p>
         ) : (
           <p>
-            <span className="font-semibold">On your calendar</span>{' '}
+            <span className="font-semibold">
+              {viaBot ? `The bot posts it to ${bot?.channel?.title}` : 'On your calendar'}
+            </span>{' '}
             {formatWhen(draft.scheduled_for, zone)} your time
             {picked && <span className="block text-muted">{picked.reason}</span>}
           </p>
-        ))}
+        ))
+      )}
       {picked?.warning && <p className="mt-1 text-signal">{picked.warning}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {viaBot ? (
@@ -562,7 +572,7 @@ function Approved({
         </button>
       </div>
       {viaBot && bot?.channel && !publish.error && (
-        <p className="mt-2 text-muted">Posts to {bot.channel.title} when you tap it.</p>
+        <p className="mt-2 text-muted">Or post it to {bot.channel.title} now, without waiting.</p>
       )}
       {publish.error && (
         <p role="alert" className="mt-2 text-danger">
@@ -625,5 +635,16 @@ function ChangeTime({
         </button>
       </form>
     </div>
+  )
+}
+
+/** Approving a Telegram draft for a connected channel: say plainly that the bot posts it. */
+function BotWillPost({ draft }: { draft: DraftRow }) {
+  const channel = useTelegram().data?.channel
+  if (draft.platform !== 'telegram' || !channel?.can_post) return null
+  return (
+    <p className="mt-2 text-sm text-muted">
+      The bot posts it to {channel.title} at that time by itself. You can still post it sooner.
+    </p>
   )
 }

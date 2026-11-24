@@ -69,6 +69,8 @@ export type DraftRow = {
   updated_at: string
   /** The chat thread the draft lives in (SRS 1.3); null for drafts from before threads. */
   thread_id?: string | null
+  /** Why the Telegram bot couldn't post it at its time (it's then missed; ADR 0001). */
+  bot_error?: string | null
 }
 
 export type DraftVersion = {

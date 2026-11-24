@@ -30,6 +30,7 @@ def row_out(r: library.DraftRow) -> DraftRowOut:
         created_at=d.created_at,
         updated_at=r.updated_at,
         thread_id=d.thread_id,
+        bot_error=d.bot_error,
     )
 
 
