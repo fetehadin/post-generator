@@ -51,9 +51,10 @@ export async function handOff(
     window.open(xIntentUrl(draft.text), '_blank', 'noopener')
     return { copied: null }
   }
-  // Open before the clipboard await: a tab opened after an await may no longer count as
-  // part of the click, and the browser blocks it as a popup.
+  // Start the copy while this page still has focus (a new tab takes it, and the clipboard
+  // then refuses), and open the tab before any await so it still counts as the click.
+  const copying = copyText(draft.text)
   const url = opensTo(draft.platform, channel)
   if (url) window.open(url, '_blank', 'noopener')
-  return { copied: await copyText(draft.text) }
+  return { copied: await copying }
 }

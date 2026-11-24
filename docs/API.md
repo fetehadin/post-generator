@@ -571,4 +571,4 @@ Optional: off until `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` and `TELEGRAM_
 
 | Phase | Method and path | Purpose |
 |---|---|---|
-| After V1 | Automatic posting at the scheduled time; replies to the bot as check-ins | FR-43; needs a sending worker and a change to rule 4 |
+| After V1 | Replies to the bot as check-ins | FR-43 |

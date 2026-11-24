@@ -143,10 +143,10 @@ test('the post opens a menu: "Posted" marks it published and clears it', async (
   expect(sent('PATCH /drafts/d1')).toEqual([{ status: 'published' }])
 })
 
-test('"Move to…" works without dragging', async () => {
+test('"Change time" works without dragging', async () => {
   const { container } = renderPage()
   await userEvent.click(await chip(container))
-  await userEvent.click(await screen.findByRole('button', { name: 'Move to…' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Change time' }))
   fireEvent.change(screen.getByLabelText('New time (your time)'), {
     target: { value: '2026-10-24T08:15' },
   })

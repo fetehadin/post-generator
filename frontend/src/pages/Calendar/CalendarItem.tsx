@@ -1,10 +1,7 @@
 import { useState, type PointerEvent } from 'react'
 import { Link } from 'react-router'
 import type { usePatchAnyDraft } from '../../api/drafts'
-import { useZone } from '../../api/me'
-import { useScheduleDraft } from '../../api/threads'
 import type { DraftRow } from '../../api/types'
-import { DayChips } from '../../components/DayChips'
 import { Icon } from '../../components/Icon'
 import { PlatformMark } from '../../components/PlatformMark'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
@@ -28,7 +25,7 @@ type Props = {
 
 /**
  * One scheduled post (DESIGN.md §4.3): a quiet chip in the grid. Click it for the text and
- * what you can do: Edit (its chat), Move to… (no dragging needed, WCAG 2.5.7), and once it's
+ * what you can do: Edit (its chat), Change time (no dragging needed, WCAG 2.5.7), and once it's
  * due or missed, Post now (copy and open) then Posted. A missed post is red and can go to
  * another day, where the app picks the hour again (FR-45).
  */
@@ -116,12 +113,10 @@ function ItemDetails({
   patch: ReturnType<typeof usePatchAnyDraft>
   onDone: () => void
 }) {
-  const zone = useZone()
   const now = usePostNow(draft)
-  const schedule = useScheduleDraft()
-  const [mode, setMode] = useState<'view' | 'move' | 'day'>('view')
+  const [mode, setMode] = useState<'view' | 'move'>('view')
   const [when, setWhen] = useState(() => toLocalInput(draft.scheduled_for!))
-  const error = patch.error ?? schedule.error ?? now.patch.error
+  const error = patch.error ?? now.patch.error
   const quiet =
     'min-h-9 rounded-full border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
 
@@ -139,10 +134,6 @@ function ItemDetails({
         )}
       </p>
       <p className="line-clamp-5 leading-writing whitespace-pre-line">{draft.text}</p>
-      <p className="text-xs text-muted">
-        Voxlace never posts by itself: at this time it reminds you, and Post now copies the text and
-        opens {LABEL[draft.platform]}.
-      </p>
 
       {mode === 'move' && (
         <form
@@ -173,17 +164,6 @@ function ItemDetails({
             Move
           </button>
         </form>
-      )}
-
-      {mode === 'day' && (
-        <DayChips
-          timeZone={zone}
-          busy={schedule.isPending}
-          label="Pick another day; the best hour is picked for you"
-          onPick={(day) =>
-            schedule.mutate({ draftId: draft.id, day }, { onSuccess: () => onDone() })
-          }
-        />
       )}
 
       {now.asked ? (
@@ -226,12 +206,7 @@ function ItemDetails({
             </Link>
             {mode !== 'move' && (
               <button type="button" onClick={() => setMode('move')} className={quiet}>
-                Move to…
-              </button>
-            )}
-            {state === 'missed' && mode !== 'day' && (
-              <button type="button" onClick={() => setMode('day')} className={quiet}>
-                Another day
+                Change time
               </button>
             )}
             <button

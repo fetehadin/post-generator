@@ -6,7 +6,7 @@ import type { DraftRow, Notifications } from '../api/types'
 import { LABEL } from '../lib/platforms'
 import { formatShort } from '../lib/time'
 import { usePostNow } from '../lib/usePostNow'
-import { DayChips } from './DayChips'
+import { WhenPicker } from './WhenPicker'
 import { PlatformMark } from './PlatformMark'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 
@@ -134,16 +134,21 @@ function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) 
           {kind === 'missed' && (
             <Popover open={open} onOpenChange={setOpen}>
               <PopoverTrigger className="min-h-9 rounded-full border border-edge px-3 hover:bg-sunken">
-                Reschedule
+                Change time
               </PopoverTrigger>
               <PopoverContent align="end" className="w-80">
-                <DayChips
-                  timeZone={zone}
+                <WhenPicker
+                  id={draft.id}
+                  zone={zone}
                   busy={schedule.isPending}
-                  label="Move it to which day?"
-                  onPick={(day) =>
-                    schedule.mutate({ draftId: draft.id, day }, { onSuccess: () => setOpen(false) })
+                  submit="Save time"
+                  onPick={(day, at) =>
+                    schedule.mutate(
+                      { draftId: draft.id, day, at },
+                      { onSuccess: () => setOpen(false) },
+                    )
                   }
+                  onCancel={() => setOpen(false)}
                 />
                 {schedule.error && (
                   <p role="alert" className="mt-2 text-sm text-danger">

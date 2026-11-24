@@ -156,16 +156,15 @@ test('Undo goes back to the version before', async () => {
   await vi.waitFor(() => expect(calls()).toContain('POST /drafts/d1/versions/v1/restore'))
 })
 
-test('nothing is handed off before approval; approve asks only for the day (rule 4, FR-45)', async () => {
+test('nothing is handed off before approval; approve asks for one date and time (rule 4)', async () => {
   renderThread()
   const open = await screen.findByRole('article', { name: 'X draft, version 2' })
   expect(within(open).queryByRole('button', { name: 'Open in X' })).not.toBeInTheDocument()
   expect(within(open).queryByRole('button', { name: 'Copy text' })).not.toBeInTheDocument()
-  await userEvent.click(within(open).getByRole('button', { name: 'Approve and pick a day' }))
-  await userEvent.click(within(open).getByRole('button', { name: 'Tomorrow' }))
+  await userEvent.click(within(open).getByRole('button', { name: 'Approve' }))
+  await userEvent.click(within(open).getByRole('button', { name: 'Approve for this time' }))
   await vi.waitFor(() => expect(sent('POST /drafts/d1/schedule')).toHaveLength(1))
-  expect(sent('POST /drafts/d1/schedule')[0]).toMatchObject({ at: null })
-  expect(await within(open).findByText(/X's evening peak/)).toBeInTheDocument()
+  expect(sent('POST /drafts/d1/schedule')[0]).toMatchObject({ at: expect.stringMatching(/Z$/) })
   expect(await within(open).findByRole('button', { name: 'Open in X' })).toBeInTheDocument()
 })
 
@@ -235,8 +234,7 @@ test('with the bot connected, an approved Telegram draft is posted on one click 
   })
   renderThread()
   const open = await screen.findByRole('article', { name: 'Telegram draft, version 2' })
-  expect(await within(open).findByText(/The bot posts it to FeteScript/)).toBeInTheDocument()
-  expect(within(open).getByText(/post it to FeteScript now, without waiting/)).toBeInTheDocument()
+  expect(await within(open).findByText(/Posts to FeteScript/)).toBeInTheDocument()
   await userEvent.click(within(open).getByRole('button', { name: 'Post to Telegram now' }))
   await vi.waitFor(() => expect(calls()).toContain('POST /drafts/d1/publish'))
 })

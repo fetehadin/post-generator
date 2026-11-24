@@ -79,7 +79,7 @@ test('a draft has Approve, Discard and Edit, but no hand-off before approval (ru
   const card = await screen.findByRole('article', { name: /A fresh X draft/ })
   expect(within(card).getByText('AI draft')).toBeInTheDocument()
   expect(within(card).getByText('Draft')).toBeInTheDocument()
-  expect(within(card).getByRole('button', { name: 'Approve and pick a day' })).toBeInTheDocument()
+  expect(within(card).getByRole('button', { name: 'Approve' })).toBeInTheDocument()
   expect(within(card).queryByRole('button', { name: 'Open in X' })).not.toBeInTheDocument()
   expect(within(card).getByRole('link', { name: 'Edit in chat' })).toBeInTheDocument()
 
@@ -99,7 +99,7 @@ test('approved posts get Copy now and Reschedule; edit opens the chat', async ()
   renderPage('/drafts/x?status=approved')
   const card = await screen.findByRole('article', { name: /An approved X post/ })
   expect(within(card).getByRole('button', { name: 'Open in X' })).toBeInTheDocument()
-  expect(within(card).getByRole('button', { name: 'Reschedule' })).toBeInTheDocument()
+  expect(within(card).getByRole('button', { name: 'Change time' })).toBeInTheDocument()
   expect(within(card).getByRole('link', { name: 'Edit in chat' })).toHaveAttribute(
     'href',
     '/chat/t1',
@@ -177,7 +177,7 @@ test('over the limit, Approve is disabled and says why in words', async () => {
     'GET /me': () => ({ id: 'u1', email: 'a@b.c' }),
   })
   renderPage()
-  const approve = await screen.findByRole('button', { name: 'Approve and pick a day' })
+  const approve = await screen.findByRole('button', { name: 'Approve' })
   expect(approve).toBeDisabled()
   expect(approve).toHaveAccessibleDescription(/cut 20 characters/)
 })
