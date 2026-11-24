@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePatchAnyDraft, useRestoreVersion } from '../../api/drafts'
 import { useMe, useZone } from '../../api/me'
-import { usePlatform } from '../../api/platforms'
 import { usePublishDraft, useTelegram } from '../../api/telegram'
 import { useConvertDraft, useScheduleDraft } from '../../api/threads'
 import type { DraftRow, ScheduleResult, ThreadCard } from '../../api/types'
@@ -17,9 +16,10 @@ import {
   DropdownMenuTrigger,
 } from '../../components/ui/dropdown-menu'
 import { Tooltip } from '../../components/ui/tooltip'
-import { copyText, handOff, handOffLabel } from '../../lib/handoff'
+import { isMissed } from '../../lib/calendar'
 import { LABEL, PLATFORMS, RULES, STATUS_LABEL } from '../../lib/platforms'
 import { formatShort, formatWhen } from '../../lib/time'
+import { useHandOff } from '../../lib/useHandOff'
 import { chip, ghost, iconButton, primary, secondary } from '../../lib/ui'
 import { cn } from '../../lib/utils'
 import { Preview } from '../Editor/Preview'
@@ -104,10 +104,8 @@ export function DraftCard({
   const [mode, setMode] = useState<'read' | 'preview' | 'edit' | 'approve' | 'time'>('read')
   const [edited, setEdited] = useState(card.text)
   const [picked, setPicked] = useState<ScheduleResult | null>(null)
-  const [note, setNote] = useState('')
   const zone = useZone()
   const name = (useMe().data?.email ?? '').split('@')[0] || 'You'
-  const channel = usePlatform('telegram').data?.channel
   const patch = usePatchAnyDraft()
   const schedule = useScheduleDraft()
   const convert = useConvertDraft()
@@ -142,23 +140,6 @@ export function DraftCard({
         },
       },
     )
-  }
-
-  async function post() {
-    try {
-      const { copied } = await handOff(draft, channel)
-      setNote(
-        copied === false
-          ? "Couldn't copy: select the text and copy it by hand."
-          : draft.platform === 'telegram' && !channel
-            ? 'Copied. Open your channel in Telegram and paste it. Add the channel name in Profile → Connections.'
-            : copied
-              ? 'Copied.'
-              : '',
-      )
-    } catch (e) {
-      setNote((e as Error).message)
-    }
   }
 
   return (
@@ -357,25 +338,16 @@ export function DraftCard({
 
       <Status
         draft={draft}
-        text={card.text}
         zone={zone}
         picked={picked}
         over={over}
         mode={mode}
-        channel={channel}
         busy={schedule.isPending}
         onApprove={() => setMode(mode === 'approve' ? 'read' : 'approve')}
         onChangeTime={() => setMode(mode === 'time' ? 'read' : 'time')}
         onPick={approveOn}
-        onPost={() => void post()}
         onCancel={() => setMode('read')}
-        onNote={setNote}
       />
-      {note && (
-        <p aria-live="polite" className="mt-2 text-sm">
-          {note}
-        </p>
-      )}
       {error && (
         <p role="alert" className="mt-2 text-sm text-danger">
           {error.message}
@@ -387,34 +359,26 @@ export function DraftCard({
 
 function Status({
   draft,
-  text,
   zone,
   picked,
   over,
   mode,
-  channel,
   busy,
   onApprove,
   onChangeTime,
   onPick,
-  onPost,
   onCancel,
-  onNote,
 }: {
   draft: DraftRow
-  text: string
   zone?: string
   picked: ScheduleResult | null
   over: boolean
   mode: string
-  channel?: string | null
   busy: boolean
   onApprove: () => void
   onChangeTime: () => void
   onPick: (day: string, at?: string) => void
-  onPost: () => void
   onCancel: () => void
-  onNote: (note: string) => void
 }) {
   if (draft.status === 'published')
     return (
@@ -456,18 +420,14 @@ function Status({
   return (
     <Approved
       draft={draft}
-      text={text}
       zone={zone}
       picked={picked}
       over={over}
       mode={mode}
-      channel={channel}
       busy={busy}
       onChangeTime={onChangeTime}
       onPick={onPick}
-      onPost={onPost}
       onCancel={onCancel}
-      onNote={onNote}
     />
   )
 }
@@ -479,33 +439,26 @@ function Status({
  */
 function Approved({
   draft,
-  text,
   zone,
   picked,
   over,
   mode,
-  channel,
   busy,
   onChangeTime,
   onPick,
-  onPost,
   onCancel,
-  onNote,
 }: {
   draft: DraftRow
-  text: string
   zone?: string
   picked: ScheduleResult | null
   over: boolean
   mode: string
-  channel?: string | null
   busy: boolean
   onChangeTime: () => void
   onPick: (day: string, at?: string) => void
-  onPost: () => void
   onCancel: () => void
-  onNote: (note: string) => void
 }) {
+  const hand = useHandOff(draft)
   const bot = useTelegram().data
   const publish = usePublishDraft()
   const viaBot = draft.platform === 'telegram' && Boolean(bot?.channel?.can_post)
@@ -518,7 +471,7 @@ function Approved({
         </p>
       ) : (
         draft.scheduled_for &&
-        (Date.parse(draft.scheduled_for) < Date.now() - 30 * 60_000 ? (
+        (isMissed(draft.scheduled_for, new Date()) ? (
           <p className="text-danger">
             {formatShort(draft.scheduled_for, zone)} passed. Post now or pick another time.
           </p>
@@ -543,20 +496,23 @@ function Approved({
             {publish.isPending ? 'Posting…' : 'Post to Telegram now'}
           </button>
         ) : (
-          <button type="button" disabled={over} onClick={onPost} className={primary}>
-            {handOffLabel(draft.platform, channel)}
+          <button
+            type="button"
+            disabled={over}
+            onClick={() => void hand.post()}
+            className={primary}
+          >
+            {hand.label}
           </button>
         )}
         {/* Only when the main button also opens a site; else it already just copies. */}
-        {(viaBot || !handOffLabel(draft.platform, channel).startsWith('Copy text')) && (
+        {(viaBot || !hand.label.startsWith('Copy text')) && (
           <Tooltip content="Copy the text only">
             <button
               type="button"
               aria-label="Copy text"
               disabled={over}
-              onClick={async () =>
-                onNote((await copyText(text)) ? 'Copied.' : "Couldn't copy: select the text.")
-              }
+              onClick={() => void hand.copy()}
               className={iconButton}
             >
               <Icon name="copy" />
@@ -572,9 +528,14 @@ function Approved({
           Change time
         </button>
       </div>
-      {publish.error && (
+      {hand.note && (
+        <p aria-live="polite" className="mt-2">
+          {hand.note}
+        </p>
+      )}
+      {(hand.failed || publish.error) && (
         <p role="alert" className="mt-2 text-danger">
-          {publish.error.message}
+          {hand.failed || publish.error?.message}
         </p>
       )}
       {mode === 'time' && (

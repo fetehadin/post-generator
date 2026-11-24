@@ -8,7 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/pop
 import { cn } from '../../lib/utils'
 import { LABEL } from '../../lib/platforms'
 import { fromLocalInput, toLocalInput } from '../../lib/time'
-import { usePostNow } from '../../lib/usePostNow'
+import { HandOffPrompt } from '../../components/HandOffPrompt'
+import { useHandOff } from '../../lib/useHandOff'
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
 
@@ -113,10 +114,10 @@ function ItemDetails({
   patch: ReturnType<typeof usePatchAnyDraft>
   onDone: () => void
 }) {
-  const now = usePostNow(draft)
+  const hand = useHandOff(draft)
   const [mode, setMode] = useState<'view' | 'move'>('view')
   const [when, setWhen] = useState(() => toLocalInput(draft.scheduled_for!))
-  const error = patch.error ?? now.patch.error
+  const error = patch.error
   const quiet =
     'min-h-9 rounded-full border border-edge px-3 text-sm hover:bg-sunken disabled:opacity-50'
 
@@ -166,39 +167,23 @@ function ItemDetails({
         </form>
       )}
 
-      {now.asked ? (
-        <div aria-live="polite" className="flex flex-col gap-2">
-          {now.note && <p>{now.note}</p>}
-          <p className="font-semibold">Did you post it?</p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={now.patch.isPending}
-              onClick={now.markPosted}
-              className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
-            >
-              Yes, mark as posted
-            </button>
-            <button type="button" onClick={now.notYet} className={quiet}>
-              Not yet
-            </button>
-          </div>
-        </div>
+      {hand.asked ? (
+        <HandOffPrompt hand={hand} />
       ) : (
         <>
-          {now.note && (
+          {hand.failed && (
             <p role="alert" className="text-danger">
-              {now.note}
+              {hand.failed}
             </p>
           )}
           <div className="flex flex-wrap gap-2">
             {state !== 'planned' && (
               <button
                 type="button"
-                onClick={() => void now.post()}
+                onClick={() => void hand.post()}
                 className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
               >
-                {now.label}
+                {hand.label}
               </button>
             )}
             <Link to={`/drafts/${draft.id}`} className={cn(quiet, 'inline-flex items-center')}>
