@@ -110,9 +110,9 @@ test('free services come first as cards; paid ones are folded away', async () =>
   ).toBeInTheDocument()
 })
 
-test('"What is an API key?" says a subscription is not a key', async () => {
+test('"What is a free key?" names the API key and says a subscription is not a key', async () => {
   renderKeys()
-  await userEvent.click(await screen.findByRole('button', { name: 'What is an API key?' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'What is a free key?' }))
   expect(await screen.findByText(/subscription is/)).toHaveTextContent(
     'A ChatGPT Plus, Claude Pro or Gemini subscription is not a key.',
   )

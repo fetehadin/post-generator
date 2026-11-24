@@ -106,12 +106,13 @@ function WhatIsAKey() {
     <Popover>
       <PopoverTrigger asChild>
         <button type="button" className="min-h-10 text-thread underline">
-          What is an API key?
+          What is a free key?
         </button>
       </PopoverTrigger>
       <PopoverContent className="max-w-xs text-sm">
-        A key is a long code that lets Voxlace ask an AI service to write on your account, within
-        that service's free limits. A ChatGPT Plus, Claude Pro or Gemini subscription is not a key.
+        A free key (an "API key") is a long code that lets Voxlace ask an AI service to write on
+        your account, within that service's free limits. A ChatGPT Plus, Claude Pro or Gemini
+        subscription is not a key.
       </PopoverContent>
     </Popover>
   )
