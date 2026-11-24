@@ -314,3 +314,15 @@ def test_each_users_drafts_go_only_to_their_own_channel(api, bot, owner_engine, 
     assert telegram_service.send_due(bot) == 2
     assert len(_channel_sends(bot, -100777)) == 1
     assert len(_channel_sends(bot, -100888)) == 1
+
+
+def test_linking_from_another_voxlace_account_moves_the_channel_there(api, bot, make_user):
+    _connected(api)
+    first = api.state["user"]
+    api.state["user"] = make_user()
+    _start(api, _link(api))  # the same Telegram account, now signed in to a second account
+    assert api.get(f"{API}/telegram").json()["channel"]["title"] == "FeteScript"
+    assert "connected to this account now" in bot.sent[-1][1]
+    api.state["user"] = first
+    status = api.get(f"{API}/telegram").json()
+    assert status["linked"] is False and status["channel"] is None

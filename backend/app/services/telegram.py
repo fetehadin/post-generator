@@ -176,10 +176,23 @@ def _link(token: str, tg_id: int, tg_username: str | None, api: TelegramAPI) -> 
             "and tap Connect Telegram again.",
         )
         return
+    # The sender holds this Telegram account and the signed-in Voxlace account that made the
+    # token, so a link (and its channel) on another Voxlace account of theirs moves here.
+    moved: dict | None = None
     owner = _lookup("user_for_telegram_user", tg_id)
     if owner is not None and owner != user_id:
-        _say(api, tg_id, "This Telegram account is already linked to another Voxlace account.")
-        return
+        with user_session(owner) as s:
+            old = s.get(TelegramChannel, owner)
+            if old is not None:
+                moved = {
+                    "chat_id": old.chat_id,
+                    "title": old.title,
+                    "username": old.username,
+                    "can_post": old.can_post,
+                }
+                s.delete(old)
+            s.delete(s.get(TelegramAccount, owner))
+        logger.info("telegram: link moved to another Voxlace account of the same person")
     with user_session(user_id) as s:
         s.get(TelegramLinkToken, _hash(token)).used_at = datetime.now(UTC)
         account = s.get(TelegramAccount, user_id)
@@ -187,7 +200,14 @@ def _link(token: str, tg_id: int, tg_username: str | None, api: TelegramAPI) -> 
             s.add(TelegramAccount(user_id=user_id, tg_user_id=tg_id, tg_username=tg_username))
         else:
             account.tg_user_id, account.tg_username = tg_id, tg_username
+        if moved and s.get(TelegramChannel, user_id) is None:
+            s.add(TelegramChannel(user_id=user_id, **moved))
+        else:
+            moved = None
     logger.info("telegram: account linked")
+    if moved:
+        _say(api, tg_id, f"Linked to Voxlace. {moved['title']} is connected to this account now.")
+        return
     _say(
         api,
         tg_id,
