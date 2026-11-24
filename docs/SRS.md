@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Product** | Voxlace (working name) |
-| **Version** | 1.7 — command bar |
+| **Version** | 1.8 — typed times |
 | **Date** | 24 November 2026 |
 | **Authors** | Fetehadin Negash, Nezira |
 | **Status** | Locked. Changes go through a pull request that edits this file. |
@@ -203,6 +203,7 @@ flowchart LR
 | FR-48 | **Your own AI keys** (decided 19 Nov 2026, widened 20 Nov 2026): optional; a user may add an API key from Groq, Google Gemini, OpenAI, Anthropic, OpenRouter or Mistral in Profile, and pick a model (empty = a default per provider, from settings). The form says a ChatGPT Plus / Claude Pro / Gemini subscription is not an API key and links to each provider's key page. **Get a free key** (20 Nov 2026): one paste field detects the provider from the key's prefix and checks it at once; below it, cards for the free providers (Gemini, Groq, OpenRouter) with a "Get free key" link, three steps and one honest note. When a draft hits the daily limit or the free models are busy, a dismissible nudge ("Maybe later" hides it for 7 days; never in the first session) offers the same field inline and retries the failed drafts once the key works. The key is checked before saving with a free models-list call (a tiny call when a model is chosen), refusals say invalid_key, quota_exceeded or region_or_age_blocked in plain words, it's stored encrypted, shown only masked ("sk-…a9F2"), never exported, and deleted for good on removal. Drafts, revisions and cards try the user's keys first (newest first), then the free chain; when the user's key fails, the draft says "Your key failed, used the free model instead." Drafts on the user's key don't count towards the daily limit (FR-30); past the limit, a user with a key drafts on their key only. Embeddings always use Voxlace's key and model (C-7). | Should | Save a wrong key: refused with the reason, nothing stored. Save a working key: the next draft's log says `own`. Revoke it: the next draft says the key failed and comes from the free model. User B never sees or uses A's key. |
 | FR-50 | **Homepage** (24 Nov 2026): a logged-out visitor at `/` learns what Voxlace does, who it is for and what to do next. One promise line and a sub-line, then the guest box (FR-47) as the live demo; role chips (developer, designer, teacher, founder, freelancer) change the starter ideas and an example draft labelled "Example"; then how it works in three steps, the three platforms and what happens on each, free to start, a short FAQ and a footer. No testimonials until there is real beta feedback, and Amharic is promised only once it is checked end to end. | Should | Open `/` logged out at 360px: the promise, the box and Start free show without scrolling. Pick Teacher: the starters and the example change. Every FAQ answer matches what the app does. |
 | FR-51 | **Command bar** (24 Nov 2026): Ctrl/⌘+K, or the search button in the sidebar or phone header, opens one search box over every place and a few actions: new chat, each platform's drafts, the calendar, past check-ins, import, each Profile tab, switch the theme and the eight most recent chats. Typed words narrow it (all words, any order), arrows move, Enter goes, Esc closes. Ctrl/⌘+J jumps to the page's message box. It only moves the user around: nothing is approved or posted from it (rule 4). | Should | Press Ctrl+K, type "tele dra", press Enter: Telegram drafts open. Press Ctrl+J in a chat: the "Ask for a change" box has focus. |
+| FR-52 | **Typed times** (24 Nov 2026): the approve and change-time field also takes a typed time on the user's own clock: a day word (today, tonight, tomorrow), a weekday ("wed", "next fri"), a date ("26 nov", "2026-12-01"), a clock time ("2pm", "14:30", "at 9") or a part of the day ("evening"), or "in 2 hours". It fills the date-and-time field and repeats the result in words ("Thu 26 Nov, 18:00 your time") before anything is approved; a time that has passed can't be approved; anything it doesn't understand says so and changes nothing. English only for now. Sent to the API as UTC (rule 6). | Should | In Addis Ababa, type "tomorrow 18:00": the field shows it, Approve sends tomorrow 15:00Z. Type "whenever": "Not sure what that means". |
 | FR-15 | The app records, for each draft, whether it was published and how much it was edited, and shows a weekly publish rate. | Should (recording is Must) | Publish two of four drafts; the page shows 50%. |
 
 ---
@@ -378,7 +379,7 @@ Seed values for `platform_profiles`, as of October 2026.
 | 4 — Drafting workflow | FR-6, FR-8, FR-10, FR-11, FR-19, FR-40, FR-46, FR-12 |
 | 5 — Calendar, posting times and reminders | FR-13, FR-16, FR-34, FR-35, FR-42, FR-45, NFR-14, NFR-16 |
 | 6 — SaaS hardening and deploy | FR-30, FR-31, FR-32, FR-38, NFR-1, NFR-3, NFR-4, NFR-10, NFR-11, NFR-17 |
-| 7 — Private beta | FR-14, FR-15, FR-41, FR-48, FR-49, FR-50, FR-51, NFR-19, NFR-20, success metrics |
+| 7 — Private beta | FR-14, FR-15, FR-41, FR-48, FR-49, FR-50, FR-51, FR-52, NFR-19, NFR-20, success metrics |
 | Stretch | FR-14 |
 | After V1 | FR-43 (Telegram bot replies; automatic sends) |
 
@@ -394,6 +395,7 @@ Seed values for `platform_profiles`, as of October 2026.
 | 1.5 | 24 Nov 2026 | The bot posts approved Telegram drafts at their planned time (C-6, FR-36, ADR 0001); CLAUDE.md rule 4 becomes "nothing is posted unless the user approved it, with a time or with Post now". `drafts` gains `bot_failed_at` and `bot_error`. |
 | 1.6 | 24 Nov 2026 | New FR-50: a homepage for logged-out visitors around the guest box (FR-47). |
 | 1.7 | 24 Nov 2026 | New FR-51: the command bar (Ctrl/⌘+K) and Ctrl/⌘+J to the message box. |
+| 1.8 | 24 Nov 2026 | New FR-52: typed times in the approve field. |
 | 1.2 | 17 Oct 2026 | Added FR-40 (chat panel on each draft), FR-41 (inspiration picked by post type), FR-42 (daily check-in reminders), FR-43 (reply to the bot = check-in), FR-44 (excluded hashtags, best-1,000 import cap). New tables `imports`, `draft_messages`, `inspiration_posts`, `reminder_settings`; `source_posts` gains `origin`, `import_id`, `embedding_model`. Decisions behind them: OPEN_QUESTIONS Q2, Q3, Q5, Q24–Q27. |
 | 1.1 | 14 Oct 2026 | Hosting moved to the team's Contabo VPS: always-on worker replaces the external cron; Supabase used for login only; added NFR-17 (backups) and NFR-18 (server hardening). |
 | 1.0 | 13 Oct 2026 | First locked V1. Built from the Pre-Build Plan. Clarified: Telegram is sent by the app at the due time because bots cannot schedule natively (FR-12, FR-35); NFR-6 reworded to "never without explicit approval"; NFR-11 reworded for a hosted app; added NFR-15, NFR-16 and a priority column. |

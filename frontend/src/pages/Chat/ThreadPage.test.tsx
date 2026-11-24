@@ -6,6 +6,7 @@ import { beforeEach, vi } from 'vitest'
 import type { DraftRow, Thread } from '../../api/types'
 import { detail, row } from '../../test/drafts'
 import { calls, routeApi, sent } from '../../test/fakeApi'
+import { dateIn } from '../../lib/time'
 import { ThreadPage } from './ThreadPage'
 
 vi.mock('../../api/client', async (importOriginal) => ({
@@ -275,4 +276,38 @@ test('a post the bot could not send says why, and can still be posted now (ADR 0
     await within(open).findByText(/The bot couldn't post it: Make @VoxlaceBot/),
   ).toBeInTheDocument()
   expect(within(open).getByRole('button', { name: 'Post to Telegram now' })).toBeInTheDocument()
+})
+
+test('a typed time fills the picker, is repeated in words, and goes out as UTC (FR-52)', async () => {
+  renderThread()
+  const open = await screen.findByRole('article', { name: 'X draft, version 2' })
+  await userEvent.click(within(open).getByRole('button', { name: 'Approve' }))
+  await userEvent.type(within(open).getByLabelText('Type it, or pick below'), 'tomorrow 18:00')
+  expect(within(open).getByText(/18:00/)).toBeInTheDocument()
+  expect(within(open).getByText('your time')).toBeInTheDocument()
+  await userEvent.click(within(open).getByRole('button', { name: 'Approve for this time' }))
+  await vi.waitFor(() => expect(sent('POST /drafts/d1/schedule')).toHaveLength(1))
+  const tomorrow = dateIn(new Date(Date.now() + 86_400_000), 'Africa/Addis_Ababa')
+  // 18:00 in Addis Ababa (UTC+3) is 15:00 UTC (rule 6).
+  expect(sent('POST /drafts/d1/schedule')[0]).toMatchObject({ at: `${tomorrow}T15:00:00.000Z` })
+})
+
+test('a typed time it does not understand says so and changes nothing', async () => {
+  renderThread()
+  const open = await screen.findByRole('article', { name: 'X draft, version 2' })
+  await userEvent.click(within(open).getByRole('button', { name: 'Approve' }))
+  await userEvent.type(within(open).getByLabelText('Type it, or pick below'), 'whenever')
+  expect(within(open).getByText(/Not sure what that means/)).toBeInTheDocument()
+})
+
+test('Enter on typed text it cannot read approves nothing (FR-52)', async () => {
+  renderThread()
+  const open = await screen.findByRole('article', { name: 'X draft, version 2' })
+  await userEvent.click(within(open).getByRole('button', { name: 'Approve' }))
+  const box = within(open).getByLabelText('Type it, or pick below')
+  await userEvent.type(box, 'tomorrow')
+  await userEvent.type(box, ' blah{Enter}')
+  expect(within(open).getByText(/Not sure what that means/)).toBeInTheDocument()
+  expect(within(open).getByRole('button', { name: 'Approve for this time' })).toBeDisabled()
+  expect(sent('POST /drafts/d1/schedule')).toHaveLength(0)
 })
