@@ -33,6 +33,7 @@ export function Composer({
   rows = 1,
   id,
   menu = 'above',
+  maxLength,
 }: {
   /** The box's accessible name; render a visible label elsewhere with htmlFor={id}. */
   label?: string
@@ -53,6 +54,8 @@ export function Composer({
   id?: string
   /** Where "/" commands open: below a box near the top of the page, above one at the bottom. */
   menu?: 'above' | 'below'
+  /** The longest text the API accepts, so a long paste stops here instead of failing later. */
+  maxLength?: number
 }) {
   const ownId = useId()
   const boxId = id ?? ownId
@@ -122,6 +125,7 @@ export function Composer({
           aria-label={label}
           value={value}
           rows={rows}
+          maxLength={maxLength}
           role={commands.length ? 'combobox' : undefined}
           aria-expanded={commands.length ? showCommands : undefined}
           aria-controls={showCommands ? listId : undefined}
