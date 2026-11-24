@@ -122,6 +122,8 @@ export function Composer({
       >
         <textarea
           id={boxId}
+          // Ctrl/⌘+J finds the page's message box by this (CommandBar, FR-51).
+          data-composer
           aria-label={label}
           value={value}
           rows={rows}

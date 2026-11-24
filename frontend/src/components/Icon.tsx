@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 /** A small set of line icons drawn for Voxlace (no icon library). 20px, currentColor. */
 const PATHS = {
   home: 'M4 11l8-7 8 7v9h-5v-6H9v6H4z',
+  search: 'M11 4a7 7 0 1 0 0 14 7 7 0 1 0 0-14zM20 20l-4-4',
   calendar: 'M4 6h16v15H4zM4 10h16M9 3v4M15 3v4',
   drafts: 'M7 3h8l4 4v14H7zM15 3v4h4M10 12h6M10 16h6',
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 1 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
