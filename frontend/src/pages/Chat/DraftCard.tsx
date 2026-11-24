@@ -5,8 +5,8 @@ import { usePlatform } from '../../api/platforms'
 import { usePublishDraft, useTelegram } from '../../api/telegram'
 import { useConvertDraft, useScheduleDraft } from '../../api/threads'
 import type { DraftRow, ScheduleResult, ThreadCard } from '../../api/types'
-import { DayChips } from '../../components/DayChips'
 import { Icon } from '../../components/Icon'
+import { WhenPicker } from '../../components/WhenPicker'
 import { LengthCounter } from '../../components/LengthCounter'
 import { PlatformMark } from '../../components/PlatformMark'
 import {
@@ -19,7 +19,7 @@ import {
 import { Tooltip } from '../../components/ui/tooltip'
 import { copyText, handOff, handOffLabel } from '../../lib/handoff'
 import { LABEL, PLATFORMS, RULES, STATUS_LABEL } from '../../lib/platforms'
-import { dateIn, formatShort, formatWhen, localToUtc } from '../../lib/time'
+import { formatShort, formatWhen } from '../../lib/time'
 import { chip, ghost, iconButton, primary, secondary } from '../../lib/ui'
 import { cn } from '../../lib/utils'
 import { Preview } from '../Editor/Preview'
@@ -435,18 +435,20 @@ function Status({
           onClick={onApprove}
           className={primary}
         >
-          Approve and pick a day
+          Approve
         </button>
         {over && <span className="ml-3 text-sm text-danger">Cut it to fit before approving.</span>}
         {mode === 'approve' && (
-          <div className="mt-3">
-            <DayChips timeZone={zone} busy={busy} onPick={(day) => onPick(day)} />
-            <BotWillPost draft={draft} />
-            <button type="button" onClick={onCancel} className={cn(ghost, 'mt-2')}>
-              Cancel
-            </button>
-          </div>
+          <WhenPicker
+            id={draft.id}
+            zone={zone}
+            busy={busy}
+            submit="Approve for this time"
+            onPick={onPick}
+            onCancel={onCancel}
+          />
         )}
+        {mode === 'approve' && <BotWillPost draft={draft} />}
       </div>
     )
 
@@ -523,10 +525,9 @@ function Approved({
         ) : (
           <p>
             <span className="font-semibold">
-              {viaBot ? `The bot posts it to ${bot?.channel?.title}` : 'On your calendar'}
+              {viaBot ? `Posts to ${bot?.channel?.title}` : 'Planned for'}
             </span>{' '}
-            {formatWhen(draft.scheduled_for, zone)} your time
-            {picked && <span className="block text-muted">{picked.reason}</span>}
+            {formatWhen(draft.scheduled_for, zone)}
           </p>
         ))
       )}
@@ -571,69 +572,22 @@ function Approved({
           Change time
         </button>
       </div>
-      {viaBot && bot?.channel && !publish.error && (
-        <p className="mt-2 text-muted">Or post it to {bot.channel.title} now, without waiting.</p>
-      )}
       {publish.error && (
         <p role="alert" className="mt-2 text-danger">
           {publish.error.message}
         </p>
       )}
       {mode === 'time' && (
-        <ChangeTime draft={draft} zone={zone} busy={busy} onPick={onPick} onCancel={onCancel} />
-      )}
-    </div>
-  )
-}
-
-/** Another day (the hour is picked again) or an exact time on the current day. */
-function ChangeTime({
-  draft,
-  zone,
-  busy,
-  onPick,
-  onCancel,
-}: {
-  draft: DraftRow
-  zone?: string
-  busy: boolean
-  onPick: (day: string, at?: string) => void
-  onCancel: () => void
-}) {
-  const day = draft.scheduled_for ? dateIn(draft.scheduled_for, zone) : dateIn(new Date(), zone)
-  const [time, setTime] = useState('')
-  return (
-    <div className="mt-3">
-      <DayChips
-        timeZone={zone}
-        busy={busy}
-        label="Move it to which day?"
-        onPick={(d) => onPick(d)}
-      />
-      <form
-        className="mt-3 flex flex-wrap items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault()
-          if (time) onPick(day, localToUtc(day, time, zone))
-        }}
-      >
-        <label htmlFor={`time-${draft.id}`} className="text-sm text-muted">
-          Or a time that day ({day})
-        </label>
-        <input
-          id={`time-${draft.id}`}
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          className="min-h-10 rounded-control border border-edge bg-surface px-2 text-sm"
+        <WhenPicker
+          id={draft.id}
+          zone={zone}
+          busy={busy}
+          initial={draft.scheduled_for}
+          submit="Save time"
+          onPick={onPick}
+          onCancel={onCancel}
         />
-        <button type="submit" disabled={busy || !time} className={secondary}>
-          Use this time
-        </button>
-        <button type="button" onClick={onCancel} className={ghost}>
-          Cancel
-        </button>
-      </form>
+      )}
     </div>
   )
 }
@@ -643,8 +597,6 @@ function BotWillPost({ draft }: { draft: DraftRow }) {
   const channel = useTelegram().data?.channel
   if (draft.platform !== 'telegram' || !channel?.can_post) return null
   return (
-    <p className="mt-2 text-sm text-muted">
-      The bot posts it to {channel.title} at that time by itself. You can still post it sooner.
-    </p>
+    <p className="mt-2 text-sm text-muted">The bot posts it to {channel.title} at that time.</p>
   )
 }

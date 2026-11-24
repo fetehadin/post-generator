@@ -7,7 +7,7 @@ import { usePlatform } from '../../api/platforms'
 import { useDeleteDraft, useScheduleDraft } from '../../api/threads'
 import type { DraftRow, DraftStatus, Platform } from '../../api/types'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { DayChips } from '../../components/DayChips'
+import { WhenPicker } from '../../components/WhenPicker'
 import { LengthCounter } from '../../components/LengthCounter'
 import { PlatformMark } from '../../components/PlatformMark'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
@@ -36,7 +36,7 @@ const pct = (n: number) => `${Math.round(n * 100)}%`
 
 /**
  * One platform's drafts by status (DESIGN.md §4.2, FR-10, FR-11, FR-12). Each card: status,
- * the first lines, the length or the time, then its actions: Approve or Reschedule (pick a
+ * the first lines, the length or the time, then its actions: Approve or Change time (pick a
  * day; the hour is picked for you), Copy now on approved posts only (rule 4), Discard with
  * Undo, and Edit in chat. Discarded has Restore and Delete forever.
  */
@@ -299,19 +299,22 @@ function DraftItem({ draft, onDiscarded }: { draft: DraftRow; onDiscarded: () =>
                 aria-describedby={over ? lengthId : undefined}
                 className={draft.status === 'draft' ? primary : button}
               >
-                {draft.status === 'draft' ? 'Approve and pick a day' : 'Reschedule'}
+                {draft.status === 'draft' ? 'Approve' : 'Change time'}
               </PopoverTrigger>
               <PopoverContent align="start" className="w-80">
-                <DayChips
-                  timeZone={zone}
+                <WhenPicker
+                  id={draft.id}
+                  zone={zone}
                   busy={schedule.isPending}
-                  label={draft.status === 'draft' ? 'Which day?' : 'Move it to which day?'}
-                  onPick={(day) =>
+                  initial={draft.scheduled_for}
+                  submit={draft.status === 'draft' ? 'Approve for this time' : 'Save time'}
+                  onPick={(day, at) =>
                     schedule.mutate(
-                      { draftId: draft.id, day },
+                      { draftId: draft.id, day, at },
                       { onSuccess: () => setDayOpen(false) },
                     )
                   }
+                  onCancel={() => setDayOpen(false)}
                 />
                 {schedule.error && (
                   <p role="alert" className="mt-2 text-sm text-danger">

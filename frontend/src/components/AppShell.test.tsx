@@ -113,7 +113,7 @@ test('when a post is due, the bell opens the notifications with copy-and-open', 
   expect(within(panel).getByText('LinkedIn post due now')).toBeInTheDocument()
   expect(within(panel).getByRole('button', { name: 'Copy and open LinkedIn' })).toBeInTheDocument()
   expect(within(panel).getByRole('heading', { name: 'Missed' })).toBeInTheDocument()
-  expect(within(panel).getByRole('button', { name: 'Reschedule' })).toBeInTheDocument()
+  expect(within(panel).getByRole('button', { name: 'Change time' })).toBeInTheDocument()
 })
 
 test('no bell when nothing is due', async () => {
