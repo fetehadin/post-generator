@@ -215,7 +215,10 @@ test('the check-in that opens a chat can be edited there (FR-6)', async () => {
 })
 
 test('with the bot connected, an approved Telegram draft is posted on one click (FR-36)', async () => {
-  thread = makeThread([row({ id: 'd1', platform: 'telegram', status: 'approved' })])
+  const tomorrow = new Date(Date.now() + 24 * 3600_000).toISOString()
+  thread = makeThread([
+    row({ id: 'd1', platform: 'telegram', status: 'approved', scheduled_for: tomorrow }),
+  ])
   routeApi({
     'GET /threads/:id': () => thread,
     'GET /me': () => ({ id: 'u1', email: 'fete@example.com' }),
@@ -232,7 +235,38 @@ test('with the bot connected, an approved Telegram draft is posted on one click 
   })
   renderThread()
   const open = await screen.findByRole('article', { name: 'Telegram draft, version 2' })
-  expect(await within(open).findByText('Posts to FeteScript when you tap it.')).toBeInTheDocument()
+  expect(await within(open).findByText(/The bot posts it to FeteScript/)).toBeInTheDocument()
+  expect(within(open).getByText(/post it to FeteScript now, without waiting/)).toBeInTheDocument()
   await userEvent.click(within(open).getByRole('button', { name: 'Post to Telegram now' }))
   await vi.waitFor(() => expect(calls()).toContain('POST /drafts/d1/publish'))
+})
+
+test('a post the bot could not send says why, and can still be posted now (ADR 0001)', async () => {
+  thread = makeThread([
+    row({
+      id: 'd1',
+      platform: 'telegram',
+      status: 'approved',
+      bot_error: 'Make @VoxlaceBot an admin with “Post messages” again.',
+    }),
+  ])
+  routeApi({
+    'GET /threads/:id': () => thread,
+    'GET /me': () => ({ id: 'u1', email: 'fete@example.com' }),
+    'GET /platforms/telegram': () => ({ channel: null }),
+    'GET /telegram': () => ({
+      enabled: true,
+      bot_username: 'VoxlaceBot',
+      linked: true,
+      tg_username: 'fete',
+      channel: { title: 'FeteScript', username: 'fetescript', can_post: true },
+      connect_url: null,
+    }),
+  })
+  renderThread()
+  const open = await screen.findByRole('article', { name: 'Telegram draft, version 2' })
+  expect(
+    await within(open).findByText(/The bot couldn't post it: Make @VoxlaceBot/),
+  ).toBeInTheDocument()
+  expect(within(open).getByRole('button', { name: 'Post to Telegram now' })).toBeInTheDocument()
 })

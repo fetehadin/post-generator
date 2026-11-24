@@ -1,5 +1,6 @@
 """What needs the user's attention right now (FR-35, FR-42): posts that are due, posts whose
-time passed without "Posted", and today's check-in reminder.
+time passed without "Posted" (or that the Telegram bot couldn't send), and today's check-in
+reminder. Telegram drafts for a channel the bot posts to are never due: the bot sends them.
 
 Nothing here is sent anywhere. The app asks every minute and the answer is worked out from
 the database at that moment, so there's no job to schedule and nothing to send twice.
@@ -11,8 +12,9 @@ from datetime import UTC, datetime, time, timedelta
 
 from sqlalchemy import select
 
+from app.core.config import get_settings
 from app.core.db import user_session
-from app.models import Checkin, ReminderSettings
+from app.models import Checkin, ReminderSettings, TelegramChannel
 from app.services import library
 from app.services.clock import local_now
 
@@ -39,11 +41,34 @@ DEFAULT_REMINDER = Reminder(False, [0, 1, 2, 3, 4], time(18, 0))
 
 def notifications(user_id: uuid.UUID, now: datetime | None = None) -> Notifications:
     now = now or datetime.now(UTC)
-    due = library.list_drafts(
-        user_id, "approved", scheduled_from=now - MISSED_AFTER, scheduled_to=now + DUE_EARLY
-    )
+    bot = _bot_posts_for(user_id)
+    due = [
+        r
+        for r in library.list_drafts(
+            user_id, "approved", scheduled_from=now - MISSED_AFTER, scheduled_to=now + DUE_EARLY
+        )
+        # The bot posts these by itself (ADR 0001): nothing for the user to hand off.
+        if not (bot and r.draft.platform == "telegram") and r.draft.bot_failed_at is None
+    ]
     missed = library.list_drafts(user_id, "approved", scheduled_to=now - MISSED_AFTER)
+    # A post the bot couldn't send is missed at once, with its reason (bot_error).
+    failed = [
+        r
+        for r in library.list_drafts(user_id, "approved", scheduled_from=now - MISSED_AFTER)
+        if r.draft.bot_failed_at is not None
+    ]
+    seen = {r.draft.id for r in missed}
+    missed += [r for r in failed if r.draft.id not in seen]
     return Notifications(due, missed, _checkin_reminder(user_id, now))
+
+
+def _bot_posts_for(user_id: uuid.UUID) -> bool:
+    """The user's Telegram channel is connected and the bot may post there."""
+    if not get_settings().telegram_enabled:
+        return False
+    with user_session(user_id) as s:
+        channel = s.get(TelegramChannel, user_id)
+        return bool(channel and channel.can_post)
 
 
 def _checkin_reminder(user_id: uuid.UUID, now: datetime) -> bool:
