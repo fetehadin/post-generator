@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { usePatchAnyDraft } from '../api/drafts'
 import { usePlatform } from '../api/platforms'
+import { usePublishDraft, useTelegram } from '../api/telegram'
 import type { DraftRow } from '../api/types'
 import { copyText, handOff, handOffLabel } from './handoff'
 
@@ -16,11 +17,19 @@ const NO_CHANNEL =
  *
  * - `post()` hands it off. Not approved: `failed` says so and nothing opens. A refused copy
  *   is `failed` too, but still asks: the user can copy by hand and post.
+ * - With the Telegram bot connected and allowed to post (FR-36, ADR 0001), a Telegram draft's
+ *   `post()` is "Post to Telegram now": the bot sends it on this click and the API marks it
+ *   Posted, so nothing is copied and nobody is asked. Without the bot (or without the right
+ *   to post), it stays "Copy and open Telegram".
  * - `copy()` copies the text only, without asking.
  * - `note` is plain news ("Copied."); `failed` is an error; `error` is the Posted request's.
  */
 export function useHandOff(draft: DraftRow) {
-  const channel = usePlatform('telegram', draft.platform === 'telegram').data?.channel
+  const telegram = draft.platform === 'telegram'
+  const channel = usePlatform('telegram', telegram).data?.channel
+  const bot = useTelegram(false, telegram).data?.channel
+  const viaBot = telegram && Boolean(bot?.can_post)
+  const publish = usePublishDraft()
   const patch = usePatchAnyDraft()
   const [asked, setAsked] = useState(false)
   const [note, setNote] = useState('')
@@ -29,6 +38,16 @@ export function useHandOff(draft: DraftRow) {
   async function post() {
     setNote('')
     setFailed('')
+    if (viaBot) {
+      if (publish.isPending) return
+      try {
+        await publish.mutateAsync(draft.id)
+        setNote(`Posted to ${bot?.title}.`)
+      } catch (e) {
+        setFailed((e as Error).message)
+      }
+      return
+    }
     let copied: boolean | null
     try {
       ;({ copied } = await handOff(draft, channel))
@@ -49,7 +68,12 @@ export function useHandOff(draft: DraftRow) {
   }
 
   return {
-    label: handOffLabel(draft.platform, channel),
+    label: viaBot ? 'Post to Telegram now' : handOffLabel(draft.platform, channel),
+    /** The bot posts this one (Telegram, connected, allowed to post). */
+    viaBot,
+    /** The connected channel's name, when the bot posts it. */
+    botChannel: viaBot ? bot?.title : undefined,
+    posting: publish.isPending,
     post,
     copy,
     asked,

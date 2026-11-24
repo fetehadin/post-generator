@@ -144,7 +144,7 @@ Wireframes show layout and hierarchy, not final styling.
 
 - The sidebar's Drafts opens to X · LinkedIn · Telegram; each opens `/drafts/:platform`.
 - Status tabs: Drafts · Approved · Posted · Discarded.
-- Each card: first lines, status, scheduled time. Icons along the bottom: **Reschedule** (pick a day; the hour is picked for you), **Copy now** on approved posts only (copies the text and opens X / LinkedIn / your Telegram channel, then asks "Did you post it?" → Posted; a draft shows Approve in its place), **Discard** (moves it to Discarded with Undo; the same verb as the chat's ⋯ menu, §8; Discarded has Restore and "Delete forever"). **Edit** opens the thread.
+- Each card: first lines, status, scheduled time. Icons along the bottom: **Reschedule** (pick a day; the hour is picked for you), **Copy now** on approved posts only (copies the text and opens X / LinkedIn / your Telegram channel, then asks "Did you post it?" → Posted; a draft shows Approve in its place); with the Telegram bot connected and allowed to post, a Telegram draft shows **Post to Telegram now** instead, here, in the chat, on the calendar and in the bell: the bot sends it and it's Posted, nothing to ask (FR-36, 24 Nov 2026), **Discard** (moves it to Discarded with Undo; the same verb as the chat's ⋯ menu, §8; Discarded has Restore and "Delete forever"). **Edit** opens the thread.
 
 ### 4.3 Calendar
 

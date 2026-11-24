@@ -184,10 +184,11 @@ function ItemDetails({
             {state !== 'planned' && (
               <button
                 type="button"
+                disabled={hand.posting}
                 onClick={() => void hand.post()}
                 className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
               >
-                {hand.label}
+                {hand.posting ? 'Posting…' : hand.label}
               </button>
             )}
             <Link to={`/drafts/${draft.id}`} className={cn(quiet, 'inline-flex items-center')}>
