@@ -28,7 +28,7 @@ Read the relevant doc before changing behaviour. Don't contradict it; if the cod
 | AI | Gemini via `google-genai`: `gemini-embedding-2` at 768 dims; Gemini Flash for text; Groq (over `httpx`) as the generation fallback |
 | Frontend | React + Vite + TypeScript, React Router, TanStack Query, Tailwind CSS, FullCalendar |
 | Auth | Supabase Auth for login only (JWT); all data lives in our own Postgres |
-| Publishing | X web intent, LinkedIn copy + open composer, Telegram copy + open channel, or the Telegram bot posting an approved draft when the user taps "Post to Telegram now" (SRS 1.4, FR-36) |
+| Publishing | X web intent, LinkedIn copy + open composer, Telegram copy + open channel, or the Telegram bot posting an approved draft at its planned time or on "Post to Telegram now" (SRS 1.5, FR-36, ADR 0001) |
 | Hosting | One Contabo VPS: Docker Compose with Caddy, api, db, behind the server's shared Caddy |
 | Quality | Ruff, pytest, Vitest, Prettier, GitHub Actions |
 
@@ -67,7 +67,7 @@ Run the checks for every part you touched before saying a task is done.
 3. **Two embedding spaces, never mixed** (decided 19 Nov 2026). Every vector column says which model made it, and a query is only compared with vectors from the same model. Never fall back to another embedding model; queue and retry instead.
    - **Users' own posts:** `gemini-embedding-2`, 768 dimensions. Stored posts use `title: none | text: <post>`, queries use `task: search result | query: <text>`. One content object per post: a plain list returns one merged vector.
    - **The shared inspiration pool and the originality check:** the local model in `LOCAL_EMBEDDING_MODEL` (fastembed, CPU, free; default `intfloat/multilingual-e5-small`, 384 dimensions, `passage: ` / `query: ` prefixes). Changing it means `python -m app.dev backfill-inspiration` re-embeds the pool.
-4. **Never publish without approval.** Nothing is handed off to any platform unless the draft's status is `approved` by the user. V1 never posts by itself.
+4. **Never post without approval.** Nothing is posted or handed off unless the user approved the draft, with a time or with Post now. At an approved Telegram draft's time, the bot posts it to the user's connected channel (ADR 0001); X and LinkedIn become due for a hand-off.
 5. **No passwords, no scraping.** Never ask for social platform passwords. Only the user's own exports and official tokens.
 6. **Times are UTC** in the database and API. Convert to the user's time zone only in the UI.
 7. **Schema changes only through Alembic migrations.** Never edit the database by hand or change an applied migration.
@@ -124,4 +124,4 @@ Run the checks for every part you touched before saying a task is done.
 - X length is weighted (twitter-text v3): URLs count 23; a whole emoji (with skin tone, joiners or a flag pair) counts 2; characters outside U+0000–U+10FF and a few punctuation ranges count 2, which includes **Amharic (Ethiopic)** and CJK. Never use plain `len()`. Both counters must pass `samples/x_counter_cases.json`.
 - pgvector: start without a vector index (exact search). Query shape is `ORDER BY embedding <=> :q LIMIT :n`.
 - Gemini free tier returns 429 under load. Back off and retry; keep the user's input.
-- The Telegram bot (SRS 1.4) posts only on the user's click. Automatic sends at the scheduled time come after V1: bots can't use Telegram's native scheduled messages, so a worker must send at the due time. The webhook is checked by its secret header; never log the bot token (it is in Telegram's API URL).
+- The Telegram bot posts approved drafts at their planned time (SRS 1.5, ADR 0001) through the API's background sender: bots can't use Telegram's native scheduled messages. Each draft is locked with `SKIP LOCKED` and marked Posted in the same transaction, so it is never sent twice; more than 30 minutes late, it is missed instead. The webhook is checked by its secret header; never log the bot token (it is in Telegram's API URL).

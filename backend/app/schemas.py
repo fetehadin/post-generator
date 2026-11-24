@@ -366,6 +366,10 @@ class DraftRowOut(BaseModel):
     created_at: datetime
     updated_at: datetime = Field(description="When the current version was made")
     thread_id: uuid.UUID | None = None
+    bot_error: str | None = Field(
+        default=None,
+        description="Why the Telegram bot couldn't post it at its time (it's then missed)",
+    )
 
 
 class DraftsOut(BaseModel):
