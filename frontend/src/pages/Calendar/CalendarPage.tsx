@@ -237,9 +237,7 @@ export function CalendarPage() {
           <h2 id="due-now" className="text-sm font-semibold text-signal">
             Due now
           </h2>
-          <p className="mt-1 text-sm text-muted">
-            Post these, then press Posted. Voxlace never posts for you.
-          </p>
+          <p className="mt-1 text-sm text-muted">Post these yourself, then press Posted.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {due.map((d) => (
               <CalendarItem key={d.id} draft={d} state="due" patch={patch} />
