@@ -18,9 +18,10 @@ export type TelegramStatus = {
 const KEY = ['telegram']
 
 /** While waiting for the user to finish in Telegram, check every few seconds. */
-export function useTelegram(waiting = false) {
+export function useTelegram(waiting = false, enabled = true) {
   return useQuery({
     queryKey: KEY,
+    enabled,
     queryFn: () => api<TelegramStatus>('/telegram'),
     refetchInterval: waiting ? 3000 : false,
   })

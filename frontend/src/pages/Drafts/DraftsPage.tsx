@@ -284,12 +284,12 @@ function DraftItem({ draft, onDiscarded }: { draft: DraftRow; onDiscarded: () =>
           {draft.status === 'approved' && (
             <button
               type="button"
-              disabled={over}
+              disabled={over || hand.posting}
               aria-describedby={over ? lengthId : undefined}
               onClick={() => void hand.post()}
               className={primary}
             >
-              {hand.label}
+              {hand.posting ? 'Posting…' : hand.label}
             </button>
           )}
           {draft.status === 'discarded' && (
