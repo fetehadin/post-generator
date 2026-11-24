@@ -6,6 +6,58 @@ A running log so either of us can catch up: what was done, where, the result, an
 
 ---
 
+## 2026-11-24: UI/UX polish pass from the refinement brief (#84–#92)
+
+**Result: 9 PRs open, none merged yet.** All eight branches merge cleanly together; on the combined code the frontend has 39 test files, 252 tests passing, plus typecheck, lint and build. Merge in this order (later ones contain earlier ones): **#84**, **#85 → #89 → #90**, **#86 → #87 → #88**, **#91**, **#92**.
+
+| PR | What | Requirement |
+|---|---|---|
+| #84 | Calendar and Telegram text say what the bot does now; 24-hour times everywhere | FR-13, FR-36 |
+| #85 | A homepage around the guest box: promise, role chips with an example, how it works, where it posts, free to start, FAQ | FR-50 (new), FR-47 |
+| #86 | The chat asks "Did you post it?" after a hand-off, like every other screen | FR-12 |
+| #87 | With the bot connected and allowed to post, Telegram drafts show Post to Telegram now on every screen | FR-36 |
+| #88 | LinkedIn mark visible on a selected chip; one line per failure reason; voice questions folded | FR-11, FR-33 |
+| #89 | Command bar on Ctrl/⌘+K; Ctrl/⌘+J to the message box | FR-51 (new) |
+| #90 | Type a time ("wed 2pm", "tomorrow 18:00", "in 2 hours"), repeated in words before approving | FR-52 (new) |
+| #91 | Time zone in city words, "free key" wording, no empty gap in the key form | FR-33, FR-48 |
+| #92 | Touch targets: fold-out headers and standalone links reach 44px; this report | NFR (WCAG 2.5.8) |
+
+**Counts, before → after** (measured with the mock API and the live homepage):
+
+| Measure | Before | After |
+|---|---|---|
+| Homepage: says what Voxlace is and who it's for | no | yes, in the first screen at 360px |
+| Actions from landing to a first draft (guest) | 2 (type, Enter) | 2 |
+| Questions before a first draft (new account) | 0 | 0; the two optional ones now fold behind one button |
+| Filled primary buttons on a guest draft card | 1 per card + header | 0 per card (secondary); Start free in the header |
+| Screens with sideways scroll at 360px | 0 | 0 |
+| Controls under 44px on touch (excluding hidden skip link and checkboxes) | 7 | 0 |
+| Text that said Voxlace never posts (wrong since #81) | 2 places | 0 |
+| Clock styles on the calendar | 2 (AM/PM and 24-hour) | 1 (24-hour) |
+
+**What we borrowed, from where:**
+- **Typefully:** the command bar (Ctrl/⌘+K, Ctrl/⌘+J) and scheduling by typing plain phrases.
+- **Notion AI:** idea starters where the cursor is, now per role on the homepage.
+- **ChatGPT Canvas / Claude Artifacts:** the chat beside a draft panel (already in #78); the homepage reuses that composer as its live demo.
+- **Land-book (hero sections):** one promise, one sub-line, one main button, a real product demo instead of a mockup.
+- **NN/g progressive disclosure:** the voice questions fold behind "Answer two questions"; advanced key options stay folded.
+- **Buffer (as the counter-example):** no feature grid on the homepage; three steps and a short FAQ.
+
+**What was hidden or removed (nothing a user relied on was deleted):**
+- Hidden: the two voice questions under a first draft (one tap opens them).
+- Removed: the guest page's own older composer (replaced by the app's `Composer`); its second filled button per draft card; repeated failure lines for each platform with the same reason; the always-on empty status space in the key form.
+
+**Brief items left out on purpose:**
+- **Testimonials:** none until there's real beta feedback.
+- **Amharic on the homepage:** not mentioned until it's checked end to end.
+- **New packages** (`cmdk`, `chrono-node`, ai-loading-ux, Playwright MCP): not needed; we built small versions and used our own screenshot script.
+
+**Still open:**
+- Typed times are English only (FR-52).
+- Check on a real account after merge: Post to Telegram now from the calendar and the bell (#87), and Ctrl+J in a chat (#89).
+
+---
+
 ## 2026-11-20: Six AI providers, inspiration for structure, GitHub drafts, the logo (#67–#73)
 
 **Result: all merged and live.** Each deploy passed its health check.

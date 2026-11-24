@@ -165,6 +165,11 @@ samp {
   a[data-button] {
     min-height: 44px;
   }
+  /* Fold-out headers ("Advanced", "Other providers"): padding keeps their marker in line. */
+  summary {
+    min-height: 44px;
+    padding-block: 10px;
+  }
   button.grid:not([data-compact]) {
     min-width: 44px;
   }
