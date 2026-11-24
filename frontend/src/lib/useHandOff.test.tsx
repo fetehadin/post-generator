@@ -5,7 +5,7 @@ import { beforeEach, vi } from 'vitest'
 import type { DraftRow } from '../api/types'
 import { HandOffPrompt } from '../components/HandOffPrompt'
 import { row } from '../test/drafts'
-import { routeApi, sent } from '../test/fakeApi'
+import { calls, routeApi, sent } from '../test/fakeApi'
 import { useHandOff } from './useHandOff'
 
 vi.mock('../api/client', async (importOriginal) => ({
@@ -14,15 +14,19 @@ vi.mock('../api/client', async (importOriginal) => ({
 }))
 
 let channel: string | null = null
+let bot: { title: string; username: string | null; can_post: boolean } | null = null
 const writeText = vi.fn()
 
 beforeEach(() => {
   channel = null
+  bot = null
   writeText.mockReset().mockResolvedValue(undefined)
   Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
   vi.spyOn(window, 'open').mockImplementation(() => null)
   routeApi({
     'GET /platforms/telegram': () => ({ channel }),
+    'GET /telegram': () => ({ enabled: true, linked: Boolean(bot), channel: bot }),
+    'POST /drafts/:id/publish': () => row({ status: 'published', platform: 'telegram' }),
     'PATCH /drafts/:id': (body) => ({ ...row({ status: 'approved' }), ...(body as object) }),
   })
 })
@@ -125,4 +129,23 @@ test('Copy text copies only, without asking', async () => {
   expect(await screen.findByText('Copied.')).toBeInTheDocument()
   expect(window.open).not.toHaveBeenCalled()
   expect(screen.queryByText('Did you post it?')).not.toBeInTheDocument()
+})
+
+test('Telegram with the bot connected: Post to Telegram now, nothing copied, nothing asked (FR-36)', async () => {
+  bot = { title: 'Fete builds', username: 'fetebuilds', can_post: true }
+  renderWith(row({ status: 'approved', platform: 'telegram', text: 'Shipped it' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Post to Telegram now' }))
+  await vi.waitFor(() => expect(calls()).toContain('POST /drafts/d1/publish'))
+  expect(await screen.findByText('Posted to Fete builds.')).toBeInTheDocument()
+  expect(writeText).not.toHaveBeenCalled()
+  expect(window.open).not.toHaveBeenCalled()
+  expect(screen.queryByText('Did you post it?')).not.toBeInTheDocument()
+})
+
+test('Telegram with the bot but no right to post: still copy and open', async () => {
+  bot = { title: 'Fete builds', username: 'fetebuilds', can_post: false }
+  channel = 'fetebuilds'
+  renderWith(row({ status: 'approved', platform: 'telegram', text: 'Shipped it' }))
+  expect(await screen.findByRole('button', { name: /Copy and open/ })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Post to Telegram now' })).not.toBeInTheDocument()
 })

@@ -32,7 +32,9 @@ const renderCard = () =>
 
 test('one tap saves what you do; it is optional and never asked twice', async () => {
   renderCard()
-  await userEvent.click(await screen.findByRole('button', { name: 'Teacher' }))
+  expect(screen.queryByRole('button', { name: 'Teacher' })).not.toBeInTheDocument()
+  await userEvent.click(await screen.findByRole('button', { name: 'Answer two questions' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Teacher' }))
   expect(sent('PUT /profile')).toEqual([{ discipline: 'teacher', role: 'Teacher' }])
   await userEvent.click(screen.getByRole('button', { name: 'Teach what I know' }))
   expect(sent('PUT /profile').at(-1)).toEqual({ main_goal: 'teach' })
