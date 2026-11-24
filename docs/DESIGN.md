@@ -61,6 +61,7 @@ On mobile, Chat · Drafts · Calendar · Profile become a bottom tab bar.
 | **Chat board** (home, `/` and `/chat/:id`) | "What did you do today?" → Save or Generate → pick platforms → a draft card per platform in the thread → talk to it until it's right → Approve → pick a day → it's on the calendar | FR-6, FR-7, FR-8, FR-10, FR-40, FR-45, FR-46 |
 | **Drafts** (`/drafts/:platform`) | One platform's drafts by status; each card has Reschedule, Discard and, once approved, Copy now; Edit opens its thread | FR-10, FR-11, FR-12 |
 | **Calendar** | Month, week and day views; drag to reschedule; Edit opens the thread | FR-13, FR-16 |
+| **Homepage** (logged out, `/`) | What Voxlace is, then the guest box as a live demo; see §4.6 | FR-47, FR-50 |
 | **Profile** (avatar) | Everything about you, all editable: about you, work and facts, resume and portfolio, audience per platform (profession and places), when you can post, voice and posts per platform, reminders, Telegram channel name, usage, export and delete | FR-1, FR-5, FR-17, FR-18, FR-20–FR-26, FR-30, FR-33, FR-38, FR-42 |
 
 There's no separate editor page any more: a draft is edited in its thread. `/drafts/:id` opens the thread with that card in focus, so every draft keeps a shareable URL.
@@ -163,6 +164,37 @@ Tabs: **About you** (role, experience, discipline, your time zone, language), **
 ### 4.5 First run
 
 **Changed 21 Nov 2026 (product owner): one question, then a draft.** After sign-up (and the invite and privacy steps), a new account lands on "What did you do today?" with "One line is enough. You'll get a draft to edit in seconds." Editing beats a blank page, so nothing is asked first. Under the first drafts, an optional card asks two one-tap questions (what you do, why you post) and offers "Import your past posts"; "Not now" hides it for a week, and accounts that already have a role never see it. The old four-step setup still opens at `/welcome` but nothing sends anyone there. Everything else waits in Profile.
+
+### 4.6 Homepage (logged out)
+
+**Added 24 Nov 2026 (FR-50).** A logged-out visitor at `/` gets one page that answers, in order: what Voxlace does, who it is for, what to do next. The guest box is the live demo, so a first draft is two actions away (type, Enter).
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ voxlace                                Log in [Start free] │
+│                                                            │
+│ Posts for X, LinkedIn and Telegram,                        │
+│ written in your own voice.                                 │
+│ Say what you did today. Get a draft for each platform…    │
+│ I'm a: (Developer) (Designer) (Teacher) (Founder) (…)      │
+│ ╭ What did you do today? ───────────────────────────────╮ │
+│ │ (X) (LinkedIn) (Telegram)                         (↑) │ │
+│ ╰────────────────────────────────────────────────────────╯ │
+│ starters for the chosen role · No account needed…          │
+│ ┌ Example · X ──────────────────┐   (until a real draft)   │
+│ How it works 1·2·3 · Where it posts · Free to start · FAQ │
+│ footer                                                     │
+└──────────────────────────────────────────────────────────┘
+```
+
+- **One primary action per view:** Start free in the header; the box's send button is the page's other filled control. Every other link is secondary.
+- **Role chips** change the starter chips and the example draft only; they don't save anything. The example card says "Example" and disappears once the visitor has real drafts.
+- The box is the same `Composer` as the app (pill, platform chips inside, round send button).
+- Under the box, one quiet line: no account needed, nothing saved, and guest drafts use a general style until you import your posts (so the promise isn't oversold).
+- Writing shows the app's writing card per platform with **Stop** (§7); the guest daily limit is a quiet note with "create a free account", never a red error.
+- The header isn't sticky, so it never covers a focused control (WCAG 2.4.11).
+- **Honest by rule:** no testimonials until there's real beta feedback; Amharic is named only once it's checked end to end; every FAQ answer must match what the app does today.
+- No jargon above the fold ("your voice", never "RAG" or "embeddings"); one column (`--column`), the same tokens as the app, no gradients, no card grid for decoration.
 
 ---
 
