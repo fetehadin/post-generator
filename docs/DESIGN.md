@@ -61,6 +61,7 @@ On mobile, Chat · Drafts · Calendar · Profile become a bottom tab bar.
 | **Chat board** (home, `/` and `/chat/:id`) | "What did you do today?" → Save or Generate → pick platforms → a draft card per platform in the thread → talk to it until it's right → Approve → pick a day → it's on the calendar | FR-6, FR-7, FR-8, FR-10, FR-40, FR-45, FR-46 |
 | **Drafts** (`/drafts/:platform`) | One platform's drafts by status; each card has Reschedule, Discard and, once approved, Copy now; Edit opens its thread | FR-10, FR-11, FR-12 |
 | **Calendar** | Month, week and day views; drag to reschedule; Edit opens the thread | FR-13, FR-16 |
+| **Homepage** (logged out, `/`) | What Voxlace is, then the guest box as a live demo; see §4.6 | FR-47, FR-50 |
 | **Profile** (avatar) | Everything about you, all editable: about you, work and facts, resume and portfolio, audience per platform (profession and places), when you can post, voice and posts per platform, reminders, Telegram channel name, usage, export and delete | FR-1, FR-5, FR-17, FR-18, FR-20–FR-26, FR-30, FR-33, FR-38, FR-42 |
 
 There's no separate editor page any more: a draft is edited in its thread. `/drafts/:id` opens the thread with that card in focus, so every draft keeps a shareable URL.
@@ -135,7 +136,7 @@ Wireframes show layout and hierarchy, not final styling.
 - **Cards are the drafts.** A card shows the platform, version, the draft text, the length counter and "AI draft". Click a card to reply to it: the box shows **Replying to: X draft**. With one draft in the thread, replies go to it.
 - **Every reply that changes the text is a new full card** (v2, v3…), like ChatGPT's answers. Older cards stay above, folded to their first line. A question from the assistant appears as a plain message.
 - **Quick changes** (Shorter, Punchier, More casual, Add a hook) sit above the box when a card is selected. Selecting a sentence in a card scopes the next change to it.
-- **Card actions:** Approve; Copy and open (approved cards only: nothing is handed off before Approve, CLAUDE.md rule 4), or, with the Telegram bot connected, **Post to Telegram now**: Approve opens one date-and-time field ("Approve for this time"; Change time uses the same field, no day chips or reasons), approving says "The bot posts it to <channel> at that time.", the approved card reads "Posts to <channel> Tue 18:00", and a send the bot couldn't make reads "The bot couldn't post it: <reason>" (FR-36, ADR 0001, 24 Nov 2026). Connect it in Profile → Connections → Telegram: Connect Telegram (opens the bot with a one-time link), then "Add @VoxlaceBot to your channel" (Telegram's channel picker with the rights filled in); the page updates by itself, and "Didn't work? Add the bot as an admin by hand" is always shown; ⋯ → Make an X / LinkedIn / Telegram version (a new card, FR-40), Edit by hand, Discard.
+- **Card actions:** Approve; Copy and open (approved cards only: nothing is handed off before Approve, CLAUDE.md rule 4), or, with the Telegram bot connected, **Post to Telegram now**: Approve opens one date-and-time field, with a box above it that also takes a typed time ("wed 2pm", "tomorrow 18:00", "in 2 hours") and repeats it in words before approving (FR-52) ("Approve for this time"; Change time uses the same field, no day chips or reasons), approving says "The bot posts it to <channel> at that time.", the approved card reads "Posts to <channel> Tue 18:00", and a send the bot couldn't make reads "The bot couldn't post it: <reason>" (FR-36, ADR 0001, 24 Nov 2026). Connect it in Profile → Connections → Telegram: Connect Telegram (opens the bot with a one-time link), then "Add @VoxlaceBot to your channel" (Telegram's channel picker with the rights filled in); the page updates by itself, and "Didn't work? Add the bot as an admin by hand" is always shown; ⋯ → Make an X / LinkedIn / Telegram version (a new card, FR-40), Edit by hand, Discard.
 - **Approve** asks in place: "Which day?" (the next seven days as chips, plus a date). The app answers with the hour it picked and why: "Tue 18:00 · 70% of your audience (Addis Ababa) is off work · Telegram's evening peak" with **Change time**. Then the card shows "Approved · on your calendar".
 - An empty thread shows starter ideas under the box.
 
@@ -143,7 +144,7 @@ Wireframes show layout and hierarchy, not final styling.
 
 - The sidebar's Drafts opens to X · LinkedIn · Telegram; each opens `/drafts/:platform`.
 - Status tabs: Drafts · Approved · Posted · Discarded.
-- Each card: first lines, status, scheduled time. Icons along the bottom: **Reschedule** (pick a day; the hour is picked for you), **Copy now** on approved posts only (copies the text and opens X / LinkedIn / your Telegram channel, then asks "Did you post it?" → Posted; a draft shows Approve in its place), **Discard** (moves it to Discarded with Undo; the same verb as the chat's ⋯ menu, §8; Discarded has Restore and "Delete forever"). **Edit** opens the thread.
+- Each card: first lines, status, scheduled time. Icons along the bottom: **Reschedule** (pick a day; the hour is picked for you), **Copy now** on approved posts only (copies the text and opens X / LinkedIn / your Telegram channel, then asks "Did you post it?" → Posted; a draft shows Approve in its place); with the Telegram bot connected and allowed to post, a Telegram draft shows **Post to Telegram now** instead, here, in the chat, on the calendar and in the bell: the bot sends it and it's Posted, nothing to ask (FR-36, 24 Nov 2026), **Discard** (moves it to Discarded with Undo; the same verb as the chat's ⋯ menu, §8; Discarded has Restore and "Delete forever"). **Edit** opens the thread.
 
 ### 4.3 Calendar
 
@@ -163,6 +164,37 @@ Tabs: **About you** (role, experience, discipline, your time zone, language), **
 ### 4.5 First run
 
 **Changed 21 Nov 2026 (product owner): one question, then a draft.** After sign-up (and the invite and privacy steps), a new account lands on "What did you do today?" with "One line is enough. You'll get a draft to edit in seconds." Editing beats a blank page, so nothing is asked first. Under the first drafts, an optional card asks two one-tap questions (what you do, why you post) and offers "Import your past posts"; "Not now" hides it for a week, and accounts that already have a role never see it. The old four-step setup still opens at `/welcome` but nothing sends anyone there. Everything else waits in Profile.
+
+### 4.6 Homepage (logged out)
+
+**Added 24 Nov 2026 (FR-50).** A logged-out visitor at `/` gets one page that answers, in order: what Voxlace does, who it is for, what to do next. The guest box is the live demo, so a first draft is two actions away (type, Enter).
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ voxlace                                Log in [Start free] │
+│                                                            │
+│ Posts for X, LinkedIn and Telegram,                        │
+│ written in your own voice.                                 │
+│ Say what you did today. Get a draft for each platform…    │
+│ I'm a: (Developer) (Designer) (Teacher) (Founder) (…)      │
+│ ╭ What did you do today? ───────────────────────────────╮ │
+│ │ (X) (LinkedIn) (Telegram)                         (↑) │ │
+│ ╰────────────────────────────────────────────────────────╯ │
+│ starters for the chosen role · No account needed…          │
+│ ┌ Example · X ──────────────────┐   (until a real draft)   │
+│ How it works 1·2·3 · Where it posts · Free to start · FAQ │
+│ footer                                                     │
+└──────────────────────────────────────────────────────────┘
+```
+
+- **One primary action per view:** Start free in the header; the box's send button is the page's other filled control. Every other link is secondary.
+- **Role chips** change the starter chips and the example draft only; they don't save anything. The example card says "Example" and disappears once the visitor has real drafts.
+- The box is the same `Composer` as the app (pill, platform chips inside, round send button).
+- Under the box, one quiet line: no account needed, nothing saved, and guest drafts use a general style until you import your posts (so the promise isn't oversold).
+- Writing shows the app's writing card per platform with **Stop** (§7), with one difference: a guest's late answer after Stop is dropped, because nothing is saved for guests to show later; the guest daily limit is a quiet note with "create a free account", never a red error.
+- The header isn't sticky, so it never covers a focused control (WCAG 2.4.11).
+- **Honest by rule:** no testimonials until there's real beta feedback; Amharic is named only once it's checked end to end; every FAQ answer must match what the app does today.
+- No jargon above the fold ("your voice", never "RAG" or "embeddings"); one column (`--column`), the same tokens as the app, no gradients, no card grid for decoration.
 
 ---
 
@@ -296,6 +328,7 @@ Product components to build on top:
 | `CalendarItem` | A planned post | Drag + "Move to…" menu, status, platform |
 | `EmptyState` | First-use guidance | One sentence + one action |
 | `Toast` | Confirm results | Same verb as the action ("Published to Telegram") |
+| `CommandBar` | Go anywhere from the keyboard (FR-51) | ⌘/Ctrl+K or the search button; all typed words must match; arrows + Enter; never approves or posts |
 
 ---
 
@@ -303,7 +336,7 @@ Product components to build on top:
 
 | Situation | What the user sees |
 |---|---|
-| Generating | A placeholder in the draft card's frame appears at once and names the step ("Reading your check-in", "Finding examples in your posts", "Writing your X draft", "Checking the length and the facts"), with **Stop**. The API returns the whole draft, so the text then arrives with a short word-by-word reveal (off under reduced motion). Screen readers hear each step once and "Draft ready" when done (`aria-live="polite"`). Stop cancels the wait; if the server finishes anyway, the draft appears. |
+| Generating | A placeholder in the draft card's frame appears at once and names the step ("Reading your check-in", "Finding examples to follow", "Writing your X draft", "Checking the length and the facts"), with **Stop**. The API returns the whole draft, so the text then arrives with a short word-by-word reveal (off under reduced motion). Screen readers hear each step once and "Draft ready" when done (`aria-live="polite"`). Stop cancels the wait; if the server finishes anyway, the draft appears. |
 | Slow response | After 3 seconds the placeholder adds "Still working…"; after 20 seconds (NFR-3) offer **Cancel** and **Try again**. Never a blank screen. |
 | Rate-limited (429) | "The AI is busy right now. Your text is saved. Try again in a minute." with **Try again**. |
 | AI unavailable (503) | "Drafts are unavailable right now. Your check-in is saved." with Try again, the free-key offer, and **Copy your check-in** so the user can still post by hand today. |
@@ -344,7 +377,7 @@ Also:
 - Visible focus ring in `--thread` on every interactive element.
 - Status is never color alone: add text or an icon (counter, badges, calendar).
 - Respect `prefers-reduced-motion` and `prefers-color-scheme`.
-- Keyboard: `⌘/Ctrl+Enter` sends the composer or revise box, `Esc` closes panels. Avoid single-letter shortcuts (WCAG 2.1.4); show shortcuts in tooltips.
+- Keyboard: `⌘/Ctrl+K` opens the command bar (go to any place, Profile tab or recent chat; FR-51), `⌘/Ctrl+J` jumps to the page's message box, `⌘/Ctrl+Enter` sends the composer or revise box, `Esc` closes panels. Avoid single-letter shortcuts (WCAG 2.1.4); show shortcuts in tooltips.
 - Every form field has a visible label; errors are linked to their field.
 
 ---

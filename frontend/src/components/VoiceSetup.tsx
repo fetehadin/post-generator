@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { useProfile, useSaveProfile } from '../api/profile'
 import { MAIN_GOALS, type MainGoal } from '../lib/profession'
 import { snooze, snoozed } from '../lib/storage'
-import { chip, chipOn, ghost } from '../lib/ui'
+import { chip, chipOn, ghost, secondary } from '../lib/ui'
 import { cn } from '../lib/utils'
 import { Icon } from './Icon'
 
@@ -13,7 +13,8 @@ const PROFESSIONS = ['developer', 'designer', 'teacher', 'marketer', 'founder', 
 /**
  * First run, after the first draft (FR-17, FR-33; DESIGN.md §4.5, changed 21 Nov 2026): two
  * optional questions as one-tap chips, never a gate. Shown to accounts that haven't said what
- * they do yet; "Not now" hides it for a week. Everything else waits in Profile.
+ * they do yet; "Not now" hides it for a week. Everything else waits in Profile. The questions
+ * stay folded behind "Answer two questions" until the user opens them (progressive disclosure).
  */
 export function VoiceSetup() {
   const profile = useProfile()
@@ -21,6 +22,8 @@ export function VoiceSetup() {
   const [hidden, setHidden] = useState(() => snoozed(SNOOZE))
   const [job, setJob] = useState('')
   const [goal, setGoal] = useState<MainGoal>('')
+  // Folded until asked for, so it never pushes the draft off a phone screen.
+  const [open, setOpen] = useState(false)
 
   // Asked only once: someone who already has a role never sees it.
   if (hidden || !profile.data || (profile.data.role.trim() && !job)) return null
@@ -39,46 +42,59 @@ export function VoiceSetup() {
         <p className="mt-1 text-muted">Optional. Two taps; change it any time in Profile.</p>
       )}
 
-      <p className="mt-4 font-semibold">What do you do?</p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {PROFESSIONS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            aria-pressed={job === p}
-            disabled={save.isPending}
-            onClick={() => {
-              setJob(p)
-              save.mutate({ discipline: p, role: p[0].toUpperCase() + p.slice(1) })
-            }}
-            className={cn(chip, job === p && chipOn)}
-          >
-            {p[0].toUpperCase() + p.slice(1)}
-          </button>
-        ))}
-        <Link to="/profile" className={cn(chip, 'text-muted')} data-button>
-          Something else…
-        </Link>
-      </div>
+      {!open ? (
+        <button
+          type="button"
+          aria-expanded={false}
+          onClick={() => setOpen(true)}
+          className={cn(secondary, 'mt-3')}
+        >
+          Answer two questions
+        </button>
+      ) : (
+        <>
+          <p className="mt-4 font-semibold">What do you do?</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {PROFESSIONS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                aria-pressed={job === p}
+                disabled={save.isPending}
+                onClick={() => {
+                  setJob(p)
+                  save.mutate({ discipline: p, role: p[0].toUpperCase() + p.slice(1) })
+                }}
+                className={cn(chip, job === p && chipOn)}
+              >
+                {p[0].toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+            <Link to="/profile" className={cn(chip, 'text-muted')} data-button>
+              Something else…
+            </Link>
+          </div>
 
-      <p className="mt-4 font-semibold">Why do you post?</p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {MAIN_GOALS.filter(([v]) => v).map(([v, label]) => (
-          <button
-            key={v}
-            type="button"
-            aria-pressed={goal === v}
-            disabled={save.isPending}
-            onClick={() => {
-              setGoal(v)
-              save.mutate({ main_goal: v })
-            }}
-            className={cn(chip, goal === v && chipOn)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+          <p className="mt-4 font-semibold">Why do you post?</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {MAIN_GOALS.filter(([v]) => v).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={goal === v}
+                disabled={save.isPending}
+                onClick={() => {
+                  setGoal(v)
+                  save.mutate({ main_goal: v })
+                }}
+                className={cn(chip, goal === v && chipOn)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {save.isError && (
         <p role="alert" className="mt-3 text-danger">

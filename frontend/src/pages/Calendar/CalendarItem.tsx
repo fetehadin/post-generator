@@ -11,7 +11,11 @@ import { fromLocalInput, toLocalInput } from '../../lib/time'
 import { HandOffPrompt } from '../../components/HandOffPrompt'
 import { useHandOff } from '../../lib/useHandOff'
 
-const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+const timeFormat = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
 
 export type ItemState = 'planned' | 'due' | 'missed'
 
@@ -180,10 +184,11 @@ function ItemDetails({
             {state !== 'planned' && (
               <button
                 type="button"
+                disabled={hand.posting}
                 onClick={() => void hand.post()}
                 className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
               >
-                {hand.label}
+                {hand.posting ? 'Posting…' : hand.label}
               </button>
             )}
             <Link to={`/drafts/${draft.id}`} className={cn(quiet, 'inline-flex items-center')}>
