@@ -4,6 +4,7 @@ import { activeKey, useAIKeys } from '../../api/aiKeys'
 import { useDeleteCheckin, usePatchCheckin } from '../../api/checkins'
 import { useReviseAnyDraft } from '../../api/drafts'
 import { useGenerateInThread, useThread } from '../../api/threads'
+import { joinNames, sameReason } from '../../lib/failures'
 import type {
   DraftRow,
   GenerateFailure,
@@ -464,12 +465,20 @@ function DraftPanel({
       {writer.failures.length > 0 && !writing.length && (
         // One card level: the free-key offer is the only box here.
         <div className="flex flex-col gap-3">
-          {writer.failures.map((f) => (
-            <p key={f.platform} role="alert" className="flex items-start gap-2 text-sm">
-              <PlatformMark platform={f.platform} />
+          {sameReason(writer.failures).map(({ platforms, code, message }) => (
+            <p
+              key={platforms.join()}
+              role={code === 'daily_limit' ? 'status' : 'alert'}
+              className="flex items-start gap-2 text-sm"
+            >
+              <span className="flex flex-none gap-1">
+                {platforms.map((p) => (
+                  <PlatformMark key={p} platform={p} />
+                ))}
+              </span>
               {/* The daily limit is not an error, so it isn't red. */}
-              <span className={f.code === 'daily_limit' ? 'text-muted' : 'text-danger'}>
-                {LABEL[f.platform]}: {f.message}
+              <span className={code === 'daily_limit' ? 'text-muted' : 'text-danger'}>
+                {joinNames(platforms.map((p) => LABEL[p]))}: {message}
               </span>
             </p>
           ))}
