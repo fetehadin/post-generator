@@ -3,18 +3,19 @@ import { Link, useSearchParams } from 'react-router'
 import { useDraftStats } from '../../api/account'
 import { useDrafts, usePatchAnyDraft } from '../../api/drafts'
 import { useZone } from '../../api/me'
-import { usePlatform } from '../../api/platforms'
 import { useDeleteDraft, useScheduleDraft } from '../../api/threads'
 import type { DraftRow, DraftStatus, Platform } from '../../api/types'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { HandOffPrompt } from '../../components/HandOffPrompt'
 import { WhenPicker } from '../../components/WhenPicker'
 import { LengthCounter } from '../../components/LengthCounter'
 import { PlatformMark } from '../../components/PlatformMark'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
-import { handOff, handOffLabel } from '../../lib/handoff'
+import { isMissed } from '../../lib/calendar'
 import { LABEL, RULES, STATUS_LABEL } from '../../lib/platforms'
 import { dateIn, formatShort, formatWhen } from '../../lib/time'
+import { useHandOff } from '../../lib/useHandOff'
 import { cn } from '../../lib/utils'
 
 const TABS: Array<{ status: DraftStatus; label: string; empty: string }> = [
@@ -193,39 +194,18 @@ function UndoBar({ draft, onDone }: { draft: DraftRow; onDone: () => void }) {
 
 function DraftItem({ draft, onDiscarded }: { draft: DraftRow; onDiscarded: () => void }) {
   const zone = useZone()
-  const channel = usePlatform('telegram', draft.platform === 'telegram').data?.channel
+  const hand = useHandOff(draft)
   const patch = usePatchAnyDraft()
   const schedule = useScheduleDraft()
   const remove = useDeleteDraft()
   const [dayOpen, setDayOpen] = useState(false)
-  const [asked, setAsked] = useState(false)
-  const [note, setNote] = useState('')
-  const [failed, setFailed] = useState('')
   const lengthId = useId()
   const name = LABEL[draft.platform]
   const lines = draft.text.split('\n').filter((l) => l.trim())
   const when = draft.scheduled_for
   const live = draft.status === 'draft' || draft.status === 'approved'
-  const missed = draft.status === 'approved' && when && Date.parse(when) < Date.now() - 30 * 60_000
+  const missed = draft.status === 'approved' && when && isMissed(when, new Date())
   const over = draft.length.over
-
-  async function copyNow() {
-    setFailed('')
-    try {
-      const { copied } = await handOff(draft, channel)
-      if (copied === false) setFailed("Couldn't copy: open the draft and copy it by hand.")
-      setNote(
-        draft.platform === 'telegram' && !channel
-          ? 'Copied. Open your channel in Telegram and paste it.'
-          : copied
-            ? 'Copied.'
-            : '',
-      )
-      setAsked(true)
-    } catch (e) {
-      setFailed((e as Error).message)
-    }
-  }
 
   return (
     <article
@@ -265,31 +245,8 @@ function DraftItem({ draft, onDiscarded }: { draft: DraftRow; onDiscarded: () =>
         </span>
       </div>
 
-      {asked ? (
-        <div aria-live="polite" className="mt-3 text-sm">
-          {note && <p>{note}</p>}
-          <p className="mt-1">Did you post it?</p>
-          <div className="mt-1 flex gap-2">
-            <button
-              type="button"
-              disabled={patch.isPending}
-              onClick={() => patch.mutate({ id: draft.id, status: 'published' })}
-              className={primary}
-            >
-              Yes, mark as posted
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAsked(false)
-                setNote('')
-              }}
-              className={button}
-            >
-              Not yet
-            </button>
-          </div>
-        </div>
+      {hand.asked ? (
+        <HandOffPrompt hand={hand} className="mt-3" />
       ) : (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {live && (
@@ -329,10 +286,10 @@ function DraftItem({ draft, onDiscarded }: { draft: DraftRow; onDiscarded: () =>
               type="button"
               disabled={over}
               aria-describedby={over ? lengthId : undefined}
-              onClick={() => void copyNow()}
+              onClick={() => void hand.post()}
               className={primary}
             >
-              {handOffLabel(draft.platform, channel)}
+              {hand.label}
             </button>
           )}
           {draft.status === 'discarded' && (
@@ -378,9 +335,9 @@ function DraftItem({ draft, onDiscarded }: { draft: DraftRow; onDiscarded: () =>
           </Link>
         </div>
       )}
-      {(failed || patch.error) && (
+      {((!hand.asked && hand.failed) || patch.error) && (
         <p role="alert" className="mt-2 text-sm text-danger">
-          {failed || patch.error?.message}
+          {(!hand.asked && hand.failed) || patch.error?.message}
         </p>
       )}
     </article>

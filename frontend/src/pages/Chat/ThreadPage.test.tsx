@@ -165,7 +165,12 @@ test('nothing is handed off before approval; approve asks for one date and time 
   await userEvent.click(within(open).getByRole('button', { name: 'Approve for this time' }))
   await vi.waitFor(() => expect(sent('POST /drafts/d1/schedule')).toHaveLength(1))
   expect(sent('POST /drafts/d1/schedule')[0]).toMatchObject({ at: expect.stringMatching(/Z$/) })
-  expect(await within(open).findByRole('button', { name: 'Open in X' })).toBeInTheDocument()
+  const tab = vi.spyOn(window, 'open').mockReturnValue(null)
+  await userEvent.click(await within(open).findByRole('button', { name: 'Open in X' }))
+  expect(tab).toHaveBeenCalledOnce()
+  // The chat doesn't ask "Did you post it?" yet (a follow-up adds it).
+  expect(within(open).queryByText('Did you post it?')).not.toBeInTheDocument()
+  tab.mockRestore()
 })
 
 test('arriving from the new-chat box writes straight away and reports a platform that failed', async () => {
