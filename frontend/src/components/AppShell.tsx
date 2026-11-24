@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useMe, useNotifications, useSetTimezone } from '../api/me'
 import { useThreads } from '../api/threads'
@@ -11,7 +11,8 @@ import { needsAction, NotificationsPanel } from './NotificationsPanel'
 import { PlatformMark } from './PlatformMark'
 import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from './ui/sheet'
 import { LogoMark, Wordmark } from './Logo'
-import { Tooltip } from './ui/tooltip'
+import { Kbd, Tooltip } from './ui/tooltip'
+import { CommandBar, MOD, useCommandShortcuts } from './CommandBar'
 
 const THEME_ICON: Record<Theme, IconName> = { light: 'sun', dark: 'moon' }
 const NEXT: Record<Theme, Theme> = { light: 'dark', dark: 'light' }
@@ -33,17 +34,42 @@ export function AppShell() {
   const notifications = useNotifications().data
   const count = needsAction(notifications)
   useSendTimezoneOnce(me.data?.id, me.data?.timezone)
+  const [goOpen, setGoOpen] = useState(false)
+  useCommandShortcuts(useCallback(() => setGoOpen((o) => !o), []))
 
   const current: Theme =
     theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
   const name = (me.data?.email ?? '').split('@')[0] || 'You'
   const themeLabel = `Theme: ${current}. Switch to ${NEXT[current]}`
 
-  function switchTheme() {
-    const next = nextTheme(theme)
-    applyTheme(next)
-    setTheme(next)
-  }
+  const switchTheme = useCallback(() => {
+    setTheme((t) => {
+      const next = nextTheme(t)
+      applyTheme(next)
+      return next
+    })
+  }, [])
+
+  const goButton = (
+    <Tooltip
+      content={
+        <>
+          Go to anything <Kbd>{MOD}</Kbd>
+          <Kbd>K</Kbd>
+        </>
+      }
+    >
+      <button
+        type="button"
+        onClick={() => setGoOpen(true)}
+        aria-label="Go to anything"
+        aria-keyshortcuts="Control+K Meta+K"
+        className="grid size-9 place-items-center rounded-control text-muted hover:bg-sunken hover:text-ink"
+      >
+        <Icon name="search" />
+      </button>
+    </Tooltip>
+  )
 
   function toggleCollapsed() {
     setCollapsed((c) => {
@@ -92,6 +118,7 @@ export function AppShell() {
             </span>
             <div className={cn('flex items-center gap-1', collapsed && 'flex-col')}>
               {count > 0 && <Bell count={count} />}
+              {goButton}
               {themeButton}
             </div>
           </div>
@@ -152,6 +179,7 @@ export function AppShell() {
         <Wordmark className="h-5 w-auto text-ink" />
         <div className="flex items-center gap-1">
           {count > 0 && <Bell count={count} />}
+          {goButton}
           {themeButton}
         </div>
       </header>
@@ -165,6 +193,7 @@ export function AppShell() {
       </main>
 
       <MobileTabs />
+      <CommandBar open={goOpen} onOpenChange={setGoOpen} onSwitchTheme={switchTheme} />
     </div>
   )
 }

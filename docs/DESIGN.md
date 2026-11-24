@@ -328,6 +328,7 @@ Product components to build on top:
 | `CalendarItem` | A planned post | Drag + "Move to…" menu, status, platform |
 | `EmptyState` | First-use guidance | One sentence + one action |
 | `Toast` | Confirm results | Same verb as the action ("Published to Telegram") |
+| `CommandBar` | Go anywhere from the keyboard (FR-51) | ⌘/Ctrl+K or the search button; all typed words must match; arrows + Enter; never approves or posts |
 
 ---
 
@@ -376,7 +377,7 @@ Also:
 - Visible focus ring in `--thread` on every interactive element.
 - Status is never color alone: add text or an icon (counter, badges, calendar).
 - Respect `prefers-reduced-motion` and `prefers-color-scheme`.
-- Keyboard: `⌘/Ctrl+Enter` sends the composer or revise box, `Esc` closes panels. Avoid single-letter shortcuts (WCAG 2.1.4); show shortcuts in tooltips.
+- Keyboard: `⌘/Ctrl+K` opens the command bar (go to any place, Profile tab or recent chat; FR-51), `⌘/Ctrl+J` jumps to the page's message box, `⌘/Ctrl+Enter` sends the composer or revise box, `Esc` closes panels. Avoid single-letter shortcuts (WCAG 2.1.4); show shortcuts in tooltips.
 - Every form field has a visible label; errors are linked to their field.
 
 ---
