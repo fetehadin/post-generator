@@ -557,7 +557,7 @@ Optional; off on a server without `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` (`
 
 ## Telegram bot (FR-36, in V1 since 23 Nov 2026)
 
-Optional: off until `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` and `TELEGRAM_WEBHOOK_SECRET` are set. The bot posts only when the user taps "Post to Telegram now" on an approved draft (rule 4); it never posts by itself.
+Optional: off until `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` and `TELEGRAM_WEBHOOK_SECRET` are set. The bot posts an approved draft at its planned time (a background sender, every `TELEGRAM_SEND_SECONDS`, at most 30 minutes late; ADR 0001), or at once on "Post to Telegram now". A draft the bot couldn't send keeps the reason in `bot_error` (every draft row has it, `null` normally) and shows in `GET /me/notifications` `missed` straight away; a new time clears it. Telegram drafts for a channel the bot posts to never appear in `due`.
 
 | Method and path | Body | Answer |
 |---|---|---|

@@ -92,7 +92,8 @@ ruff check . --fix && ruff format .
 
 - Optional: off until `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` are set. Bot API calls live in `services/telegram_api.py` (httpx); tests pass a fake. The token is in Telegram's URL, so it never goes into an error or a log line.
 - Linking: a one-time token (SHA-256 stored, 15 minutes) in `t.me/<bot>?start=<token>`; the webhook pairs it with the sender's Telegram id. Connecting: Telegram's `my_chat_member` update when the user makes the bot a channel admin; matched to the account by the adder's Telegram id. The webhook finds users through `user_for_telegram_token/user/chat()` (ids only), then works as that user under RLS.
-- `post_draft` locks the draft row, sends, then marks it Posted in the same transaction: a double click never posts twice. Only on the user's click (rule 4); no automatic sends in V1.
+- `_send` is shared by Post now (`post_draft`) and the background sender (`send_due`, every `TELEGRAM_SEND_SECONDS`, default 60): it locks the draft row, sends, then marks it Posted in the same transaction, so nothing is posted twice (ADR 0001).
+- `send_due` finds work through `telegram_drafts_due(max_late)` (ids only): approved Telegram drafts whose time came at most 30 minutes ago, not refused before, for a channel with the post right. Rows are locked `SKIP LOCKED` so two API processes never send the same draft. A refusal is stored on the draft (`bot_failed_at`, `bot_error` in plain words) and not retried; it shows as missed. Telegram being down is retried next pass. A new time or status clears the refusal.
 
 ## Importers
 
@@ -104,10 +105,10 @@ ruff check . --fix && ruff format .
 
 ## Background work (`app/services/background.py`)
 
-- No separate worker in V1 (SRS 1.3). The API starts one daemon thread at startup (`lifespan` in `main.py`) that every `settings.embedding_retry_seconds` (default 300; 0 = off) embeds posts still waiting.
+- No separate worker in V1 (SRS 1.3). The API starts small daemon threads at startup (`lifespan` in `main.py`). The first, every `settings.embedding_retry_seconds` (default 300; 0 = off), embeds posts still waiting.
 - It finds waiting users through the narrow database function `users_waiting_for_embeddings()` (ids only), then works as each user under RLS. A Postgres advisory lock per user (`embed_in_background`) keeps two API processes from embedding the same user at once (NFR-14).
 - Reminders, due and missed posts are worked out when the app asks (`GET /me/notifications`); nothing is sent, so there is nothing to double-send.
-- Automatic Telegram sends at the scheduled time come after V1 (FR-43). When they do: `FOR UPDATE SKIP LOCKED`, set `published_at` in the same transaction, never double-send.
+- The Telegram sender (`start_telegram_loop`, ADR 0001) is the one background job that posts anything: `FOR UPDATE SKIP LOCKED`, `published_at` set in the same transaction, never double-send. Only for drafts the user approved with a time.
 
 ## Tests
 

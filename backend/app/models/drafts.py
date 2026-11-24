@@ -96,6 +96,9 @@ class Draft(CreatedAt, Base):
     status: Mapped[str] = mapped_column(String(16), server_default="draft")
     scheduled_for: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The Telegram bot couldn't post it at its time (ADR 0001): not retried, shown as missed.
+    bot_failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    bot_error: Mapped[str | None] = mapped_column(String(300))
     checkin_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("checkins.id", ondelete="SET NULL")
     )

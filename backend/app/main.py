@@ -30,7 +30,7 @@ from app.api import (
 )
 from app.core import errors
 from app.core.config import get_settings
-from app.services.background import start_github_loop, start_retry_loop
+from app.services.background import start_github_loop, start_retry_loop, start_telegram_loop
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     interval = cfg.embedding_retry_seconds
     stop = start_retry_loop(interval) if interval > 0 else None
     github_stop = start_github_loop() if cfg.github_enabled and cfg.app_env != "test" else None
+    telegram_stop = (
+        start_telegram_loop(cfg.telegram_send_seconds)
+        if cfg.telegram_enabled and cfg.telegram_send_seconds and cfg.app_env != "test"
+        else None
+    )
     if cfg.local_embedding_preload and cfg.app_env != "test":
         # Load the local model once, in the background: requests can start at once, and the
         # first one that needs it waits only until it's ready (FR-41).
@@ -53,6 +58,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         stop.set()
     if github_stop is not None:
         github_stop.set()
+    if telegram_stop is not None:
+        telegram_stop.set()
 
 
 def _warm_local_model() -> None:

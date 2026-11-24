@@ -2,9 +2,11 @@
 approved draft on the user's click only. Telegram itself is a fake; nothing leaves the test."""
 
 import pytest
+from sqlalchemy import text as sql
 
 from app.api.telegram import get_telegram
 from app.core.config import get_settings
+from app.services import telegram as telegram_service
 from app.services.telegram_api import TelegramError
 
 API = "/api/v1"
@@ -200,3 +202,115 @@ def test_one_user_never_sees_or_posts_to_anothers_channel(api, bot, make_user):
     assert api.get(f"{API}/telegram").json()["channel"] is None
     did = _approved_telegram_draft(api)
     assert api.post(f"{API}/drafts/{did}/publish").json()["error"]["code"] == "no_channel"
+
+
+# ---- the bot posts at the planned time (ADR 0001) -----------------------------------------
+
+
+def _plan(owner_engine, draft_id: str, minutes_from_now: int) -> None:
+    """Put an approved draft's time in the past or future, as the clock would."""
+    with owner_engine.begin() as conn:
+        conn.execute(
+            sql(
+                "UPDATE drafts SET scheduled_for = now() + make_interval(mins => :m) WHERE id = :i"
+            ),
+            {"m": minutes_from_now, "i": draft_id},
+        )
+
+
+def _connected(api) -> None:
+    _start(api, _link(api))
+    _added(api)
+
+
+def _channel_sends(bot, chat_id: int = -100777) -> list:
+    return [s for s in bot.sent if s[0] == chat_id]
+
+
+def test_the_bot_posts_at_the_planned_time_exactly_once(api, bot, owner_engine):
+    _connected(api)
+    did = _approved_telegram_draft(api)
+    _plan(owner_engine, did, -1)
+    assert telegram_service.send_due(bot) == 1
+    assert telegram_service.send_due(bot) == 0  # a second pass finds nothing
+    assert len(_channel_sends(bot)) == 1
+    assert api.get(f"{API}/drafts/{did}").json()["status"] == "published"
+
+
+def test_not_before_its_time_and_not_hours_late(api, bot, owner_engine):
+    _connected(api)
+    soon = _approved_telegram_draft(api)
+    _plan(owner_engine, soon, 5)
+    late = _approved_telegram_draft(api)
+    _plan(owner_engine, late, -45)  # the server was down: missed, not sent at the wrong hour
+    assert telegram_service.send_due(bot) == 0
+    assert _channel_sends(bot) == []
+    missed = [d["id"] for d in api.get(f"{API}/me/notifications").json()["missed"]]
+    assert late in missed
+
+
+def test_a_refused_post_is_missed_with_its_reason_and_not_retried(api, bot, owner_engine):
+    _connected(api)
+    did = _approved_telegram_draft(api)
+    _plan(owner_engine, did, -1)
+    bot.fail = TelegramError(403, "Forbidden: bot was kicked from the channel chat")
+    assert telegram_service.send_due(bot) == 0
+    assert telegram_service.send_due(bot) == 0
+    missed = api.get(f"{API}/me/notifications").json()["missed"]
+    assert [d["id"] for d in missed] == [did]
+    assert "FeteScript" in missed[0]["bot_error"]
+    assert "Forbidden" not in missed[0]["bot_error"]
+
+
+def test_telegram_being_down_is_tried_again_next_pass(api, bot, owner_engine):
+    _connected(api)
+    did = _approved_telegram_draft(api)
+    _plan(owner_engine, did, -1)
+    bot.fail = TelegramError(0, "Telegram can't be reached")
+    assert telegram_service.send_due(bot) == 0
+    bot.fail = None
+    assert telegram_service.send_due(bot) == 1
+
+
+def test_a_new_time_clears_a_refusal(api, bot, owner_engine):
+    _connected(api)
+    did = _approved_telegram_draft(api)
+    _plan(owner_engine, did, -1)
+    bot.fail = TelegramError(403, "Forbidden")
+    telegram_service.send_due(bot)
+    bot.fail = None
+    api.post(f"{API}/drafts/{did}/schedule", json={"day": "2099-01-01"})
+    assert api.get(f"{API}/drafts/{did}").json()["bot_error"] is None
+
+
+def test_bot_drafts_are_never_due_but_hand_offs_still_are(api, bot, owner_engine):
+    did = _approved_telegram_draft(api)
+    _plan(owner_engine, did, 2)
+    due = [d["id"] for d in api.get(f"{API}/me/notifications").json()["due"]]
+    assert did in due  # no channel yet: the user hands it off
+    _connected(api)
+    due = [d["id"] for d in api.get(f"{API}/me/notifications").json()["due"]]
+    assert did not in due  # the bot will post it
+
+
+def test_drafts_that_are_not_approved_are_never_sent(api, bot, owner_engine):
+    _connected(api)
+    did = api.post(f"{API}/drafts/generate", json={"platform": "telegram", "topic": "t"}).json()[
+        "id"
+    ]
+    _plan(owner_engine, did, -1)
+    assert telegram_service.send_due(bot) == 0
+
+
+def test_each_users_drafts_go_only_to_their_own_channel(api, bot, owner_engine, make_user):
+    _connected(api)
+    mine = _approved_telegram_draft(api)
+    _plan(owner_engine, mine, -1)
+    api.state["user"] = make_user()
+    _start(api, _link(api), tg_id=602)
+    _added(api, tg_id=602, chat_id=-100888)
+    theirs = _approved_telegram_draft(api)
+    _plan(owner_engine, theirs, -1)
+    assert telegram_service.send_due(bot) == 2
+    assert len(_channel_sends(bot, -100777)) == 1
+    assert len(_channel_sends(bot, -100888)) == 1

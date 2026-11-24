@@ -6,7 +6,8 @@
 2. The bot answers with a button that opens Telegram's channel picker with the admin rights
    already ticked. When the user confirms, Telegram sends a `my_chat_member` update; the
    channel is connected to whoever added the bot, matched by their Telegram id.
-3. "Post to Telegram now" on an approved draft sends it (rule 4: only on the user's click).
+3. An approved draft goes out at its planned time through the background sender, or at once
+   with "Post now" (ADR 0001: approving with a time is the user's consent).
 
 The webhook has no logged-in user: it finds one through three id-only database functions,
 then works as that user under RLS. Never logs tokens or post text.
@@ -19,7 +20,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, text
+from sqlalchemy import delete, select, text
 
 from app.core.config import get_settings
 from app.core.db import get_engine, user_session
@@ -266,52 +267,102 @@ def _on_member_change(change: dict, api: TelegramAPI) -> None:
 # ---- posting -------------------------------------------------------------------------------
 
 
+MAX_LATE = timedelta(minutes=30)  # later than this, a planned post is missed, not sent
+
+
+def _send(s, user_id: uuid.UUID, d: Draft, current: library.DraftDetail, api: TelegramAPI) -> None:
+    """Send a locked, approved Telegram draft to the user's channel and mark it Posted, in the
+    caller's transaction. Raises DraftError with a plain reason when it can't."""
+    if d.platform != "telegram":
+        raise DraftError("not_telegram", "Only Telegram drafts can be posted by the bot.")
+    if d.status == "published":
+        raise DraftError("already_published", "This post is already published.", 409)
+    if d.status != "approved":
+        raise DraftError("not_approved", "Approve the draft before posting it.", 409)
+    if current.length.over:
+        over = current.length.count - current.length.limit
+        raise DraftError("over_limit", f"Cut {over} characters before posting.", 409)
+    bot = f"@{get_settings().telegram_bot_username}"
+    channel = s.get(TelegramChannel, user_id)
+    if channel is None:
+        raise DraftError(
+            "no_channel", "Connect your Telegram channel first: Profile → Connections.", 409
+        )
+    if not channel.can_post:
+        raise DraftError(
+            "cannot_post",
+            f"Voxlace can't post in {channel.title}. Turn on “Post messages” for {bot} in the "
+            "channel's admin settings.",
+            409,
+        )
+    try:
+        api.send_message(channel.chat_id, current.text)
+    except TelegramError as e:
+        if e.code == 0:
+            raise DraftError(
+                "telegram_unavailable",
+                "Telegram can't be reached right now. Your draft is still approved; try again "
+                "in a minute.",
+                503,
+            ) from None
+        raise DraftError(
+            "telegram_refused",
+            f"Telegram didn't let Voxlace post in {channel.title}. Make {bot} an admin with "
+            "“Post messages” again (Profile → Connections).",
+            409,
+        ) from None
+    d.bot_failed_at = d.bot_error = None
+    library.mark_published(s, user_id, d, current)
+
+
 def post_draft(user_id: uuid.UUID, draft_id: uuid.UUID, api: TelegramAPI) -> library.DraftDetail:
-    """Post an approved Telegram draft to the connected channel, then mark it Posted. The row is
-    locked while sending, so a double click can never post twice (rule 4: the user's click)."""
+    """Post now: an approved Telegram draft goes to the connected channel at once, then it is
+    Posted. The row is locked while sending, so a double click can never post twice."""
     current = library.detail(user_id, draft_id)  # 404 first
     with user_session(user_id) as s:
-        d = s.get(Draft, draft_id, with_for_update=True)
-        if d.platform != "telegram":
-            raise DraftError("not_telegram", "Only Telegram drafts can be posted by the bot.")
-        if d.status == "published":
-            raise DraftError("already_published", "This post is already published.", 409)
-        if d.status != "approved":
-            raise DraftError("not_approved", "Approve the draft before posting it.", 409)
-        if current.length.over:
-            over = current.length.count - current.length.limit
-            raise DraftError("over_limit", f"Cut {over} characters before posting.", 409)
-        channel = s.get(TelegramChannel, user_id)
-        if channel is None:
-            raise DraftError(
-                "no_channel",
-                "Connect your Telegram channel first: Profile → Connections.",
-                409,
-            )
-        if not channel.can_post:
-            raise DraftError(
-                "cannot_post",
-                f"Voxlace can't post in {channel.title}. Turn on “Post messages” for "
-                f"@{get_settings().telegram_bot_username} in the channel's admin settings.",
-                409,
-            )
-        try:
-            api.send_message(channel.chat_id, current.text)
-        except TelegramError as e:
-            if e.code == 0:
-                raise DraftError(
-                    "telegram_unavailable",
-                    "Telegram can't be reached right now. Your draft is still approved; try "
-                    "again in a minute.",
-                    503,
-                ) from None
-            raise DraftError(
-                "telegram_refused",
-                f"Telegram didn't let Voxlace post in {channel.title}. Make "
-                f"@{get_settings().telegram_bot_username} an admin with “Post messages” again "
-                "(Profile → Connections).",
-                409,
-            ) from None
-        library.mark_published(s, user_id, d, current)
+        _send(s, user_id, s.get(Draft, draft_id, with_for_update=True), current, api)
     logger.info("telegram: draft posted")
     return library.detail(user_id, draft_id)
+
+
+def send_due(api: TelegramAPI) -> int:
+    """One pass of the background sender (ADR 0001): post every approved Telegram draft whose
+    time has come, at most MAX_LATE ago, for users whose channel lets the bot post. Each row is
+    locked with SKIP LOCKED, so two API processes never send the same draft. A refusal is kept
+    on the draft (not retried) and it shows as missed. Returns how many were posted."""
+    with get_engine().connect() as conn:
+        due = conn.execute(
+            text("SELECT user_id, draft_id FROM telegram_drafts_due(:late)"),
+            {"late": MAX_LATE},
+        ).all()
+    posted = 0
+    for user_id, draft_id in due:
+        try:
+            current = library.detail(user_id, draft_id)
+        except DraftError:
+            continue  # deleted since
+        with user_session(user_id) as s:
+            d = s.scalars(
+                select(Draft).where(Draft.id == draft_id).with_for_update(skip_locked=True)
+            ).first()
+            # Another process has it, or it changed since the lookup (un-approved, moved).
+            if (
+                d is None
+                or d.status != "approved"
+                or d.bot_failed_at is not None
+                or d.scheduled_for is None
+                or d.scheduled_for > datetime.now(UTC)
+            ):
+                continue
+            try:
+                _send(s, user_id, d, current, api)
+                posted += 1
+            except DraftError as e:
+                if e.code == "telegram_unavailable":
+                    continue  # Telegram is down: try again on the next pass
+                d.bot_failed_at = datetime.now(UTC)
+                d.bot_error = e.message[:300]
+                logger.info("telegram: scheduled post refused (%s)", e.code)
+    if posted:
+        logger.info("telegram: %d scheduled post(s) sent", posted)
+    return posted
