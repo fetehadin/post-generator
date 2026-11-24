@@ -4,6 +4,7 @@ import { useMe, useZone } from '../../api/me'
 import { usePublishDraft, useTelegram } from '../../api/telegram'
 import { useConvertDraft, useScheduleDraft } from '../../api/threads'
 import type { DraftRow, ScheduleResult, ThreadCard } from '../../api/types'
+import { HandOffPrompt } from '../../components/HandOffPrompt'
 import { Icon } from '../../components/Icon'
 import { WhenPicker } from '../../components/WhenPicker'
 import { LengthCounter } from '../../components/LengthCounter'
@@ -485,55 +486,60 @@ function Approved({
         ))
       )}
       {picked?.warning && <p className="mt-1 text-signal">{picked.warning}</p>}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {viaBot ? (
-          <button
-            type="button"
-            disabled={over || publish.isPending}
-            onClick={() => publish.mutate(draft.id)}
-            className={primary}
-          >
-            {publish.isPending ? 'Posting…' : 'Post to Telegram now'}
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={over}
-            onClick={() => void hand.post()}
-            className={primary}
-          >
-            {hand.label}
-          </button>
-        )}
-        {/* Only when the main button also opens a site; else it already just copies. */}
-        {(viaBot || !hand.label.startsWith('Copy text')) && (
-          <Tooltip content="Copy the text only">
+      {hand.asked ? (
+        // After a hand-off, the same question as every other screen (GLOSSARY: Posted).
+        <HandOffPrompt hand={hand} className="mt-3" />
+      ) : (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {viaBot ? (
             <button
               type="button"
-              aria-label="Copy text"
-              disabled={over}
-              onClick={() => void hand.copy()}
-              className={iconButton}
+              disabled={over || publish.isPending}
+              onClick={() => publish.mutate(draft.id)}
+              className={primary}
             >
-              <Icon name="copy" />
+              {publish.isPending ? 'Posting…' : 'Post to Telegram now'}
             </button>
-          </Tooltip>
-        )}
-        <button
-          type="button"
-          aria-expanded={mode === 'time'}
-          onClick={onChangeTime}
-          className={ghost}
-        >
-          Change time
-        </button>
-      </div>
-      {hand.note && (
+          ) : (
+            <button
+              type="button"
+              disabled={over}
+              onClick={() => void hand.post()}
+              className={primary}
+            >
+              {hand.label}
+            </button>
+          )}
+          {/* Only when the main button also opens a site; else it already just copies. */}
+          {(viaBot || !hand.label.startsWith('Copy text')) && (
+            <Tooltip content="Copy the text only">
+              <button
+                type="button"
+                aria-label="Copy text"
+                disabled={over}
+                onClick={() => void hand.copy()}
+                className={iconButton}
+              >
+                <Icon name="copy" />
+              </button>
+            </Tooltip>
+          )}
+          <button
+            type="button"
+            aria-expanded={mode === 'time'}
+            onClick={onChangeTime}
+            className={ghost}
+          >
+            Change time
+          </button>
+        </div>
+      )}
+      {!hand.asked && hand.note && (
         <p aria-live="polite" className="mt-2">
           {hand.note}
         </p>
       )}
-      {(hand.failed || publish.error) && (
+      {((!hand.asked && hand.failed) || publish.error) && (
         <p role="alert" className="mt-2 text-danger">
           {hand.failed || publish.error?.message}
         </p>
