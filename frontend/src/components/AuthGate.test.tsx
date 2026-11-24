@@ -61,10 +61,10 @@ test('local development without Supabase goes straight in', async () => {
   expect(await screen.findByText('The app')).toBeInTheDocument()
 })
 
-test('logged out, the home page is guest mode (FR-47)', async () => {
+test('logged out, the home page is the guest homepage (FR-47, FR-50)', async () => {
   auth.supabase = fakeSupabase(null)
   renderGate()
-  expect(await screen.findByText(/trying Voxlace as a guest/)).toBeInTheDocument()
+  expect(await screen.findByText(/No account needed/)).toBeInTheDocument()
   expect(api).not.toHaveBeenCalled()
 })
 

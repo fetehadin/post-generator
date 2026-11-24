@@ -11,7 +11,11 @@ import { fromLocalInput, toLocalInput } from '../../lib/time'
 import { HandOffPrompt } from '../../components/HandOffPrompt'
 import { useHandOff } from '../../lib/useHandOff'
 
-const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
+const timeFormat = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
 
 export type ItemState = 'planned' | 'due' | 'missed'
 
