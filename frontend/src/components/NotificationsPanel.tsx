@@ -100,10 +100,11 @@ function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) 
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"
+            disabled={hand.posting}
             onClick={() => void hand.post()}
             className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
           >
-            {hand.label}
+            {hand.posting ? 'Posting…' : hand.label}
           </button>
           {kind === 'missed' && (
             <Popover open={open} onOpenChange={setOpen}>

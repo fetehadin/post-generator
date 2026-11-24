@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePatchAnyDraft, useRestoreVersion } from '../../api/drafts'
 import { useMe, useZone } from '../../api/me'
-import { usePublishDraft, useTelegram } from '../../api/telegram'
+import { useTelegram } from '../../api/telegram'
 import { useConvertDraft, useScheduleDraft } from '../../api/threads'
 import type { DraftRow, ScheduleResult, ThreadCard } from '../../api/types'
 import { HandOffPrompt } from '../../components/HandOffPrompt'
@@ -460,9 +460,7 @@ function Approved({
   onCancel: () => void
 }) {
   const hand = useHandOff(draft)
-  const bot = useTelegram().data
-  const publish = usePublishDraft()
-  const viaBot = draft.platform === 'telegram' && Boolean(bot?.channel?.can_post)
+  const viaBot = hand.viaBot
   return (
     <div className="mt-4 border-t border-line pt-4 text-sm">
       {draft.bot_error ? (
@@ -479,7 +477,7 @@ function Approved({
         ) : (
           <p>
             <span className="font-semibold">
-              {viaBot ? `Posts to ${bot?.channel?.title}` : 'Planned for'}
+              {viaBot ? `Posts to ${hand.botChannel}` : 'Planned for'}
             </span>{' '}
             {formatWhen(draft.scheduled_for, zone)}
           </p>
@@ -491,25 +489,14 @@ function Approved({
         <HandOffPrompt hand={hand} className="mt-3" />
       ) : (
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {viaBot ? (
-            <button
-              type="button"
-              disabled={over || publish.isPending}
-              onClick={() => publish.mutate(draft.id)}
-              className={primary}
-            >
-              {publish.isPending ? 'Posting…' : 'Post to Telegram now'}
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={over}
-              onClick={() => void hand.post()}
-              className={primary}
-            >
-              {hand.label}
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={over || hand.posting}
+            onClick={() => void hand.post()}
+            className={primary}
+          >
+            {hand.posting ? 'Posting…' : hand.label}
+          </button>
           {/* Only when the main button also opens a site; else it already just copies. */}
           {(viaBot || !hand.label.startsWith('Copy text')) && (
             <Tooltip content="Copy the text only">
@@ -539,9 +526,9 @@ function Approved({
           {hand.note}
         </p>
       )}
-      {((!hand.asked && hand.failed) || publish.error) && (
+      {!hand.asked && hand.failed && (
         <p role="alert" className="mt-2 text-danger">
-          {hand.failed || publish.error?.message}
+          {hand.failed}
         </p>
       )}
       {mode === 'time' && (
