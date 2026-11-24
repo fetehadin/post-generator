@@ -88,6 +88,14 @@ export function CommandBar({
     ]
   }, [navigate, onSwitchTheme, threads])
 
+  // Every opening starts empty, however it was closed (Enter, Esc, the shortcut again).
+  useEffect(() => {
+    if (open) {
+      setQuery('')
+      setActive(0)
+    }
+  }, [open])
+
   const shown = filterItems(items, query)
   const current = shown[Math.min(active, shown.length - 1)]
 
@@ -195,7 +203,8 @@ export function useCommandShortcuts(toggle: () => void) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return
-      const key = e.key.toLowerCase()
+      // e.code is the physical key, so the shortcut also works on Amharic or other layouts.
+      const key = e.code === 'KeyK' ? 'k' : e.code === 'KeyJ' ? 'j' : e.key.toLowerCase()
       if (key === 'k') {
         e.preventDefault()
         toggle()

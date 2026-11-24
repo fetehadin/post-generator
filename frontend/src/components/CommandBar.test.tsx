@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useCallback, useState } from 'react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
@@ -99,4 +99,15 @@ test('every word must match, in any order', () => {
   expect(filterItems(items, 'drafts tele')).toEqual([items[0]])
   expect(filterItems(items, '  ')).toEqual(items)
   expect(filterItems(items, 'calendar')).toEqual([])
+})
+
+test('it opens empty every time, and Ctrl+K works on a non-Latin layout', async () => {
+  renderBar()
+  await userEvent.keyboard('{Control>}k{/Control}')
+  await userEvent.type(await screen.findByRole('combobox'), 'cal{Enter}')
+  expect(screen.getByTestId('where')).toHaveTextContent('/calendar')
+  // An Amharic layout: the key types "ከ", but it is still the K key.
+  fireEvent.keyDown(window, { key: 'ከ', code: 'KeyK', ctrlKey: true })
+  expect(await screen.findByRole('combobox')).toHaveValue('')
+  expect(screen.getAllByRole('option').length).toBeGreaterThan(5)
 })
