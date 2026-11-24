@@ -303,7 +303,7 @@ Product components to build on top:
 
 | Situation | What the user sees |
 |---|---|
-| Generating | A placeholder in the draft card's frame appears at once and names the step ("Reading your check-in", "Finding examples in your posts", "Writing your X draft", "Checking the length and the facts"), with **Stop**. The API returns the whole draft, so the text then arrives with a short word-by-word reveal (off under reduced motion). Screen readers hear each step once and "Draft ready" when done (`aria-live="polite"`). Stop cancels the wait; if the server finishes anyway, the draft appears. |
+| Generating | A placeholder in the draft card's frame appears at once and names the step ("Reading your check-in", "Finding examples to follow", "Writing your X draft", "Checking the length and the facts"), with **Stop**. The API returns the whole draft, so the text then arrives with a short word-by-word reveal (off under reduced motion). Screen readers hear each step once and "Draft ready" when done (`aria-live="polite"`). Stop cancels the wait; if the server finishes anyway, the draft appears. |
 | Slow response | After 3 seconds the placeholder adds "Still working…"; after 20 seconds (NFR-3) offer **Cancel** and **Try again**. Never a blank screen. |
 | Rate-limited (429) | "The AI is busy right now. Your text is saved. Try again in a minute." with **Try again**. |
 | AI unavailable (503) | "Drafts are unavailable right now. Your check-in is saved." with Try again, the free-key offer, and **Copy your check-in** so the user can still post by hand today. |

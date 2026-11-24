@@ -18,7 +18,7 @@ type Step = [after: number, label: string]
 
 const WRITING: Step[] = [
   [0, 'Reading your check-in'],
-  [2, 'Finding examples in your posts'],
+  [2, 'Finding examples to follow'],
   [5, 'Writing your {p} draft'],
   [12, 'Checking the length and the facts'],
 ]
