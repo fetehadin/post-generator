@@ -191,7 +191,7 @@ Tabs: **About you** (role, experience, discipline, your time zone, language), **
 - **Role chips** change the starter chips and the example draft only; they don't save anything. The example card says "Example" and disappears once the visitor has real drafts.
 - The box is the same `Composer` as the app (pill, platform chips inside, round send button).
 - Under the box, one quiet line: no account needed, nothing saved, and guest drafts use a general style until you import your posts (so the promise isn't oversold).
-- Writing shows the app's writing card per platform with **Stop** (§7); the guest daily limit is a quiet note with "create a free account", never a red error.
+- Writing shows the app's writing card per platform with **Stop** (§7), with one difference: a guest's late answer after Stop is dropped, because nothing is saved for guests to show later; the guest daily limit is a quiet note with "create a free account", never a red error.
 - The header isn't sticky, so it never covers a focused control (WCAG 2.4.11).
 - **Honest by rule:** no testimonials until there's real beta feedback; Amharic is named only once it's checked end to end; every FAQ answer must match what the app does today.
 - No jargon above the fold ("your voice", never "RAG" or "embeddings"); one column (`--column`), the same tokens as the app, no gradients, no card grid for decoration.

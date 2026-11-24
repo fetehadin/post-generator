@@ -66,7 +66,8 @@ export function TelegramConnection() {
       ) : (
         <>
           <p className="text-muted">
-            Post approved drafts to your channel with one tap. Voxlace posts only when you tap Post.
+            The bot posts your approved drafts to your channel at the time you pick, or right away
+            with Post to Telegram now. Nothing is posted until you approve it.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {t.linked && t.connect_url ? (
