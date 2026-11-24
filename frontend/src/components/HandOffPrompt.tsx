@@ -1,10 +1,6 @@
 import type { HandOff } from '../lib/useHandOff'
+import { primary, secondary } from '../lib/ui'
 import { cn } from '../lib/utils'
-
-const primary =
-  'inline-flex min-h-9 items-center rounded-full bg-primary px-3 text-sm font-semibold text-on-primary disabled:opacity-50'
-const quiet =
-  'inline-flex min-h-9 items-center rounded-full border border-edge px-3 text-sm hover:bg-sunken'
 
 /**
  * After a hand-off (DESIGN.md §4.2): what happened, then "Did you post it?" → Posted.
@@ -24,7 +20,7 @@ export function HandOffPrompt({ hand, className }: { hand: HandOff; className?: 
         <button type="button" disabled={hand.marking} onClick={hand.markPosted} className={primary}>
           Yes, mark as posted
         </button>
-        <button type="button" onClick={hand.notYet} className={quiet}>
+        <button type="button" onClick={hand.notYet} className={secondary}>
           Not yet
         </button>
       </div>
