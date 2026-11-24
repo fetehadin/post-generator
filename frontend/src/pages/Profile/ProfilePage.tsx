@@ -127,6 +127,7 @@ export function ProfilePage() {
             <Link
               to="/import"
               className="inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm"
+              data-button
             >
               Import posts
             </Link>
