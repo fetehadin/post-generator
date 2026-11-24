@@ -50,7 +50,7 @@ export function GuestPage() {
     setAsked(platforms)
     write.mutate(
       { topic: topic.trim(), platforms },
-      // A stopped request may still finish on the server: its answer is dropped (DESIGN §7).
+      // A stopped request may still finish on the server: its answer is dropped (DESIGN §4.6).
       { onSuccess: (r) => run === request.current && keep(r.drafts) },
     )
   }
