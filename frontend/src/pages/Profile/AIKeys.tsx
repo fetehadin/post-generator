@@ -7,9 +7,8 @@ const button =
 const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
 
 /**
- * Profile → AI keys (FR-48): "Add an API key". One paste field that tells which service the
- * key is from and checks it at once; cards for the three free services, the paid ones folded
- * away. Your key is tried first; if it fails, the free models write the draft and say so.
+ * Profile → AI keys (FR-48): your saved keys, then one paste field that tells which service the
+ * key is from and checks it at once, then a short list of free services and the paid ones. Your key is tried first; if it fails, the free models write the draft and say so.
  * Keys are stored encrypted and never shown again: only a masked "sk-…a9F2".
  */
 export function AIKeys() {
@@ -35,29 +34,16 @@ export function AIKeys() {
   const paid = providers.filter((p) => !p.free)
 
   return (
-    <div className="mt-4 flex flex-col gap-6">
+    <div className="mt-3 flex flex-col gap-5">
       {keys.data.keys.length > 0 && (
-        <section aria-labelledby="your-keys" className="flex flex-col gap-3">
-          <h3 id="your-keys" className="font-semibold">
-            Your keys
-          </h3>
-          <p className="text-sm text-muted">
-            Tried first, newest first. Drafts on your key have no daily limit.
-          </p>
+        <div className="flex flex-col gap-3">
           {keys.data.keys.map((k) => (
             <SavedKey key={k.provider} saved={k} provider={byId.get(k.provider)} />
           ))}
-        </section>
+        </div>
       )}
 
-      <section
-        id="add-key"
-        aria-labelledby="add-key-title"
-        className="flex flex-col gap-3 rounded-panel border border-line p-4"
-      >
-        <h3 id="add-key-title" className="font-semibold">
-          {keys.data.keys.length ? 'Add or replace an API key' : 'Add an API key'}
-        </h3>
+      <section id="add-key" aria-label="Add an API key" className="flex flex-col gap-2">
         <KeyPaste providers={providers} />
         <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
           Stored encrypted. Only used to write your drafts. Remove it anytime.
@@ -65,38 +51,40 @@ export function AIKeys() {
         </p>
       </section>
 
-      <section aria-labelledby="no-key" className="flex flex-col gap-3">
+      <section aria-labelledby="no-key" className="flex flex-col gap-2 text-sm">
         <h3 id="no-key" className="font-semibold">
-          Don't have a key yet?
+          No key yet? Get one free
         </h3>
-        <p className="text-sm text-muted">These are free. Each takes about a minute.</p>
-        <div className="grid gap-3 md:grid-cols-3">
+        <ul className="flex flex-col gap-1">
           {free.map((p) => (
-            <ProviderCard key={p.id} provider={p} />
+            <li key={p.id}>
+              <GetKeyLink
+                provider={p}
+                className="inline-flex min-h-11 items-center font-semibold text-thread underline"
+              />
+              {p.note && <p className="text-muted">{p.note}</p>}
+            </li>
           ))}
-        </div>
-      </section>
-
-      {paid.length > 0 && (
-        <details className="rounded-panel border border-line p-4">
-          <summary className="cursor-pointer font-semibold">Other providers</summary>
-          <ul className="mt-3 flex flex-col gap-3">
-            {paid.map((p) => (
-              <li key={p.id} className="text-sm">
+        </ul>
+        {paid.length > 0 && (
+          <p className="text-muted">
+            Paid:{' '}
+            {paid.map((p, i) => (
+              <span key={p.id}>
+                {i > 0 && ' · '}
                 <a
                   href={p.key_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-semibold text-thread underline"
+                  className="text-thread underline"
                 >
                   {p.name} ↗
                 </a>
-                {p.note && <span className="block text-muted">{p.note}</span>}
-              </li>
+              </span>
             ))}
-          </ul>
-        </details>
-      )}
+          </p>
+        )}
+      </section>
     </div>
   )
 }
@@ -115,24 +103,6 @@ function WhatIsAKey() {
         Gemini subscription is not a key.
       </PopoverContent>
     </Popover>
-  )
-}
-
-function ProviderCard({ provider }: { provider: AIProviderInfo }) {
-  return (
-    <article className="flex flex-col gap-2 rounded-panel border border-line p-4">
-      <h4 className="font-semibold">{provider.name}</h4>
-      <ol className="list-decimal pl-5 text-sm">
-        {provider.steps.map((s) => (
-          <li key={s}>{s}</li>
-        ))}
-      </ol>
-      {provider.note && <p className="text-sm text-muted">{provider.note}</p>}
-      <GetKeyLink
-        provider={provider}
-        className={`${button} mt-auto justify-center font-semibold`}
-      />
-    </article>
   )
 }
 

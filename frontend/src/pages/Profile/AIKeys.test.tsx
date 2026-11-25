@@ -92,9 +92,9 @@ test('the provider is told from how a key starts', () => {
   expect(id('3f9c0a7b-mistral-like')).toBeUndefined()
 })
 
-test('free services come first as cards; paid ones are folded away', async () => {
+test('free services are one short list of links; paid ones follow on one line', async () => {
   renderKeys()
-  expect(await screen.findByText("Don't have a key yet?")).toBeInTheDocument()
+  expect(await screen.findByText('No key yet? Get one free')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Get a free Gemini API key ↗' })).toHaveAttribute(
     'href',
     'https://google.example/keys',
@@ -102,7 +102,7 @@ test('free services come first as cards; paid ones are folded away', async () =>
   expect(screen.getByRole('link', { name: 'Get a free Groq API key ↗' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Get a free OpenRouter API key ↗' })).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: /Get a free OpenAI/ })).not.toBeInTheDocument()
-  expect(screen.getByText('Other providers')).toBeInTheDocument()
+  expect(screen.getByText('Paid:', { exact: false })).toBeInTheDocument()
   expect(
     screen.getByText('Stored encrypted. Only used to write your drafts. Remove it anytime.', {
       exact: false,
