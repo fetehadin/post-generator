@@ -45,10 +45,6 @@ export function Connections() {
           GitHub
           <span className="ml-auto text-sm font-normal text-muted">For developers</span>
         </summary>
-        <p className="mt-1 text-sm text-muted">
-          Post ideas from the work you push, suggested in the evening as drafts you edit and
-          approve.
-        </p>
         <GitHubPanel />
       </details>
     </div>
