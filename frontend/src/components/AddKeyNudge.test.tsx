@@ -30,15 +30,15 @@ const renderNudge = (reason: 'limit' | 'busy' = 'limit') =>
 
 test('at the limit a returning user gets two equal choices', async () => {
   renderNudge()
-  expect(await screen.findByRole('button', { name: 'Add a free key' })).toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: 'Add an API key' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Maybe later' })).toBeInTheDocument()
 })
 
 test('"Maybe later" leaves one quiet link, never a dead end', async () => {
   renderNudge()
   await userEvent.click(await screen.findByRole('button', { name: 'Maybe later' }))
-  expect(screen.queryByRole('button', { name: 'Add a free key' })).not.toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'add a free key' })).toHaveAttribute(
+  expect(screen.queryByRole('button', { name: 'Add an API key' })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'add an API key' })).toHaveAttribute(
     'href',
     '/profile?tab=connections',
   )
@@ -47,13 +47,13 @@ test('"Maybe later" leaves one quiet link, never a dead end', async () => {
 test('in the first session there is no offer, only the quiet link at the limit', async () => {
   sessionStorage.setItem('voxlace.firstSession', '1')
   renderNudge()
-  expect(await screen.findByRole('link', { name: 'add a free key' })).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Add a free key' })).not.toBeInTheDocument()
+  expect(await screen.findByRole('link', { name: 'add an API key' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Add an API key' })).not.toBeInTheDocument()
 })
 
 test('someone with a working key sees nothing', async () => {
   keys = [{ provider: 'groq', status: 'active' }]
   renderNudge()
   await new Promise((r) => setTimeout(r, 50))
-  expect(screen.queryByText(/free key/i)).not.toBeInTheDocument()
+  expect(screen.queryByText(/API key/i)).not.toBeInTheDocument()
 })

@@ -92,17 +92,17 @@ test('the provider is told from how a key starts', () => {
   expect(id('3f9c0a7b-mistral-like')).toBeUndefined()
 })
 
-test('free services come first as cards; paid ones are folded away', async () => {
+test('free services are one short list of links; paid ones follow on one line', async () => {
   renderKeys()
-  expect(await screen.findByText("Don't have a key yet?")).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Get free Gemini key ↗' })).toHaveAttribute(
+  expect(await screen.findByText('No key yet? Get one free')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Get a free Gemini API key ↗' })).toHaveAttribute(
     'href',
     'https://google.example/keys',
   )
-  expect(screen.getByRole('link', { name: 'Get free Groq key ↗' })).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Get free OpenRouter key ↗' })).toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /Get free OpenAI/ })).not.toBeInTheDocument()
-  expect(screen.getByText('Other providers')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Get a free Groq API key ↗' })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Get a free OpenRouter API key ↗' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /Get a free OpenAI/ })).not.toBeInTheDocument()
+  expect(screen.getByText('Paid:', { exact: false })).toBeInTheDocument()
   expect(
     screen.getByText('Stored encrypted. Only used to write your drafts. Remove it anytime.', {
       exact: false,
@@ -110,9 +110,9 @@ test('free services come first as cards; paid ones are folded away', async () =>
   ).toBeInTheDocument()
 })
 
-test('"What is a free key?" names the API key and says a subscription is not a key', async () => {
+test('"What is an API key?" names the API key and says a subscription is not a key', async () => {
   renderKeys()
-  await userEvent.click(await screen.findByRole('button', { name: 'What is a free key?' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'What is an API key?' }))
   expect(await screen.findByText(/subscription is/)).toHaveTextContent(
     'A ChatGPT Plus, Claude Pro or Gemini subscription is not a key.',
   )
@@ -120,7 +120,7 @@ test('"What is a free key?" names the API key and says a subscription is not a k
 
 test('a pasted key is recognised and checked at once, then shown only masked', async () => {
   renderKeys()
-  const input = await screen.findByLabelText('Paste your free key')
+  const input = await screen.findByLabelText('Paste your API key')
   expect(input).toHaveAttribute('type', 'password')
   await userEvent.click(input)
   await userEvent.paste('gsk_fake-fake-fake-fake-zz11')
@@ -136,10 +136,7 @@ test('a pasted key is recognised and checked at once, then shown only masked', a
 
 test('a key of no known shape asks which service, with an optional model', async () => {
   renderKeys()
-  await userEvent.type(
-    await screen.findByLabelText('Paste your free key'),
-    'not-a-real-mistral-key',
-  )
+  await userEvent.type(await screen.findByLabelText('Paste your API key'), 'not-a-real-mistral-key')
   await userEvent.selectOptions(screen.getByLabelText(/Which service/), 'mistral')
   await userEvent.click(screen.getByText('Advanced: choose a model'))
   await userEvent.type(screen.getByLabelText(/Model/), 'mistral-x')
@@ -151,13 +148,13 @@ test('a key of no known shape asks which service, with an optional model', async
 
 test('a refused key says what to do, offers another free service and keeps the input', async () => {
   renderKeys()
-  const input = await screen.findByLabelText('Paste your free key')
+  const input = await screen.findByLabelText('Paste your API key')
   await userEvent.type(input, 'AIza-bad-key-0000000000')
   await userEvent.click(screen.getByRole('button', { name: 'Check the key' }))
   const status = await screen.findByText(/out of free quota/)
   expect(status).toHaveTextContent('This key is out of free quota.')
   expect(screen.getByRole('status')).toContainElement(
-    screen.getAllByRole('link', { name: 'Get free Groq key ↗' })[0],
+    screen.getAllByRole('link', { name: 'Get a free Groq API key ↗' })[0],
   )
   expect(input).toHaveValue('AIza-bad-key-0000000000')
 })

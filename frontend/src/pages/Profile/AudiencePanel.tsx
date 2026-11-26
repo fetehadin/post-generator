@@ -44,6 +44,16 @@ function AudienceForm({ info, label }: { info: PlatformInfo; label: string }) {
   const [goal, setGoal] = useState(info.goal)
   const [perWeek, setPerWeek] = useState(info.posts_per_week?.toString() ?? '')
   const [saved, setSaved] = useState(false)
+  // What was last saved, to turn Save off while nothing differs from it.
+  const [base, setBase] = useState(() =>
+    JSON.stringify([
+      info.audience_profession,
+      info.audience_places,
+      info.goal,
+      info.posts_per_week?.toString() ?? '',
+    ]),
+  )
+  const changed = JSON.stringify([profession, places, goal, perWeek]) !== base
 
   const unknown = places.find((p) => !isZone(p.timezone))
   const badShare = places.find((p) => !(p.share >= 1 && p.share <= 100))
@@ -74,7 +84,12 @@ function AudienceForm({ info, label }: { info: PlatformInfo; label: string }) {
             goal,
             posts_per_week: perWeek === '' ? null : Number(perWeek),
           },
-          { onSuccess: () => setSaved(true) },
+          {
+            onSuccess: () => {
+              setSaved(true)
+              setBase(JSON.stringify([profession, places, goal, perWeek]))
+            },
+          },
         )
       }}
     >
@@ -197,7 +212,11 @@ function AudienceForm({ info, label }: { info: PlatformInfo; label: string }) {
         </p>
       )}
       <div className="flex flex-wrap items-center gap-3">
-        <button type="submit" className={primaryButton} disabled={!!problem || save.isPending}>
+        <button
+          type="submit"
+          className={primaryButton}
+          disabled={!!problem || !changed || save.isPending}
+        >
           {save.isPending ? 'Saving…' : `Save ${label} audience`}
         </button>
         <p role="status" className="text-sm text-muted">

@@ -19,16 +19,7 @@ const day = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short',
 /** Profile → per platform: your voice (FR-5, FR-22) and previous posts: search, pin and exclude (FR-25). */
 export function YourPosts() {
   const [platform, setPlatform] = useState<Platform>('telegram')
-  const [typed, setTyped] = useState('')
-  const [q, setQ] = useState('')
-  const [show, setShow] = useState<PostFilter['show']>('all')
-  useEffect(() => {
-    const t = setTimeout(() => setQ(typed), 300) // search after a short pause in typing
-    return () => clearTimeout(t)
-  }, [typed])
-
-  const posts = usePosts({ platform, q, show })
-  const items = posts.data?.pages.flatMap((p) => p.items) ?? []
+  const [open, setOpen] = useState(false)
   const label = TABS.find((t) => t.id === platform)!.label
 
   return (
@@ -52,7 +43,43 @@ export function YourPosts() {
 
       <VoicePanel key={platform} platform={platform} label={label} />
 
-      <div className="mt-6 flex flex-wrap items-center gap-2">
+      {/* Every post is a long list few people need: folded, and only loaded when opened. */}
+      <details
+        id="manage-posts"
+        className="group mt-6 rounded-panel border border-line px-4 py-1 open:pb-4"
+        onToggle={(e) => setOpen(e.currentTarget.open)}
+      >
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold">
+          <span
+            aria-hidden="true"
+            className="transition-transform duration-(--duration) group-open:rotate-90"
+          >
+            ›
+          </span>
+          Manage your {label} posts
+          <span className="ml-auto font-normal text-muted">Pin or exclude</span>
+        </summary>
+        {open && <PostList key={platform} platform={platform} label={label} />}
+      </details>
+    </div>
+  )
+}
+
+function PostList({ platform, label }: { platform: Platform; label: string }) {
+  const [typed, setTyped] = useState('')
+  const [q, setQ] = useState('')
+  const [show, setShow] = useState<PostFilter['show']>('all')
+  useEffect(() => {
+    const t = setTimeout(() => setQ(typed), 300) // search after a short pause in typing
+    return () => clearTimeout(t)
+  }, [typed])
+
+  const posts = usePosts({ platform, q, show })
+  const items = posts.data?.pages.flatMap((p) => p.items) ?? []
+
+  return (
+    <div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <label htmlFor="post-search" className="sr-only">
           Search your {label} posts
         </label>

@@ -29,16 +29,33 @@ const post = (over: Partial<Post> = {}): Post => ({
   ...over,
 })
 
-function renderPosts() {
+async function renderPosts() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  const view = render(
     <QueryClientProvider client={client}>
       <MemoryRouter>
         <YourPosts />
       </MemoryRouter>
     </QueryClientProvider>,
   )
+  // The list is folded away; open it the way a user would.
+  await userEvent.click(screen.getByText(/Manage your Telegram posts/))
+  return view
 }
+
+test('the posts list is folded and loads nothing until opened', async () => {
+  vi.mocked(api).mockResolvedValue({ items: [], next_cursor: null })
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <YourPosts />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+  expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  expect(urls()).toEqual([])
+})
 
 const urls = () => vi.mocked(api).mock.calls.map((c) => String(c[0]))
 
@@ -46,7 +63,7 @@ test('lists your posts with likes, and Pin sends PATCH', async () => {
   vi.mocked(api).mockImplementation(async (_path, init) =>
     init?.method === 'PATCH' ? post({ pinned: true }) : { items: [post()], next_cursor: null },
   )
-  renderPosts()
+  await renderPosts()
   expect(await screen.findByText(/fixed the timezone bug/)).toBeInTheDocument()
   expect(screen.getByText(/14 likes/)).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: /^Pin: Ship log/ }))
@@ -57,7 +74,7 @@ test('lists your posts with likes, and Pin sends PATCH', async () => {
 
 test('platform tabs, search and the filter reach the API', async () => {
   vi.mocked(api).mockResolvedValue({ items: [], next_cursor: null })
-  renderPosts()
+  await renderPosts()
   await userEvent.click(screen.getByRole('tab', { name: 'X' }))
   await userEvent.click(screen.getByRole('button', { name: 'Pinned' }))
   await userEvent.type(screen.getByLabelText('Search your X posts'), 'utc')
@@ -69,7 +86,7 @@ test('platform tabs, search and the filter reach the API', async () => {
 
 test('an empty platform offers the import', async () => {
   vi.mocked(api).mockResolvedValue({ items: [], next_cursor: null })
-  renderPosts()
+  await renderPosts()
   await userEvent.click(screen.getByRole('tab', { name: 'LinkedIn' }))
   expect(await screen.findByRole('link', { name: 'Import your LinkedIn posts' })).toHaveAttribute(
     'href',
@@ -84,7 +101,7 @@ test('more pages load on demand', async () => {
       items: [post({ id: 'p2', text: 'Second page post here.' })],
       next_cursor: null,
     })
-  renderPosts()
+  await renderPosts()
   await userEvent.click(await screen.findByRole('button', { name: 'Load more' }))
   expect(await screen.findByText('Second page post here.')).toBeInTheDocument()
   expect(urls()[1]).toContain('cursor=c2')

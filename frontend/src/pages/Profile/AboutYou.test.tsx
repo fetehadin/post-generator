@@ -119,3 +119,28 @@ test('keeps what was typed when the AI is busy', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('The AI is busy')
   expect(card).toHaveValue('My own words')
 })
+
+test('Save is off until something changes, and back off after saving', async () => {
+  renderAbout()
+  const button = await screen.findByRole('button', { name: 'Save profile' })
+  expect(button).toBeDisabled()
+  await userEvent.type(screen.getByLabelText('What you are getting better at'), 'Sales')
+  expect(button).toBeEnabled()
+  expect(screen.getByText('You have unsaved changes')).toBeInTheDocument()
+  await userEvent.clear(screen.getByLabelText('What you are getting better at'))
+  expect(button).toBeDisabled() // typed and removed: nothing to save
+})
+
+test('several professions become chips and are saved as one list', async () => {
+  renderAbout()
+  const field = await screen.findByLabelText('Profession')
+  await userEvent.type(field, 'student{Enter}')
+  await userEvent.type(field, 'Developer,')
+  expect(screen.getByRole('button', { name: 'Remove student' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Remove Developer' })).toBeInTheDocument()
+  await userEvent.type(field, 'student{Enter}') // already there: not added twice
+  await userEvent.click(screen.getByRole('button', { name: 'Remove Developer' }))
+  await userEvent.type(field, 'freelancer') // typed, not yet a chip: still saved
+  await userEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+  expect(bodies().at(-1)?.discipline).toBe('student, freelancer')
+})

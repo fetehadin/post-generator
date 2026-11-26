@@ -97,3 +97,12 @@ test('a refused address shows the reason and keeps what was typed', async () => 
   expect(await screen.findByRole('alert')).toHaveTextContent("isn't a public website")
   expect(field).toHaveValue('http://localhost')
 })
+
+test('an address without https:// is sent, not blocked by the browser', async () => {
+  renderUploads()
+  const field = await screen.findByLabelText('Portfolio page')
+  expect(field).not.toHaveAttribute('type', 'url') // the browser would refuse "abdunuri.me"
+  await userEvent.type(field, 'www.abdunuri.me')
+  await userEvent.click(screen.getByRole('button', { name: 'Read page' }))
+  expect(sent('POST /uploads/portfolio')).toEqual([{ url: 'www.abdunuri.me' }])
+})

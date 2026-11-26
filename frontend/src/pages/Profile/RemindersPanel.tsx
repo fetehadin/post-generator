@@ -26,6 +26,8 @@ function RemindersForm({ initial }: { initial: Reminders }) {
   const save = useSaveReminders()
   const [r, setR] = useState(initial)
   const [saved, setSaved] = useState(false)
+  const [base, setBase] = useState(() => JSON.stringify(initial))
+  const changed = JSON.stringify(r) !== base // Save stays off until something differs
   const change = (next: Partial<Reminders>) => {
     setSaved(false)
     setR({ ...r, ...next })
@@ -36,7 +38,12 @@ function RemindersForm({ initial }: { initial: Reminders }) {
       className="mt-4 flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault()
-        save.mutate(r, { onSuccess: () => setSaved(true) })
+        save.mutate(r, {
+          onSuccess: () => {
+            setSaved(true)
+            setBase(JSON.stringify(r))
+          },
+        })
       }}
     >
       <label className="flex min-h-10 items-center gap-3 text-sm">
@@ -91,7 +98,7 @@ function RemindersForm({ initial }: { initial: Reminders }) {
         <button
           type="submit"
           className={primaryButton}
-          disabled={save.isPending || (r.enabled && !r.days.length)}
+          disabled={save.isPending || !changed || (r.enabled && !r.days.length)}
         >
           {save.isPending ? 'Saving…' : 'Save reminders'}
         </button>

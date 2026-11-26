@@ -50,7 +50,7 @@ export function TelegramConnection() {
             {channel.username && <span className="text-muted"> · @{channel.username}</span>}
             <span className="block text-muted">
               {channel.can_post
-                ? 'Approved Telegram drafts have “Post to Telegram now”.'
+                ? 'Posts your approved drafts at their time.'
                 : `${bot} can't post yet: turn on “Post messages” for it in the channel's admin settings.`}
             </span>
           </p>
@@ -66,8 +66,7 @@ export function TelegramConnection() {
       ) : (
         <>
           <p className="text-muted">
-            The bot posts your approved drafts to your channel at the time you pick, or right away
-            with Post to Telegram now. Nothing is posted until you approve it.
+            The bot posts drafts you approved to your channel, at the time you pick.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             {t.linked && t.connect_url ? (
@@ -99,10 +98,13 @@ export function TelegramConnection() {
               {link.error.message}
             </p>
           )}
-          <p className="text-muted">
-            Didn't work? In Telegram, add {bot} as an admin of your channel with “Post messages” on.
-            It connects by itself.
-          </p>
+          {/* The manual way, only once they've tried the button. */}
+          {waiting && (
+            <p className="text-muted">
+              Didn't work? In Telegram, add {bot} as an admin of your channel with “Post messages”
+              on. It connects by itself.
+            </p>
+          )}
         </>
       )}
       {disconnect.isError && (

@@ -155,7 +155,13 @@ GOALS = {
 
 def who_is_writing(profession: str, audience_kind: str = "", goal: str = "") -> str:
     """One plain line about the writer (FR-17, FR-41), or "" when nothing is known."""
-    profession = " ".join(profession.split())[:120]
+    # Several professions are saved as "student, developer" (Profile chips) and read as
+    # "student and developer".
+    parts = [" ".join(p.split()) for p in profession.split(",")]
+    parts = [p for p in parts if p]
+    profession = (f"{', '.join(parts[:-1])} and {parts[-1]}" if len(parts) > 1 else "".join(parts))[
+        :120
+    ]
     if not profession:
         return ""
     line = f"They are a {profession}"
