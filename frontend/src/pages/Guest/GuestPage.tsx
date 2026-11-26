@@ -1,5 +1,6 @@
 import { useId, useRef, useState } from 'react'
 import { Link } from 'react-router'
+import { LegalLinks } from '../Legal/LegalLayout'
 import { useGuestRevise, useGuestWrite, type GuestDraft } from '../../api/guest'
 import type { Platform } from '../../api/types'
 import { LengthCounter } from '../../components/LengthCounter'
@@ -172,6 +173,7 @@ export function GuestPage() {
         </div>
 
         <HomeSections />
+        <LegalLinks className="mt-12 border-t border-line pt-6" />
       </main>
     </div>
   )

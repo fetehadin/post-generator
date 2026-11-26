@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { useAcceptPrivacy } from '../../api/me'
 
 /** FR-37: a short privacy notice before any upload. Plain words, no legalese. */
@@ -26,10 +27,20 @@ export function PrivacyStep() {
           approval.
         </li>
         <li>
-          <b>You can delete everything at any time.</b> Export and deletion arrive in Settings
-          before the beta.
+          <b>You can export or delete everything at any time</b> in Profile → Settings.
         </li>
       </ul>
+      <p className="mt-6 text-sm text-muted">
+        The full{' '}
+        <Link to="/privacy" target="_blank" className="text-thread underline underline-offset-4">
+          privacy policy
+        </Link>{' '}
+        and{' '}
+        <Link to="/terms" target="_blank" className="text-thread underline underline-offset-4">
+          terms of use
+        </Link>{' '}
+        have the details.
+      </p>
       {accept.isError && (
         <p role="alert" className="mt-6 text-sm text-danger">
           {accept.error.message}
