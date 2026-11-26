@@ -20,9 +20,11 @@
 	}
 
 	# The React app: unknown paths fall back to index.html so routes like /import work.
+	# /privacy and /terms are prerendered at build time (frontend/scripts/prerender.mjs), so
+	# {path}.html serves their full text to readers that don't run JavaScript.
 	handle {
 		root * /srv/frontend
-		try_files {path} /index.html
+		try_files {path} {path}.html /index.html
 		file_server
 	}
 }
