@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { authMessage, supabase } from '../../lib/auth'
 import { Wordmark } from '../../components/Logo'
+import { LegalLinks } from '../Legal/LegalLayout'
 
 type Mode = 'login' | 'signup' | 'forgot'
 
@@ -204,6 +205,20 @@ export function LoginPage() {
         </Link>
         ; nothing is saved until you log in.
       </p>
+      {signup && (
+        <p className="mt-3 text-sm text-muted">
+          By creating an account you agree to the{' '}
+          <Link to="/terms" className="text-thread underline underline-offset-4">
+            terms
+          </Link>{' '}
+          and{' '}
+          <Link to="/privacy" className="text-thread underline underline-offset-4">
+            privacy policy
+          </Link>
+          .
+        </p>
+      )}
+      <LegalLinks className="mt-10" />
     </main>
   )
 }

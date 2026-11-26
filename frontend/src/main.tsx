@@ -21,6 +21,8 @@ import { DraftRedirect } from './pages/Chat/DraftRedirect'
 import { NewChatPage } from './pages/Chat/NewChatPage'
 import { ThreadPage } from './pages/Chat/ThreadPage'
 import { DraftsPage } from './pages/Drafts/DraftsPage'
+import { PrivacyPage } from './pages/Legal/PrivacyPage'
+import { TermsPage } from './pages/Legal/TermsPage'
 import { LoginPage } from './pages/Login/LoginPage'
 import { ResetPasswordPage } from './pages/Login/ResetPasswordPage'
 import { ProfilePage } from './pages/Profile/ProfilePage'
@@ -41,6 +43,9 @@ const queryClient: QueryClient = new QueryClient({
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/reset-password', element: <ResetPasswordPage /> },
+  // Public, no login: Google's consent screen links here (FR-37).
+  { path: '/privacy', element: <PrivacyPage /> },
+  { path: '/terms', element: <TermsPage /> },
   // First run: full screen, no sidebar, but behind the same login, invite and privacy steps.
   {
     path: '/welcome',
