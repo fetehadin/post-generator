@@ -21,6 +21,7 @@ export function GoogleButton({ signup, onSignedIn }: { signup: boolean; onSigned
 
   useEffect(() => {
     let live = true
+    let resize: ResizeObserver | undefined
     void (async () => {
       try {
         const [google, nonce] = await Promise.all([loadGoogle(), makeNonce()])
@@ -46,22 +47,38 @@ export function GoogleButton({ signup, onSignedIn }: { signup: boolean; onSigned
               })
           },
         })
-        google.renderButton(box.current, {
-          type: 'standard',
-          theme: isDark() ? 'filled_black' : 'outline',
-          size: 'large',
-          shape: 'pill',
-          text: signup ? 'signup_with' : 'continue_with',
-          logo_alignment: 'center',
-          locale: 'en', // the app is in English; Google would follow the browser's language
-          width: Math.min(box.current.clientWidth || 400, 400),
-        })
+        // Google draws the button at a fixed pixel width (at most 400), so draw it again when
+        // the column changes width (a phone turning, a window resized); otherwise it overflows.
+        const el = box.current
+        let drawn = 0
+        const draw = () => {
+          const width = Math.min(el.clientWidth, 400)
+          if (!live || !width || width === drawn) return
+          drawn = width
+          el.replaceChildren()
+          google.renderButton(el, {
+            type: 'standard',
+            theme: isDark() ? 'filled_black' : 'outline',
+            size: 'large',
+            shape: 'pill',
+            text: signup ? 'signup_with' : 'continue_with',
+            logo_alignment: 'center',
+            locale: 'en', // the app is in English; Google would follow the browser's language
+            width,
+          })
+        }
+        draw()
+        if (typeof ResizeObserver !== 'undefined') {
+          resize = new ResizeObserver(draw)
+          resize.observe(el)
+        }
       } catch (err) {
         if (live) setError((err as Error).message)
       }
     })()
     return () => {
       live = false
+      resize?.disconnect()
     }
   }, [signup])
 
