@@ -149,11 +149,9 @@ export function DraftCard({
       className="rounded-panel border border-line bg-surface p-5"
     >
       <header className="flex items-center gap-2 text-sm">
-        <PlatformMark platform={draft.platform} />
-        <span className="min-w-0 truncate font-semibold">
-          {LABEL[draft.platform]}
-          <span className="max-sm:sr-only"> draft</span>
-        </span>
+        {/* The logo is the name (DESIGN.md §5); screen readers hear it. */}
+        <PlatformMark platform={draft.platform} className="size-5" />
+        <span className="sr-only">{LABEL[draft.platform]} draft</span>
         {card.number > 1 && <span className="text-muted">v{card.number}</span>}
         {draft.status !== 'draft' && (
           <span className="rounded-full bg-sunken px-2 py-0.5 text-xs text-muted max-sm:hidden">

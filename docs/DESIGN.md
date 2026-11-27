@@ -45,12 +45,14 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 
 **Decided by the product owner, 22 Oct 2026** (replaces the 21 Oct layout).
 
-**Left sidebar** (flat and full height, on `--sidebar`), top to bottom:
-- the wordmark and the **theme toggle** (sun/moon: light ⇄ dark);
+**Left sidebar** (a floating rounded card on `--sidebar`, changed 27 Nov 2026), top to bottom:
+- the wordmark, the bell, search and the **theme toggle** (a moon in light mode, a sun in dark: the icon shows where a click takes you), with a line under them;
 - **Chat**: "New chat", then past threads, newest first (like ChatGPT's history);
-- **Drafts**: opens to **X · LinkedIn · Telegram**, each a list of that platform's drafts;
+- **Drafts**: opens to the **X, LinkedIn and Telegram logos** in a row (the name in a tooltip and for screen readers), each a list of that platform's drafts;
 - **Calendar**;
-- at the bottom: the collapse button and **your avatar → Profile**.
+- at the bottom: **your avatar and name in a rounded pill → Profile**, and the collapse button.
+
+Collapsed, it's a rounded **icon rail**: the logo mark on top, the icons centred, the avatar at the bottom. The collapse button itself is unchanged.
 
 **Notifications** (a post is due now, today's check-in reminder) and **Missed** (approved posts whose time passed without "Posted", each with Post now and Reschedule) open from a **bell** in the sidebar header, or the phone's top bar, at every width. *(Changed 21 Nov 2026: the right sidebar is gone, so the chat canvas keeps its room; the bell shows only when something needs you.)*
 
@@ -211,7 +213,7 @@ Tabs: **About you** (role, experience, discipline, your time zone, language), **
 
 **Concept: "a calm chat."**
 - Neutral greys; color only carries meaning.
-- A flat, full-height sidebar in a slightly different grey from the page; no floating card.
+- A sidebar that floats as a rounded card (20px corners, a `--line` border, a 12px margin from the window's edges), in a slightly different grey from the page. *(Changed 27 Nov 2026 by the product owner, after ScholarXIV: was flat and full height.)*
 - What the user typed sits in a soft right-aligned bubble; the drafts answer below it.
 - One rounded pill composer with a round send button.
 - Buttons are pills. The primary button is near-black and flips to white in dark.
@@ -222,9 +224,9 @@ Tabs: **About you** (role, experience, discipline, your time zone, language), **
 | Theme | What it is | When |
 |---|---|---|
 | Light | White page, `#F9F9F9` sidebar, near-black primary | Default when the system is light |
-| Dark | Near-black `#0A0A0A` page, pure black `#000000` sidebar (changed 20 Nov 2026: `#212121` read as grey); primary flips to white | Default when the system is dark |
+| Dark | Soft charcoal `#171717` page, `#212121` sidebar card (changed 27 Nov 2026, after ScholarXIV: was `#0A0A0A` and pure black); primary flips to white | Default when the system is dark |
 
-- The toggle (sun/moon) sits in the sidebar header and switches light ⇄ dark.
+- The toggle sits in the sidebar header and switches light ⇄ dark. It shows a **moon in light mode and a sun in dark mode**, and follows the system theme live until you choose one.
 - The choice is saved per browser; the system preference is the first default.
 - In code it's `<html data-theme="light|dark">`.
 
@@ -232,13 +234,13 @@ Tabs: **About you** (role, experience, discipline, your time zone, language), **
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--paper` | `#FFFFFF` | `#0A0A0A` | App background |
-| `--surface` | `#FFFFFF` | `#0A0A0A` | Cards and panels (with a `--line` border) |
-| `--sidebar` | `#F9F9F9` | `#000000` | Sidebar and mobile tab bar |
-| `--bubble` | `#F4F4F4` | `#1F1F1F` | The user's message bubble |
-| `--composer` | `#FFFFFF` | `#171717` | The message box |
-| `--sunken` | `#ECECEC` | `#1C1C1C` | Hover and current nav item, chips, status badges |
-| `--line` | `#E5E5E5` | `#262626` | Dividers and card borders (decorative) |
+| `--paper` | `#FFFFFF` | `#171717` | App background |
+| `--surface` | `#FFFFFF` | `#171717` | Cards and panels (with a `--line` border) |
+| `--sidebar` | `#F9F9F9` | `#212121` | Sidebar and mobile tab bar |
+| `--bubble` | `#F4F4F4` | `#2A2A2A` | The user's message bubble |
+| `--composer` | `#FFFFFF` | `#1F1F1F` | The message box |
+| `--sunken` | `#ECECEC` | `#2A2A2A` | Hover and current nav item, chips, status badges |
+| `--line` | `#E5E5E5` | `#2E2E2E` | Dividers and card borders (decorative) |
 | `--edge` | `#8F8F8F` | `#8E8E8E` | Outlines of inputs and buttons (≥ 3:1) |
 | `--ink` | `#0D0D0D` | `#ECECEC` | Main text |
 | `--ink-2` | `#5D5D5D` | `#A3A3A3` | Secondary text, meta lines, placeholders |
@@ -250,19 +252,19 @@ Tabs: **About you** (role, experience, discipline, your time zone, language), **
 | `--color-linkedin` | `#0A66C2` | `#0A66C2` | LinkedIn's own blue: its logo and its calendar cards' edge |
 | `--color-telegram` | `#26A5E4` | `#26A5E4` | Telegram's own blue: its logo and its calendar cards' edge |
 
-**Platform logos (27 Nov 2026):** X, LinkedIn and Telegram are shown with their own published logos in their own colours (`PlatformMark`), never redrawn line icons: X's mark follows the text colour (it has no colour of its own), LinkedIn is the blue "in" square, Telegram the blue circle with the white plane. The logos are always next to the platform's name or carry it in a label.
+**Platform logos (27 Nov 2026):** X, LinkedIn and Telegram are shown with their own published logos in their own colours (`PlatformMark`), never redrawn line icons: X's mark follows the text colour (it has no colour of its own), LinkedIn is the blue "in" square, Telegram the blue circle with the white plane. **The logo is the name (changed 27 Nov 2026 by the product owner):** wherever a platform is labelled (the composer's platform picker, the sidebar's Drafts, draft tabs and cards, the calendar), the logo stands alone, with no chip background and no visible name. The name stays in a tooltip and for screen readers (`aria-label` or `sr-only`). In the composer, a picked platform is in full colour with a dot under it; an unpicked one is grey and faded, so "picked" never rests on colour alone. Sentences still name the platform ("Make a LinkedIn version", "Write a Telegram draft", page headings).
 
 **Contrast, all measured (WCAG 2.2 AA: 4.5:1 for text, 3:1 for UI parts):**
 
 | Pair | Light | Dark |
 |---|---|---|
-| `--ink` on `--paper` / `--sidebar` / `--bubble` / `--sunken` | 19.4 / 18.5 / 17.7 / 16.5 | 16.8 / 17.8 / 14.0 / 14.4 |
-| `--ink-2` on `--paper` / `--sidebar` / `--bubble` / `--sunken` | 6.6 / 6.3 / 6.0 / 5.6 | 7.8 / 8.3 / 6.5 / 6.8 |
-| `--thread` on `--paper` / `--sunken` | 6.3 / 5.3 | 9.6 / 8.3 |
-| `--signal` on `--paper` / `--sunken` | 6.1 / 5.1 | 9.3 / 8.0 |
-| `--danger` on `--paper` / `--bubble` | 6.6 / 6.0 | 7.6 / 6.4 |
+| `--ink` on `--paper` / `--sidebar` / `--bubble` / `--sunken` | 19.4 / 18.5 / 17.7 / 16.5 | 15.2 / 13.6 / 12.1 / 12.1 |
+| `--ink-2` on `--paper` / `--sidebar` / `--bubble` / `--sunken` | 6.6 / 6.3 / 6.0 / 5.6 | 7.1 / 6.4 / 5.7 / 5.7 |
+| `--thread` on `--paper` / `--sunken` | 6.3 / 5.3 | 8.7 / 7.0 |
+| `--signal` on `--paper` / `--sunken` | 6.1 / 5.1 | 8.4 / 6.7 |
+| `--danger` on `--paper` / `--bubble` | 6.6 / 6.0 | 6.9 / 5.5 |
 | `--on-primary` on `--primary` (primary button) | 19.4 | 19.4 |
-| `--edge` on `--paper` / `--composer` (input outlines) | 3.2 / 3.2 | 6.0 / 5.5 |
+| `--edge` on `--paper` / `--composer` (input outlines) | 3.2 / 3.2 | 5.5 / 5.0 |
 
 ### Type
 
@@ -306,7 +308,7 @@ Rules: never set "voxlace" in a font; use the component. Keep space around it eq
 - Radius: `--radius-control` 10px (inputs, nav items), `--radius-panel` 16px (cards, panels), `--radius-composer` 28px (the message box), `rounded-3xl` for the user's bubble, **pills for every button**, chips and badges.
 - **Borders separate, shadows float.** Cards and panels get a 1px `--line` border. The composer gets the faint `--shadow-composer`; menus, dialogs and toasts use `--shadow-float`. Focused inputs and buttons get a 2px `--thread` ring.
 - **Bars never hide focus** (WCAG 2.4.11): pages with a sticky composer or action bar set `scroll-padding-bottom` to the bars' height.
-- Layout: a flat sidebar 260px on `--sidebar`, full height, no border → 64px icon rail when collapsed → bottom tab bar below 768px. A **right panel** of 300px for notifications and missed posts from 1280px up; below that it's a bell. One centered column, `--column` 720px. The new-chat question and its composer sit centered, about a fifth of the way down.
+- Layout: a floating sidebar card 260px wide on `--sidebar` (inside a 284px column with a 12px margin) → a 64px rounded icon rail when collapsed → bottom tab bar below 768px. A **right panel** of 300px for notifications and missed posts from 1280px up; below that it's a bell. One centered column, `--column` 720px. The new-chat question and its composer sit centered, about a fifth of the way down.
 
 ### Motion
 
