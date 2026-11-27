@@ -17,7 +17,7 @@ export function savedTheme(): Theme | null {
 }
 
 /** The browser bar matches the page (--paper): white in light, near-black in dark. */
-const BAR: Record<Theme, string> = { light: '#ffffff', dark: '#0a0a0a' }
+const BAR: Record<Theme, string> = { light: '#ffffff', dark: '#171717' }
 
 export function applyTheme(theme: Theme | null) {
   if (theme) document.documentElement.dataset.theme = theme

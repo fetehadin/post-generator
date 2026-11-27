@@ -56,9 +56,9 @@ test('the sidebar has New chat, past chats, Drafts by platform, Calendar and Pro
     '/chat/t1',
   )
   for (const [name, href] of [
-    ['X', '/drafts/x'],
-    ['LinkedIn', '/drafts/linkedin'],
-    ['Telegram', '/drafts/telegram'],
+    ['X drafts', '/drafts/x'],
+    ['LinkedIn drafts', '/drafts/linkedin'],
+    ['Telegram drafts', '/drafts/telegram'],
     ['Calendar', '/calendar'],
   ])
     expect(side.getByRole('link', { name })).toHaveAttribute('href', href)
@@ -71,7 +71,7 @@ test('Drafts folds its platforms away and remembers it', async () => {
   const toggle = within(sidebar()).getByRole('button', { name: 'Drafts' })
   expect(toggle).toHaveAttribute('aria-expanded', 'true')
   await userEvent.click(toggle)
-  expect(within(sidebar()).queryByRole('link', { name: 'LinkedIn' })).not.toBeInTheDocument()
+  expect(within(sidebar()).queryByRole('link', { name: 'LinkedIn drafts' })).not.toBeInTheDocument()
   unmount()
   renderShell()
   expect(within(sidebar()).getByRole('button', { name: 'Drafts' })).toHaveAttribute(

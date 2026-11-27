@@ -52,8 +52,8 @@ export function WritingCard({
       data-testid={`writing-${platform}`}
     >
       <div className="flex items-center gap-2 text-sm">
-        <PlatformMark platform={platform} />
-        <span className="font-semibold">{LABEL[platform]} draft</span>
+        <PlatformMark platform={platform} className="size-5" />
+        <span className="sr-only">{LABEL[platform]} draft</span>
         {onStop && (
           <button type="button" onClick={onStop} className={cn(ghost, 'ml-auto min-h-9')}>
             <Icon name="stop" className="size-3.5 fill-current" />

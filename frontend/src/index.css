@@ -31,13 +31,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --paper: #0a0a0a;
-    --surface: #0a0a0a;
-    --sunken: #1c1c1c;
-    --sidebar: #000000;
-    --bubble: #1f1f1f;
-    --composer: #171717;
-    --line: #262626;
+    --paper: #171717;
+    --surface: #171717;
+    --sunken: #2a2a2a;
+    --sidebar: #212121;
+    --bubble: #2a2a2a;
+    --composer: #1f1f1f;
+    --line: #2e2e2e;
     --edge: #8e8e8e;
     --ink: #ececec;
     --ink-2: #a3a3a3;
@@ -54,13 +54,13 @@
 }
 
 [data-theme='dark'] {
-  --paper: #0a0a0a;
-  --surface: #0a0a0a;
-  --sunken: #1c1c1c;
-  --sidebar: #000000;
-  --bubble: #1f1f1f;
-  --composer: #171717;
-  --line: #262626;
+  --paper: #171717;
+  --surface: #171717;
+  --sunken: #2a2a2a;
+  --sidebar: #212121;
+  --bubble: #2a2a2a;
+  --composer: #1f1f1f;
+  --line: #2e2e2e;
   --edge: #8e8e8e;
   --ink: #ececec;
   --ink-2: #a3a3a3;
