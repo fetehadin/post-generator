@@ -161,14 +161,14 @@ test('Undo goes back to the version before', async () => {
 test('nothing is handed off before approval; approve asks for one date and time (rule 4)', async () => {
   renderThread()
   const open = await screen.findByRole('article', { name: 'X draft, version 2' })
-  expect(within(open).queryByRole('button', { name: 'Open in X' })).not.toBeInTheDocument()
+  expect(within(open).queryByRole('button', { name: 'Send now' })).not.toBeInTheDocument()
   expect(within(open).queryByRole('button', { name: 'Copy text' })).not.toBeInTheDocument()
   await userEvent.click(within(open).getByRole('button', { name: 'Approve' }))
   await userEvent.click(within(open).getByRole('button', { name: 'Approve for this time' }))
   await vi.waitFor(() => expect(sent('POST /drafts/d1/schedule')).toHaveLength(1))
   expect(sent('POST /drafts/d1/schedule')[0]).toMatchObject({ at: expect.stringMatching(/Z$/) })
   const tab = vi.spyOn(window, 'open').mockReturnValue(null)
-  await userEvent.click(await within(open).findByRole('button', { name: 'Open in X' }))
+  await userEvent.click(await within(open).findByRole('button', { name: 'Send now' }))
   expect(tab).toHaveBeenCalledOnce()
   tab.mockRestore()
   // Then the same question as Drafts, the calendar and the bell; yes marks it Posted.
@@ -244,7 +244,7 @@ test('with the bot connected, an approved Telegram draft is posted on one click 
   renderThread()
   const open = await screen.findByRole('article', { name: 'Telegram draft, version 2' })
   expect(await within(open).findByText(/Posts to FeteScript/)).toBeInTheDocument()
-  await userEvent.click(within(open).getByRole('button', { name: 'Post to Telegram now' }))
+  await userEvent.click(within(open).getByRole('button', { name: 'Send now' }))
   await vi.waitFor(() => expect(calls()).toContain('POST /drafts/d1/publish'))
 })
 
@@ -275,7 +275,7 @@ test('a post the bot could not send says why, and can still be posted now (ADR 0
   expect(
     await within(open).findByText(/The bot couldn't post it: Make @VoxlaceBot/),
   ).toBeInTheDocument()
-  expect(within(open).getByRole('button', { name: 'Post to Telegram now' })).toBeInTheDocument()
+  expect(within(open).getByRole('button', { name: 'Send now' })).toBeInTheDocument()
 })
 
 test('a typed time fills the picker, is repeated in words, and goes out as UTC (FR-52)', async () => {

@@ -493,12 +493,13 @@ function Approved({
             type="button"
             disabled={over || hand.posting}
             onClick={() => void hand.post()}
+            title={hand.detail}
             className={primary}
           >
             {hand.posting ? 'Posting…' : hand.label}
           </button>
           {/* Only when the main button also opens a site; else it already just copies. */}
-          {(viaBot || !hand.label.startsWith('Copy text')) && (
+          {(viaBot || !hand.detail.startsWith('Copy text')) && (
             <Tooltip content="Copy the text only">
               <button
                 type="button"
