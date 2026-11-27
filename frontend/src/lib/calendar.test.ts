@@ -1,4 +1,4 @@
-import { addDays, monthWeeks, moveTo, sameDay, startOfWeek, weekDays } from './calendar'
+import { SLOTS, addDays, dropTime, sameDay, slotOf, startOfWeek, weekDays } from './calendar'
 
 test('weeks start on Monday at local midnight', () => {
   const wed = new Date(2026, 9, 21, 15, 30) // Wed 21 Oct 2026
@@ -13,16 +13,21 @@ test('a week has seven days, Monday to Sunday', () => {
   expect(sameDay(days[6], addDays(days[0], 6))).toBe(true)
 })
 
-test('moving keeps the minutes and returns UTC', () => {
-  const iso = new Date(2026, 9, 21, 18, 30).toISOString()
-  const moved = new Date(moveTo(iso, new Date(2026, 9, 23), 9))
-  expect([moved.getDate(), moved.getHours(), moved.getMinutes()]).toEqual([23, 9, 30])
-  expect(moveTo(iso, new Date(2026, 9, 23), 9).endsWith('Z')).toBe(true)
+test('the week grid has twelve two-hour rows, and an hour belongs to its row', () => {
+  expect(SLOTS).toEqual([0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22])
+  expect([slotOf(0), slotOf(9), slotOf(13), slotOf(23)]).toEqual([0, 8, 12, 22])
 })
 
-test('the month view covers the whole month in full weeks', () => {
-  const weeks = monthWeeks(new Date(2026, 9, 15)) // October 2026: Thu 1 to Sat 31
-  expect(weeks[0][0].getDate()).toBe(28) // Mon 28 Sep
-  expect(weeks.at(-1)!.at(-1)!.getDate()).toBe(1) // Sun 1 Nov
-  expect(weeks.every((w) => w.length === 7)).toBe(true)
+test('a drop on the same row of another day keeps the exact time, in UTC', () => {
+  const iso = new Date(2026, 9, 20, 9, 40).toISOString() // Tue 09:40
+  const moved = dropTime(iso, new Date(2026, 9, 22), 8) // Thu, the 08:00 row
+  const t = new Date(moved)
+  expect([t.getDate(), t.getHours(), t.getMinutes()]).toEqual([22, 9, 40])
+  expect(moved.endsWith('Z')).toBe(true)
+})
+
+test("a drop on another row starts at that row's hour", () => {
+  const iso = new Date(2026, 9, 20, 9, 40).toISOString()
+  const t = new Date(dropTime(iso, new Date(2026, 9, 20), 12))
+  expect([t.getDate(), t.getHours(), t.getMinutes()]).toEqual([20, 12, 0])
 })

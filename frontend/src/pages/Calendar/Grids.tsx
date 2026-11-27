@@ -1,29 +1,20 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { usePatchAnyDraft } from '../../api/drafts'
 import type { DraftRow } from '../../api/types'
-import { dayKey, isDue, isMissed, sameDay } from '../../lib/calendar'
+import { SLOT_HOURS, SLOTS, dayKey, sameDay, slotOf } from '../../lib/calendar'
 import type { useMoveDrag } from '../../lib/useMoveDrag'
-import { Icon } from '../../components/Icon'
 import { cn } from '../../lib/utils'
-import { CalendarItem, type ItemState } from './CalendarItem'
+import { CalendarItem, TodayCard, itemState } from './CalendarItem'
 
-export const ROW = 56 // px per hour in the time grids: the rows are min-h-14 (3.5rem)
-const OPEN_AT = 7 // the time grids open scrolled to 07:00 (DESIGN.md §4.3)
-const MONTH_CHIPS = 3 // more than this in a month cell becomes "+N more"
-const HOURS = Array.from({ length: 24 }, (_, h) => h)
+const OPEN_AT = 6 // the week grid opens on the 06:00 row (DESIGN.md §4.3)
 const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
-const dayName = new Intl.DateTimeFormat(undefined, {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-})
-/** 24-hour like every other time in the app (lib/time.ts): "07:00", never "7 AM". */
+/** 24-hour like every other time in the app (lib/time.ts): "06:00", never "6 AM". */
 const hourFormat = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
   minute: '2-digit',
   hourCycle: 'h23',
 })
-const HOUR_LABELS = HOURS.map((h) => hourFormat.format(new Date(2000, 0, 1, h)))
+const SLOT_LABELS = SLOTS.map((h) => hourFormat.format(new Date(2000, 0, 1, h)))
 
 type Shared = {
   items: DraftRow[]
@@ -32,16 +23,11 @@ type Shared = {
   move: ReturnType<typeof useMoveDrag>
 }
 
-export function itemState(d: DraftRow, now: Date): ItemState {
-  if (isMissed(d.scheduled_for!, now)) return 'missed'
-  return isDue(d.scheduled_for!, now) ? 'due' : 'planned'
-}
-
 /**
- * The posts of each day ("2026-10-22") and each hour ("2026-10-22@18"), sorted by time:
+ * The posts of each day ("2026-10-22") and each row ("2026-10-22@18"), sorted by time:
  * grouped once per render, so a cell looks its posts up instead of scanning every post.
  */
-function byDayAndHour(items: DraftRow[]): Map<string, DraftRow[]> {
+function byDayAndSlot(items: DraftRow[]): Map<string, DraftRow[]> {
   const groups = new Map<string, DraftRow[]>()
   const add = (key: string, d: DraftRow) => {
     const list = groups.get(key)
@@ -52,104 +38,108 @@ function byDayAndHour(items: DraftRow[]): Map<string, DraftRow[]> {
   for (const d of sorted) {
     const t = new Date(d.scheduled_for!)
     add(dayKey(t), d)
-    add(`${dayKey(t)}@${t.getHours()}`, d)
+    add(`${dayKey(t)}@${slotOf(t.getHours())}`, d)
   }
   return groups
 }
 const NONE: DraftRow[] = []
 
-function Item({ d, now, patch, move }: Shared & { d: DraftRow }) {
+/** Posted posts stay where they went out, faded, and don't move. */
+function Item({ d, now, patch, move, canDrag }: Shared & { d: DraftRow; canDrag: boolean }) {
+  const state = itemState(d, now)
+  const movable = canDrag && state !== 'posted'
   return (
     <CalendarItem
       draft={d}
-      state={itemState(d, now)}
+      state={state}
       patch={patch}
-      drag={move.handle(d.id)}
+      drag={movable ? move.handle(d.id) : undefined}
       dragging={move.dragging === d.id}
     />
   )
 }
 
 /**
- * Week (columns are days) and day (one column): rows are hours. Posts in the same hour sit
- * side by side. The selected platform's best hours are shaded with a bar on the left (FR-16),
- * and a thin line marks now in today's column.
+ * The week on a computer: seven day columns, twelve two-hour rows. Posts in the same cell stack
+ * in time order. Today's column is tinted and a line marks now. Drop a post on another day or
+ * row to move it (lib/calendar dropTime).
  */
-export function TimeGrid({
-  days,
-  best,
-  bestFor,
-  ...shared
-}: Shared & { days: Date[]; best: Record<string, number[]>; bestFor: string | null }) {
+export function WeekGrid({ days, ...shared }: Shared & { days: Date[] }) {
   const scroller = useRef<HTMLDivElement>(null)
+  const firstRow = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    // A little above 07:00, so its label (drawn over the line) isn't cut off.
-    if (scroller.current) scroller.current.scrollTop = ROW * OPEN_AT - 12
+    // Open on the 06:00 row; the night rows are a short scroll up.
+    const row = firstRow.current
+    if (scroller.current && row)
+      scroller.current.scrollTo?.({ top: row.offsetTop, behavior: 'instant' })
   }, [])
   const { now, move } = shared
-  const posts = useMemo(() => byDayAndHour(shared.items), [shared.items])
-  const cols =
-    days.length === 1
-      ? 'grid-cols-[64px_minmax(0,1fr)]'
-      : 'grid-cols-[64px_repeat(7,minmax(0,1fr))]'
+  const posts = useMemo(() => byDayAndSlot(shared.items), [shared.items])
+  const cols = 'grid-cols-[56px_repeat(7,minmax(0,1fr))]'
 
   return (
     <div className="overflow-hidden rounded-panel border border-line bg-surface">
       <div className={cn('grid border-b border-line', cols)}>
         <span />
-        {days.map((day) => (
-          <div
-            key={day.toISOString()}
-            className={cn(
-              'border-l border-line px-2 py-2 text-center text-sm',
-              sameDay(day, now) ? 'font-semibold text-ink' : 'text-muted',
-            )}
-          >
-            {weekday.format(day)}{' '}
-            <span
+        {days.map((day) => {
+          const today = sameDay(day, now)
+          return (
+            <div
+              key={day.toISOString()}
               className={cn(
-                'tabular-nums',
-                sameDay(day, now) && 'rounded-full bg-primary px-1.5 py-0.5 text-on-primary',
+                'flex items-baseline justify-center gap-1.5 border-l border-line px-2 py-2.5 text-sm',
+                today ? 'bg-sunken/60 font-semibold text-ink' : 'text-muted',
               )}
             >
-              {day.getDate()}
-            </span>
-          </div>
-        ))}
+              {weekday.format(day)}
+              <span
+                className={cn(
+                  'grid min-w-6 place-items-center rounded-full px-1 tabular-nums',
+                  today && 'bg-primary text-on-primary',
+                )}
+              >
+                {day.getDate()}
+              </span>
+            </div>
+          )
+        })}
       </div>
-      <div ref={scroller} className="max-h-[68vh] overflow-y-auto overscroll-contain">
-        {HOURS.map((h) => (
-          <div key={h} className={cn('grid min-h-14', cols)}>
-            <span className="-mt-2 pr-2 text-right text-xs text-muted tabular-nums">
-              {h > 0 && HOUR_LABELS[h]}
+      <div ref={scroller} className="relative max-h-[70vh] overflow-y-auto overscroll-contain">
+        {SLOTS.map((h, i) => (
+          <div
+            key={h}
+            ref={h === OPEN_AT ? firstRow : undefined}
+            className={cn('grid min-h-20', cols, i > 0 && 'border-t border-line')}
+          >
+            <span className="pt-1.5 pr-2 text-right text-xs text-muted tabular-nums">
+              {SLOT_LABELS[i]}
             </span>
             {days.map((day) => {
               const key = dayKey(day)
-              const isBest = best[key]?.includes(h)
               const here = posts.get(`${key}@${h}`) ?? NONE
-              const nowHere = sameDay(day, now) && now.getHours() === h
+              const today = sameDay(day, now)
+              const nowHere = today && slotOf(now.getHours()) === h
+              const minutes = (now.getHours() - h) * 60 + now.getMinutes()
               return (
                 <div
                   key={key}
                   data-drop-day={key}
                   data-drop-hour={h}
                   className={cn(
-                    'relative flex flex-wrap content-start gap-1 border-t border-l border-line p-1 transition-colors duration-(--duration) ease-(--ease)',
-                    isBest &&
-                      'bg-sunken before:absolute before:inset-y-1 before:left-1 before:w-0.5 before:rounded-full before:bg-edge',
-                    move.over === `${key}@${h}` && 'bg-sunken ring-1 ring-edge ring-inset',
+                    'relative flex min-w-0 flex-col gap-1 border-l border-line p-1 transition-colors duration-(--duration) ease-(--ease)',
+                    today && 'bg-sunken/40',
+                    move.over === `${key}@${h}` && 'bg-sunken ring-2 ring-edge ring-inset',
                   )}
                 >
-                  {isBest && <span className="sr-only">Best hour for {bestFor}.</span>}
                   {nowHere && (
                     <span
                       aria-hidden="true"
-                      className="pointer-events-none absolute inset-x-0 z-10 h-px bg-ink"
-                      style={{ top: `${(now.getMinutes() / 60) * 100}%` }}
+                      className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-danger before:absolute before:-top-[3px] before:-left-1 before:size-2 before:rounded-full before:bg-danger"
+                      style={{ top: `${(minutes / (SLOT_HOURS * 60)) * 100}%` }}
                     />
                   )}
                   {here.map((d) => (
-                    <Item key={d.id} d={d} {...shared} />
+                    <Item key={d.id} d={d} canDrag {...shared} />
                   ))}
                 </div>
               )
@@ -161,144 +151,49 @@ export function TimeGrid({
   )
 }
 
-/** Month: rows are weeks, columns are days; each post is a chip with its time. */
-export function MonthGrid({
-  weeks,
-  month,
-  onOpenDay,
-  ...shared
-}: Shared & { weeks: Date[][]; month: number; onOpenDay: (day: Date) => void }) {
-  const { now, move } = shared
-  const posts = useMemo(() => byDayAndHour(shared.items), [shared.items])
+/** Today: its posts in time order, each in full with its actions in view. */
+export function TodayList({ day, ...shared }: Shared & { day: Date }) {
+  const posts = useMemo(() => byDayAndSlot(shared.items), [shared.items])
+  const here = posts.get(dayKey(day)) ?? NONE
+  if (!here.length) return null
   return (
-    <div className="overflow-hidden rounded-panel border border-line bg-surface">
-      <div className="grid grid-cols-7 border-b border-line text-center text-sm text-muted">
-        {weeks[0].map((d) => (
-          <span key={d.toISOString()} className="py-2">
-            {weekday.format(d)}
-          </span>
-        ))}
-      </div>
-      {weeks.map((week) => (
-        <div key={week[0].toISOString()} className="grid grid-cols-7">
-          {week.map((day) => {
-            const key = dayKey(day)
-            const here = posts.get(key) ?? NONE
-            const extra = here.length - MONTH_CHIPS
-            return (
-              <div
-                key={key}
-                data-drop-day={key}
-                className={cn(
-                  'flex min-h-16 min-w-0 flex-col gap-1 border-t border-l border-line p-1 transition-colors duration-(--duration) ease-(--ease) md:min-h-28',
-                  day.getMonth() !== month && 'bg-sunken/60',
-                  move.over === key && 'bg-sunken ring-1 ring-edge ring-inset',
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => onOpenDay(day)}
-                  aria-label={`Open ${day.toDateString()}`}
-                  className={cn(
-                    'grid min-h-6 min-w-6 place-items-center self-start rounded-full px-1 text-xs tabular-nums hover:bg-sunken',
-                    sameDay(day, now) ? 'bg-primary font-semibold text-on-primary' : 'text-muted',
-                  )}
-                >
-                  {day.getDate()}
-                </button>
-                <div className="hidden flex-col gap-1 md:flex">
-                  {here.slice(0, MONTH_CHIPS).map((d) => (
-                    <Item key={d.id} d={d} {...shared} />
-                  ))}
-                  {extra > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenDay(day)}
-                      className="self-start rounded-control px-1 text-xs text-muted hover:bg-sunken hover:text-ink"
-                    >
-                      +{extra} more
-                    </button>
-                  )}
-                </div>
-                {/* Phones: too narrow for chips. A mark per post (an icon when missed or due, so
-                    the state isn't colour alone), and the day opens on tap. */}
-                {here.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenDay(day)}
-                    aria-label={dotsLabel(day, here, now)}
-                    className="flex min-h-6 w-full flex-wrap items-center gap-0.5 rounded-control px-0.5 hover:bg-sunken md:hidden"
-                  >
-                    {here.map((d) => {
-                      const state = itemState(d, now)
-                      return state === 'planned' ? (
-                        <span key={d.id} className="size-1.5 rounded-full bg-ink" />
-                      ) : (
-                        <Icon
-                          key={d.id}
-                          name={state === 'missed' ? 'alert' : 'clock'}
-                          className={cn(
-                            'size-3',
-                            state === 'missed' ? 'text-danger' : 'text-signal',
-                          )}
-                        />
-                      )
-                    })}
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </div>
+    <ol className="flex flex-col gap-3">
+      {here.map((d) => (
+        <li key={d.id}>
+          <TodayCard draft={d} state={itemState(d, shared.now)} patch={shared.patch} />
+        </li>
       ))}
-    </div>
+    </ol>
   )
 }
 
-/** "Tue, 4 Nov: 2 posts, 1 missed", for the phone month cell's button. */
-function dotsLabel(day: Date, here: DraftRow[], now: Date) {
-  const states = here.map((d) => itemState(d, now))
-  const missed = states.filter((s) => s === 'missed').length
-  const due = states.filter((s) => s === 'due').length
-  return [
-    `${dayName.format(day)}: ${here.length} ${here.length === 1 ? 'post' : 'posts'}`,
-    missed && `${missed} missed`,
-    due && `${due} due now`,
-  ]
-    .filter(Boolean)
-    .join(', ')
-}
-
-/** Phones, week view: one list per day; the same chips, menus and Move to…. */
+/**
+ * The week on a phone: a list by day. No dragging here (too fiddly in a list): a post's
+ * Change time moves it. Days without posts are left out, so the list stays short.
+ */
 export function WeekList({ days, ...shared }: Shared & { days: Date[] }) {
-  const posts = useMemo(() => byDayAndHour(shared.items), [shared.items])
+  const posts = useMemo(() => byDayAndSlot(shared.items), [shared.items])
   return (
-    <ol className="flex flex-col gap-4">
+    <ol className="flex flex-col gap-5">
       {days.map((day) => {
-        const key = dayKey(day)
-        const here = posts.get(key) ?? NONE
+        const here = posts.get(dayKey(day)) ?? NONE
+        if (!here.length) return null
+        const today = sameDay(day, shared.now)
         return (
-          <li
-            key={key}
-            data-drop-day={key}
-            className={cn(
-              'rounded-control p-1 transition-colors duration-(--duration) ease-(--ease)',
-              shared.move.over === key && 'bg-sunken ring-1 ring-edge ring-inset',
-            )}
-          >
+          <li key={dayKey(day)}>
             <h3
               className={cn(
-                'text-sm',
-                sameDay(day, shared.now) ? 'font-semibold text-ink' : 'text-muted',
+                'text-xs font-semibold tracking-wide uppercase',
+                today ? 'text-ink' : 'text-muted',
               )}
             >
               {weekday.format(day)} {day.getDate()}
+              {today && ' · today'}
             </h3>
-            <div className="mt-1 flex flex-col gap-1">
+            <div className="mt-2 flex flex-col gap-2">
               {here.map((d) => (
-                <Item key={d.id} d={d} {...shared} />
+                <Item key={d.id} d={d} canDrag={false} {...shared} />
               ))}
-              {!here.length && <p className="text-xs text-muted">Nothing planned.</p>}
             </div>
           </li>
         )

@@ -1,7 +1,8 @@
 import { vi } from 'vitest'
 import { api } from '../api/client'
 
-type Handler = (body: unknown, init?: RequestInit) => unknown
+/** `path` is the whole path with its query string, for routes that filter by it. */
+type Handler = (body: unknown, init?: RequestInit, path?: string) => unknown
 
 /**
  * Route the mocked `api()` by "METHOD /path" (query string ignored), so a page that calls
@@ -16,7 +17,7 @@ export function routeApi(routes: Record<string, Handler>) {
     )
     if (!match) throw new Error(`No fake for ${key}`)
     const body = init?.body ? JSON.parse(String(init.body)) : undefined
-    return (await match[1](body, init)) as never
+    return (await match[1](body, init, String(path))) as never
   })
 }
 

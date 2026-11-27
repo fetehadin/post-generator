@@ -40,7 +40,7 @@ function Harness({ draft }: { draft: DraftRow }) {
         <HandOffPrompt hand={hand} />
       ) : (
         <>
-          <button type="button" onClick={() => void hand.post()}>
+          <button type="button" title={hand.detail} onClick={() => void hand.post()}>
             {hand.label}
           </button>
           <button type="button" onClick={() => void hand.copy()}>
@@ -63,7 +63,7 @@ const renderWith = (draft: DraftRow) =>
 
 test('LinkedIn: copies, opens the composer, then asks and marks it Posted on yes', async () => {
   renderWith(row({ status: 'approved', platform: 'linkedin', text: 'Shipped it' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Copy and open LinkedIn' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Send now' }))
   expect(writeText).toHaveBeenCalledWith('Shipped it')
   expect(window.open).toHaveBeenCalledWith(
     'https://www.linkedin.com/feed/?shareActive=true',
@@ -77,7 +77,7 @@ test('LinkedIn: copies, opens the composer, then asks and marks it Posted on yes
 
 test('X opens pre-filled and says nothing about copying', async () => {
   renderWith(row({ status: 'approved', platform: 'x', text: 'hi' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Open in X' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Send now' }))
   expect(writeText).not.toHaveBeenCalled()
   expect(await screen.findByText('Did you post it?')).toBeInTheDocument()
   expect(screen.queryByText('Copied.')).not.toBeInTheDocument()
@@ -85,7 +85,7 @@ test('X opens pre-filled and says nothing about copying', async () => {
 
 test('Telegram with no channel saved: copies and says where to add the channel', async () => {
   renderWith(row({ status: 'approved', platform: 'telegram' }))
-  await userEvent.click(await screen.findByRole('button', { name: 'Copy text for Telegram' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Send now' }))
   expect(
     await screen.findByText(/Open your channel in Telegram and paste it\. Add the channel name/),
   ).toBeInTheDocument()
@@ -94,21 +94,21 @@ test('Telegram with no channel saved: copies and says where to add the channel',
 test('Telegram with a channel: the button opens it', async () => {
   channel = 'fetescript'
   renderWith(row({ status: 'approved', platform: 'telegram' }))
-  await userEvent.click(await screen.findByRole('button', { name: 'Copy and open Telegram' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Send now' }))
   expect(window.open).toHaveBeenCalledWith('https://t.me/fetescript', '_blank', 'noopener')
 })
 
 test('a refused copy is an error, and still asks (they can copy by hand)', async () => {
   writeText.mockRejectedValue(new Error('denied'))
   renderWith(row({ status: 'approved', platform: 'linkedin' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Copy and open LinkedIn' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Send now' }))
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't copy")
   expect(screen.getByText('Did you post it?')).toBeInTheDocument()
 })
 
 test('a draft that is not approved is never handed off (rule 4)', async () => {
   renderWith(row({ status: 'draft', platform: 'linkedin' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Copy and open LinkedIn' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Send now' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('Approve this draft')
   expect(window.open).not.toHaveBeenCalled()
   expect(screen.queryByText('Did you post it?')).not.toBeInTheDocument()
@@ -116,9 +116,9 @@ test('a draft that is not approved is never handed off (rule 4)', async () => {
 
 test('Not yet goes back to the hand-off button without marking anything', async () => {
   renderWith(row({ status: 'approved', platform: 'x' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Open in X' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Send now' }))
   await userEvent.click(await screen.findByRole('button', { name: 'Not yet' }))
-  expect(screen.getByRole('button', { name: 'Open in X' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Send now' })).toBeInTheDocument()
   expect(sent('PATCH /drafts/d1')).toEqual([])
 })
 
@@ -131,10 +131,12 @@ test('Copy text copies only, without asking', async () => {
   expect(screen.queryByText('Did you post it?')).not.toBeInTheDocument()
 })
 
-test('Telegram with the bot connected: Post to Telegram now, nothing copied, nothing asked (FR-36)', async () => {
+test('Telegram with the bot connected: Send now posts it, nothing copied, nothing asked (FR-36)', async () => {
   bot = { title: 'Fete builds', username: 'fetebuilds', can_post: true }
   renderWith(row({ status: 'approved', platform: 'telegram', text: 'Shipped it' }))
-  await userEvent.click(await screen.findByRole('button', { name: 'Post to Telegram now' }))
+  const send = await screen.findByRole('button', { name: 'Send now' })
+  await vi.waitFor(() => expect(send).toHaveAttribute('title', 'The bot posts it to Fete builds'))
+  await userEvent.click(send)
   await vi.waitFor(() => expect(calls()).toContain('POST /drafts/d1/publish'))
   expect(await screen.findByText('Posted to Fete builds.')).toBeInTheDocument()
   expect(writeText).not.toHaveBeenCalled()
@@ -146,6 +148,6 @@ test('Telegram with the bot but no right to post: still copy and open', async ()
   bot = { title: 'Fete builds', username: 'fetebuilds', can_post: false }
   channel = 'fetebuilds'
   renderWith(row({ status: 'approved', platform: 'telegram', text: 'Shipped it' }))
-  expect(await screen.findByRole('button', { name: /Copy and open/ })).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Post to Telegram now' })).not.toBeInTheDocument()
+  const send = await screen.findByRole('button', { name: 'Send now' })
+  await vi.waitFor(() => expect(send).toHaveAttribute('title', 'Copy and open Telegram'))
 })

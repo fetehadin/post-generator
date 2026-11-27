@@ -68,7 +68,10 @@ export function useHandOff(draft: DraftRow) {
   }
 
   return {
-    label: viaBot ? 'Post to Telegram now' : handOffLabel(draft.platform, channel),
+    /** Every screen's one button: "Send now" (product owner, 27 Nov 2026). */
+    label: 'Send now',
+    /** What Send now does here, in words, for a tooltip: "Copy and open LinkedIn". */
+    detail: viaBot ? `The bot posts it to ${bot?.title}` : handOffLabel(draft.platform, channel),
     /** The bot posts this one (Telegram, connected, allowed to post). */
     viaBot,
     /** The connected channel's name, when the bot posts it. */

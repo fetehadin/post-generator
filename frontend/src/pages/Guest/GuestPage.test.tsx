@@ -71,7 +71,7 @@ test('a guest can ask for a change; saving, approving and scheduling ask for an 
   expect(await within(card).findByText('Shipped.')).toBeInTheDocument()
   expect(calls[1].body).toEqual({ receipt: 'r-x', instruction: 'Shorter' })
   expect(JSON.parse(localStorage.getItem('voxlace-guest')!).drafts[0].receipt).toBe('r-x2')
-  expect(within(card).queryByRole('button', { name: /Open in X|Approve/ })).not.toBeInTheDocument()
+  expect(within(card).queryByRole('button', { name: /Send now|Approve/ })).not.toBeInTheDocument()
   expect(
     within(card).getByRole('link', { name: /Save, approve and schedule: create an account/ }),
   ).toHaveAttribute('href', '/login')

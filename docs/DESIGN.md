@@ -60,7 +60,7 @@ On mobile, Chat · Drafts · Calendar · Profile become a bottom tab bar.
 |---|---|---|
 | **Chat board** (home, `/` and `/chat/:id`) | "What did you do today?" → Save or Generate → pick platforms → a draft card per platform in the thread → talk to it until it's right → Approve → pick a day → it's on the calendar | FR-6, FR-7, FR-8, FR-10, FR-40, FR-45, FR-46 |
 | **Drafts** (`/drafts/:platform`) | One platform's drafts by status; each card has Reschedule, Discard and, once approved, Copy now; Edit opens its thread | FR-10, FR-11, FR-12 |
-| **Calendar** | Month, week and day views; drag to reschedule; Edit opens the thread | FR-13, FR-16 |
+| **Calendar** | Your plan: Today and Week; "Needs you" for due and missed posts; drag to reschedule; Edit opens the thread | FR-13, FR-35 |
 | **Homepage** (logged out, `/`) | What Voxlace is, then the guest box as a live demo; see §4.6 | FR-47, FR-50 |
 | **Profile** (avatar) | Everything about you, all editable: about you, work and facts, resume and portfolio, audience per platform (profession and places), when you can post, voice and posts per platform, reminders, Telegram channel name, usage, export and delete | FR-1, FR-5, FR-17, FR-18, FR-20–FR-26, FR-30, FR-33, FR-38, FR-42 |
 
@@ -148,11 +148,18 @@ Wireframes show layout and hierarchy, not final styling.
 
 ### 4.3 Calendar
 
-- **Month:** rows are weeks, columns are days; each post is a chip with its time.
-- **Week:** columns are days, rows are hours. **Day:** one column, rows are hours. Both scroll to 07:00 and lightly shade the best hours of the selected platform.
-- Drag a post to another day (month) or slot (week, day); works with touch. Every item also has **Move to…** with a day and time picker (WCAG 2.5.7).
-- Posts at the same time sit side by side. Missed posts are red with Post now.
-- **Edit** opens the draft's thread; **Posted** marks it published.
+**Changed 27 Nov 2026 (product owner, after a grilling session): the calendar is your plan, nothing else.** It answers one question: which post goes out on which platform, and when. No best-hours row or shading (the hour is picked on Approve, and timing lives in Profile), no month or day view, no platform filter.
+
+- **Header:** "This week · 23 – 29 Nov" (or "Next week", or the dates), ‹ › and a **Today | Week** switch. Weeks start on Monday and go **forward only**: ‹ is off on this week, and an earlier date in the address opens this week.
+- **Needs you:** due and missed posts (from `GET /me/notifications`), each with **Send now** and **Change time**. Shown only when something needs you. A missed post stays here until it is posted, moved or sent back to drafts, also after its week ends.
+- **Week** (opens first on screens 1024px and wider; narrower screens get the week as a list by day): seven day columns, **twelve two-hour rows** (00:00 to 22:00), opening on the 06:00 row. Today's column is tinted and a red line marks now. Posts in the same cell stack in time order.
+- **A post card:** its platform's logo, a left edge in the platform's colour (`--color-linkedin`, `--color-telegram`, `--ink` for X), the time, two lines of text and its state in words and an icon: Due now, Missed, Posted, or Bot sends (a Telegram post the bot sends by itself, ADR 0001).
+- **Drag** a post with a mouse, or with touch from its grip: dropped on the same row of another day it keeps its exact time; on another row it starts at that row's hour. A slot that has passed is refused. Every post also has **Change time** (WCAG 2.5.7).
+- **Posted** posts stay in their week, faded, and don't move; they leave when the week is over. Drafts that aren't approved never show.
+- **Click a post** for its full text and **Send now** (once due or missed), **Change time**, **Edit** (its chat), **Back to drafts** and **Posted**.
+- **Today** (opens first on a phone): today's posts as a list in time order, each in full with its actions in view.
+- **Phone week:** a list by day, no dragging; Change time moves a post.
+- **Empty:** "Nothing planned this week." (or today) with **Write a post**.
 - Times are in the user's zone; the views load only their visible range.
 
 ### 4.4 Profile
@@ -240,6 +247,10 @@ Tabs: **About you** (role, experience, discipline, your time zone, language), **
 | `--thread` | `#2B6B5B` | `#72C4AE` | The AI mark only: "AI draft" label, focus ring, links |
 | `--signal` | `#8F5508` | `#E3A64C` | Near the limit, "still learning", due now |
 | `--danger` | `#B42318` | `#F2806F` | Over the limit, errors, missed, delete |
+| `--color-linkedin` | `#0A66C2` | `#0A66C2` | LinkedIn's own blue: its logo and its calendar cards' edge |
+| `--color-telegram` | `#26A5E4` | `#26A5E4` | Telegram's own blue: its logo and its calendar cards' edge |
+
+**Platform logos (27 Nov 2026):** X, LinkedIn and Telegram are shown with their own published logos in their own colours (`PlatformMark`), never redrawn line icons: X's mark follows the text colour (it has no colour of its own), LinkedIn is the blue "in" square, Telegram the blue circle with the white plane. The logos are always next to the platform's name or carry it in a label.
 
 **Contrast, all measured (WCAG 2.2 AA: 4.5:1 for text, 3:1 for UI parts):**
 
@@ -344,9 +355,9 @@ Product components to build on top:
 | Under 20 posts | Voice strength badge: "Still learning: import more posts for a closer match." (FR-5) |
 | Empty chat | Starters by profession under the box. A chat with no drafts: "Your drafts appear here" + platform chips + **Write drafts**. |
 | Empty Drafts | "Your drafts will appear here. Start a chat." with a button. |
-| Empty Calendar | "Approve a draft and pick a time to see it here." |
+| Empty Calendar | "Nothing planned this week." (or today) with **Write a post**. |
 | Import failed | Names the problem and the fix: "This isn't a Telegram export. Export your channel as JSON from Telegram Desktop." |
-| Missed post | Calendar item and the Missed list turn `--danger`: "Tue 09:00 passed. Post now or reschedule." |
+| Missed post | The calendar card says "Missed" in `--danger`; it stays in "Needs you" and at the top of Drafts → Approved under "Missed" until it is posted, moved or sent back. |
 
 ---
 
@@ -354,7 +365,7 @@ Product components to build on top:
 
 - **One verb per action, everywhere.** Generate → Revise → Approve → Schedule → Publish. The toast repeats the verb: Publish → "Published".
 - **Sentence case** for everything. No all-caps labels.
-- **Say what happens.** "Copy and open Telegram", "Open in X", "Copy text and open LinkedIn".
+- **Say what happens.** Most buttons name their consequence. **Exception, 27 Nov 2026 (product owner):** the hand-off button is **Send now** on every screen and every platform, because users read the longer wording ("Copy and open LinkedIn") as copy-and-paste chores. What it does is in the button's tooltip ("Copy and open LinkedIn", "The bot posts it to <channel>"), and the note after it says what happened ("Copied.", "Posted to <channel>.").
 - **Errors say what happened and what to do.** No "Oops", no apologies, never "Something went wrong" alone.
 - **Talk about the user's world**, not the system: "your posts", "your voice", not "embeddings", "vectors" or "RAG".
 - **Times always with a zone hint** when it's ambiguous: "18:00 your time (10:00 New York)".
