@@ -3,6 +3,7 @@ from datetime import date, datetime
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -129,6 +130,9 @@ class Thread(CreatedAt, Base):
         ForeignKey("checkins.id", ondelete="SET NULL")
     )
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Chat actions (FR-55): pinned chats stay on top; archived ones fold under "Archived".
+    pinned: Mapped[bool] = mapped_column(Boolean, server_default="false")
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class DraftVersion(CreatedAt, Base):

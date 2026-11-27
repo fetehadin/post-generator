@@ -29,8 +29,21 @@ type MockThread = {
   created_at: string
   updated_at: string
   messages: ThreadMessage[]
+  pinned?: boolean
+  archived?: boolean
 }
 const threads: MockThread[] = []
+
+function threadRow(t: MockThread) {
+  return {
+    id: t.id,
+    title: t.title,
+    platforms: [...new Set(drafts.filter((d) => d.thread_id === t.id).map((d) => d.platform))],
+    updated_at: t.updated_at,
+    pinned: Boolean(t.pinned),
+    archived: Boolean(t.archived),
+  }
+}
 let reminders: Reminders = { enabled: false, days: [0, 1, 2, 3, 4], local_time: '18:00' }
 const NAMES: Record<Platform, string> = { x: 'X', linkedin: 'LinkedIn', telegram: 'Telegram' }
 const LIMITS: Record<Platform, number> = { x: 280, linkedin: 3000, telegram: 4096 }
@@ -779,15 +792,52 @@ export async function mockFetch(input: RequestInfo | URL, init?: RequestInit): P
       return json(201, threadOut(t))
     }
     const items = [...threads]
-      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+      .sort(
+        (a, b) =>
+          Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) ||
+          b.updated_at.localeCompare(a.updated_at),
+      )
       .slice(0, 50)
-      .map((t) => ({
-        id: t.id,
-        title: t.title,
-        platforms: [...new Set(drafts.filter((d) => d.thread_id === t.id).map((d) => d.platform))],
-        updated_at: t.updated_at,
-      }))
+      .map(threadRow)
     return json(200, { items })
+  }
+  // Chat actions (FR-55)
+  const actionMatch = path.match(/^\/threads\/([^/]+)(\/title)?$/)
+  if (actionMatch && (init?.method === 'PATCH' || init?.method === 'DELETE' || actionMatch[2])) {
+    const t = threads.find((x) => x.id === actionMatch[1])
+    if (!t) return json(404, { error: { code: 'not_found', message: 'Not found.' } })
+    if (init?.method === 'DELETE') {
+      const keep = (d: (typeof drafts)[number]) =>
+        d.status === 'approved' || d.status === 'published' || Boolean(d.scheduled_for)
+      let kept = 0
+      for (let i = drafts.length - 1; i >= 0; i--) {
+        if (drafts[i].thread_id !== t.id) continue
+        if (keep(drafts[i])) {
+          drafts[i] = { ...drafts[i], thread_id: null }
+          kept++
+        } else drafts.splice(i, 1)
+      }
+      threads.splice(threads.indexOf(t), 1)
+      return json(200, { kept_drafts: kept })
+    }
+    if (actionMatch[2]) {
+      t.title = t.checkin_text.split(/\s+/).slice(0, 4).join(' ')
+      return json(200, threadRow(t))
+    }
+    const b = JSON.parse(String(init?.body)) as {
+      title?: string
+      pinned?: boolean
+      archived?: boolean
+    }
+    if (b.title !== undefined) {
+      if (!b.title.trim())
+        return json(400, { error: { code: 'missing_title', message: 'Give the chat a name.' } })
+      t.title = b.title.trim()
+    }
+    if (b.pinned !== undefined) t.pinned = b.pinned
+    if (b.archived !== undefined) t.archived = b.archived
+    if (b.archived) t.pinned = false
+    return json(200, threadRow(t))
   }
   const threadMatch = path.match(/^\/threads\/([^/]+)(\/generate)?$/)
   if (threadMatch) {

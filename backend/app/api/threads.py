@@ -1,5 +1,6 @@
 """The chat board (FR-40, FR-46): start a thread from what you did today, list past threads,
-read one, and generate a draft card per platform into it. Revising a card is
+read one, and generate a draft card per platform into it. Rename, pin, archive, delete or
+retitle a chat (FR-55). Revising a card is
 POST /drafts/{id}/revise; another platform's version is POST /drafts/{id}/convert."""
 
 import uuid
@@ -11,7 +12,16 @@ from app.api.deps import get_ai
 from app.api.shapes import thread_out
 from app.core.auth import current_user
 from app.core.errors import AppError
-from app.schemas import ClaimIn, ThreadGenerateIn, ThreadIn, ThreadOut, ThreadRowOut, ThreadsOut
+from app.schemas import (
+    ClaimIn,
+    ThreadDeletedOut,
+    ThreadGenerateIn,
+    ThreadIn,
+    ThreadOut,
+    ThreadPatchIn,
+    ThreadRowOut,
+    ThreadsOut,
+)
 from app.services import guest, threads
 from app.services.drafting import DraftError
 
@@ -40,19 +50,60 @@ def claim(body: ClaimIn, user_id: uuid.UUID = Depends(current_user)) -> ThreadOu
         raise _fail(e) from e
 
 
+def _row(thread, platforms: list[str]) -> ThreadRowOut:
+    return ThreadRowOut(
+        id=thread.id,
+        title=thread.title,
+        platforms=platforms,
+        updated_at=thread.updated_at,
+        pinned=thread.pinned,
+        archived=thread.archived_at is not None,
+    )
+
+
 @router.get("", response_model=ThreadsOut)
 def list_threads(user_id: uuid.UUID = Depends(current_user)) -> ThreadsOut:
-    return ThreadsOut(
-        items=[
-            ThreadRowOut(
-                id=r.thread.id,
-                title=r.thread.title,
-                platforms=r.platforms,
-                updated_at=r.thread.updated_at,
-            )
-            for r in threads.list_threads(user_id)
-        ]
-    )
+    """Pinned first, then last touched first; archived chats are included and flagged."""
+    return ThreadsOut(items=[_row(r.thread, r.platforms) for r in threads.list_threads(user_id)])
+
+
+@router.patch("/{thread_id}", response_model=ThreadRowOut)
+def patch_thread(
+    thread_id: uuid.UUID, body: ThreadPatchIn, user_id: uuid.UUID = Depends(current_user)
+) -> ThreadRowOut:
+    """FR-55: rename, pin or archive."""
+    try:
+        thread = threads.update(
+            user_id, thread_id, title=body.title, pinned=body.pinned, archived=body.archived
+        )
+    except DraftError as e:
+        raise _fail(e) from e
+    return _row(thread, threads.platforms_of(user_id, thread_id))
+
+
+@router.post("/{thread_id}/title", response_model=ThreadRowOut)
+def regenerate_title(
+    thread_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(current_user),
+    ai: AIClient = Depends(get_ai),
+) -> ThreadRowOut:
+    """FR-55: a short title written by the AI from the chat's check-in."""
+    try:
+        thread = threads.regenerate_title(user_id, thread_id, ai)
+    except DraftError as e:
+        raise _fail(e) from e
+    return _row(thread, threads.platforms_of(user_id, thread_id))
+
+
+@router.delete("/{thread_id}", response_model=ThreadDeletedOut)
+def delete_thread(
+    thread_id: uuid.UUID, user_id: uuid.UUID = Depends(current_user)
+) -> ThreadDeletedOut:
+    """FR-55: the chat and its unapproved drafts go; approved, scheduled and posted drafts stay."""
+    try:
+        return ThreadDeletedOut(kept_drafts=threads.delete_thread(user_id, thread_id))
+    except DraftError as e:
+        raise _fail(e) from e
 
 
 @router.get("/{thread_id}", response_model=ThreadOut)
