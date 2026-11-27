@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router'
 import { authMessage, supabase } from '../../lib/auth'
-import { Wordmark } from '../../components/Logo'
+import { AuthShell, authField, authPrimary } from './AuthShell'
 
 /**
  * FR-27: the reset link in the email lands here, already logged in for this one purpose
@@ -37,21 +37,22 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <main className="mx-auto max-w-md px-4 py-16">
-      <Wordmark className="h-7 w-auto text-ink" />
-      <h1 className="mt-6 text-2xl font-semibold tracking-tight">Choose a new password</h1>
+    <AuthShell
+      title="Choose a new password"
+      lead={ready ? "Pick one you haven't used here before." : undefined}
+    >
       {!ready ? (
         <>
-          <p role="alert" className="mt-4 text-danger">
+          <p role="alert" className="text-center text-danger">
             This reset link has expired or was already used.
           </p>
-          <Link to="/login" className="mt-6 inline-block text-thread underline underline-offset-4">
+          <Link to="/login" className={`${authPrimary} mt-8`}>
             Ask for a new link
           </Link>
         </>
       ) : (
         <form
-          className="mt-8 flex flex-col gap-3"
+          className="flex flex-col"
           onSubmit={(e) => {
             e.preventDefault()
             void submit()
@@ -68,23 +69,22 @@ export function ResetPasswordPage() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="min-h-10 rounded-control border border-edge bg-surface px-3"
+            aria-describedby="new-password-help"
+            className={`${authField} mt-2`}
           />
-          <p className="text-xs text-muted">At least 8 characters.</p>
+          <p id="new-password-help" className="mt-2 text-xs text-muted">
+            At least 8 characters.
+          </p>
           {error && (
-            <p role="alert" className="text-sm text-danger">
+            <p role="alert" className="mt-4 text-sm text-danger">
               {error}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={busy}
-            className="mt-2 min-h-10 rounded-full bg-primary px-4 text-sm font-semibold text-on-primary disabled:bg-sunken disabled:text-muted"
-          >
+          <button type="submit" disabled={busy} className={`${authPrimary} mt-6`}>
             {busy ? 'One moment…' : 'Save password and continue'}
           </button>
         </form>
       )}
-    </main>
+    </AuthShell>
   )
 }
