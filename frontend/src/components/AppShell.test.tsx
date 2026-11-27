@@ -103,7 +103,7 @@ test('the collapse button sits at the bottom of the sidebar, keeps labels and is
   )
 })
 
-test('when a post is due, the bell opens the notifications with copy-and-open', async () => {
+test('when a post is due, the bell opens the notifications with Send now', async () => {
   due = [row({ status: 'approved', platform: 'linkedin', scheduled_for: '2026-10-22T08:00:00Z' })]
   missed = [row({ id: 'm1', status: 'approved', scheduled_for: '2026-10-20T08:00:00Z' })]
   renderShell()
@@ -111,7 +111,8 @@ test('when a post is due, the bell opens the notifications with copy-and-open', 
   await userEvent.click(bell)
   const panel = await screen.findByRole('dialog', { name: 'Notifications' })
   expect(within(panel).getByText('LinkedIn post due now')).toBeInTheDocument()
-  expect(within(panel).getByRole('button', { name: 'Copy and open LinkedIn' })).toBeInTheDocument()
+  const sends = within(panel).getAllByRole('button', { name: 'Send now' })
+  expect(sends.map((b) => b.getAttribute('title'))).toContain('Copy and open LinkedIn')
   expect(within(panel).getByRole('heading', { name: 'Missed' })).toBeInTheDocument()
   expect(within(panel).getByRole('button', { name: 'Change time' })).toBeInTheDocument()
 })

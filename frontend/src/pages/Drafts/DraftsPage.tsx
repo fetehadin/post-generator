@@ -36,6 +36,24 @@ const primary =
 const pct = (n: number) => `${Math.round(n * 100)}%`
 
 /**
+ * Approved posts whose time passed go first, under "Missed", so they aren't lost once their
+ * week leaves the calendar (DESIGN.md §4.3). Other tabs are one plain list.
+ */
+function groups(status: DraftStatus, items: DraftRow[]) {
+  if (status !== 'approved') return [{ title: '', missed: false, items }]
+  const now = new Date()
+  const late = (d: DraftRow) =>
+    Boolean(d.bot_error) || (d.scheduled_for !== null && isMissed(d.scheduled_for, now))
+  const missed = items.filter(late)
+  if (!missed.length) return [{ title: '', missed: false, items }]
+  const rest = items.filter((d) => !late(d))
+  return [
+    { title: `Missed (${missed.length})`, missed: true, items: missed },
+    ...(rest.length ? [{ title: 'Coming up', missed: false, items: rest }] : []),
+  ]
+}
+
+/**
  * One platform's drafts by status (DESIGN.md §4.2, FR-10, FR-11, FR-12). Each card: status,
  * the first lines, the length or the time, then its actions: Approve or Change time (pick a
  * day; the hour is picked for you), Copy now on approved posts only (rule 4), Discard with
@@ -96,13 +114,27 @@ export function DraftsPage({ platform }: { platform: Platform }) {
                 )}
                 {drafts.data &&
                   (drafts.data.items.length ? (
-                    <ul className="flex flex-col gap-3">
-                      {drafts.data.items.map((d) => (
-                        <li key={d.id}>
-                          <DraftItem draft={d} onDiscarded={() => setDiscarded(d)} />
-                        </li>
-                      ))}
-                    </ul>
+                    groups(status, drafts.data.items).map((g) => (
+                      <section key={g.title || 'all'} className="mt-2 first:mt-0">
+                        {g.title && (
+                          <h2
+                            className={cn(
+                              'mt-4 mb-2 text-sm font-semibold',
+                              g.missed ? 'text-danger' : 'text-muted',
+                            )}
+                          >
+                            {g.title}
+                          </h2>
+                        )}
+                        <ul className="flex flex-col gap-3">
+                          {g.items.map((d) => (
+                            <li key={d.id}>
+                              <DraftItem draft={d} onDiscarded={() => setDiscarded(d)} />
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ))
                   ) : (
                     <div className="rounded-panel border border-dashed border-edge p-6 text-center">
                       <p className="text-muted">{t.empty}</p>
@@ -287,6 +319,7 @@ function DraftItem({ draft, onDiscarded }: { draft: DraftRow; onDiscarded: () =>
               disabled={over || hand.posting}
               aria-describedby={over ? lengthId : undefined}
               onClick={() => void hand.post()}
+              title={hand.detail}
               className={primary}
             >
               {hand.posting ? 'Posting…' : hand.label}
