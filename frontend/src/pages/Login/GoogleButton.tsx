@@ -32,7 +32,10 @@ export function GoogleButton({ signup, onSignedIn }: { signup: boolean; onSigned
           nonce: nonce.hashed,
           ux_mode: 'popup',
           context: signup ? 'signup' : 'signin',
-          use_fedcm_for_button: true,
+          // Google's popup, not Chrome's built-in sheet (FedCM): the sheet always names the
+          // site's main domain (fetehadin.com); the popup names the app, Voxlace, once Google
+          // has verified our branding.
+          use_fedcm_for_button: false,
           itp_support: true,
           callback: ({ credential }) => {
             if (!credential) return setError('Google sign-in was cancelled.')
@@ -84,7 +87,9 @@ export function GoogleButton({ signup, onSignedIn }: { signup: boolean; onSigned
 
   return (
     <div className="flex flex-col gap-2">
-      <div ref={box} className="min-h-11 w-full" aria-busy={busy} />
+      {/* color-scheme light: Google's frame is a light page; under our dark page the browser
+          would paint it an opaque white box instead of leaving it transparent. */}
+      <div ref={box} className="min-h-11 w-full [color-scheme:light]" aria-busy={busy} />
       {busy && <p className="text-sm text-muted">Signing you in…</p>}
       {error && (
         <p role="alert" className="text-sm text-danger">
