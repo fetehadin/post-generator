@@ -488,7 +488,10 @@ A thread is one conversation: what the user did today (saved as that day's check
 | Method and path | Body | Returns |
 |---|---|---|
 | `POST /threads` | `{"text": "…", "day"?: "2026-10-22"}` (`day` defaults to today on the user's clock) | `201` a thread |
-| `GET /threads` | | `{"items": [{"id", "title", "platforms": ["telegram"], "updated_at"}]}`, last touched first, 50 at most |
+| `GET /threads` | | `{"items": [{"id", "title", "platforms": ["telegram"], "updated_at", "pinned", "archived"}]}`, pinned first, then last touched first, 50 at most; archived chats are included with `archived: true` |
+| `PATCH /threads/{id}` | `{"title"?: "…", "pinned"?: true, "archived"?: false}` (FR-55; a field left out is unchanged; archiving also unpins) | `200` the list row; a blank title → `400 missing_title`; another user's → `404`. Doesn't change `updated_at` |
+| `POST /threads/{id}/title` | | `200` the list row with a title the AI wrote from the check-in (FR-55). `429 daily_limit`, `503 ai_unavailable` (the old title stays) |
+| `DELETE /threads/{id}` | | `200 {"kept_drafts": 2}`: the chat, its messages and its unapproved drafts are deleted; approved, scheduled and posted drafts stay (their `thread_id` becomes `null`). Another user's → `404` |
 | `GET /threads/{id}` | | a thread; another user's → `404` |
 | `POST /threads/{id}/generate` | `{"platforms": ["x", "linkedin"], "hook_type": null}` (1–3; `hook_type` optional, FR-41: `bold_claim`, `mistake_story`, `numbered_list`, `before_after`, `question`, `story`, `how_to`, `announcement`, `observation`) | `201` a thread with one new card per platform; a platform that couldn't be written is in `failures` and the others still arrive; `notices: [{platform, message}]` says what to know about a new card, e.g. "This draft is close to one of the example posts" (FR-49) |
 | `POST /drafts/{id}/convert` | `{"platform": "linkedin"}` | `201` the draft's thread with a new draft for that platform written from this one; the original is unchanged. Same platform → `400 same_platform` |

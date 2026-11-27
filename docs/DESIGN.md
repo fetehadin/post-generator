@@ -47,7 +47,7 @@ Grounded in Microsoft's 18 Guidelines for Human-AI Interaction (G1–G18) and re
 
 **Left sidebar** (a floating rounded card on `--sidebar`, changed 27 Nov 2026), top to bottom:
 - the wordmark, the bell, search and the **theme toggle** (a moon in light mode, a sun in dark: the icon shows where a click takes you), with a line under them;
-- **Chat**: "New chat", then past threads, newest first (like ChatGPT's history);
+- **Chat**: "New chat", then **Chats** (a refresh and a + beside the heading) with past threads, pinned first, then newest first (like ChatGPT's history). Each row shows a "⋯" on hover or focus that opens Rename (edit in place), Regenerate title, Pin/Unpin, Archive and Delete (asks first; approved and scheduled drafts stay). Archived chats fold under an **Archived** row at the end, each with Unarchive (FR-55, 27 Nov 2026);
 - **Drafts**: opens to the **X, LinkedIn and Telegram logos** in a row (the name in a tooltip and for screen readers), each a list of that platform's drafts;
 - **Calendar**;
 - at the bottom: **your avatar and name in a rounded pill → Profile**, and the collapse button.

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { useMe, useNotifications, useSetTimezone } from '../api/me'
-import { useThreads } from '../api/threads'
 import { remember, remembered } from '../lib/storage'
 import { useMedia } from '../lib/useMedia'
 import { cn } from '../lib/utils'
 import { LABEL, PLATFORMS } from '../lib/platforms'
 import { applyTheme, nextTheme, savedTheme, type Theme } from '../lib/theme'
 import { StrengthRing } from './StrengthRing'
+import { ChatList } from './ChatList'
 import { Icon, type IconName } from './Icon'
 import { needsAction, NotificationsPanel } from './NotificationsPanel'
 import { PlatformMark } from './PlatformMark'
@@ -136,7 +136,7 @@ export function AppShell() {
             )}
           >
             <NavItem to="/" icon="plus" label="New chat" collapsed={collapsed} end />
-            {!collapsed && <ThreadList />}
+            {!collapsed && <ChatList />}
             <DraftsGroup collapsed={collapsed} />
             <NavItem to="/calendar" icon="calendar" label="Calendar" collapsed={collapsed} />
           </nav>
@@ -256,43 +256,6 @@ function NavItem({
         <span className={collapsed ? 'sr-only' : ''}>{label}</span>
       </NavLink>
     </Tip>
-  )
-}
-
-/** Past chats, newest first (like ChatGPT's history). Scrolls on its own. */
-function ThreadList() {
-  const threads = useThreads().data?.items ?? []
-  return (
-    <section aria-labelledby="chats-title" className="flex min-h-0 flex-col">
-      <h2 id="chats-title" className="px-2.5 pt-4 pb-1 text-xs font-semibold text-muted">
-        Chats
-      </h2>
-      {threads.length === 0 ? (
-        <p className="px-2.5 text-sm text-muted">Your chats will appear here.</p>
-      ) : (
-        <ul className="max-h-[40vh] min-h-0 overflow-y-auto">
-          {threads.map((t) => (
-            <li key={t.id}>
-              <Tooltip content={t.title} side="right">
-                <span className="block">
-                  <NavLink
-                    to={`/chat/${t.id}`}
-                    className={({ isActive }) =>
-                      cn(
-                        'block min-h-9 truncate rounded-control px-2.5 py-2 text-sm',
-                        isActive ? 'bg-sunken' : 'hover:bg-sunken',
-                      )
-                    }
-                  >
-                    {t.title}
-                  </NavLink>
-                </span>
-              </Tooltip>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   )
 }
 

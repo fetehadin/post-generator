@@ -26,8 +26,11 @@ export function ConfirmDialog({
   busy = false,
   error,
   onConfirm,
+  open,
+  onOpenChange,
 }: {
-  trigger: ReactNode
+  /** Left out when the dialog is opened from elsewhere, e.g. a menu item (then pass `open`). */
+  trigger?: ReactNode
   triggerClassName?: string
   title: string
   description: string
@@ -36,10 +39,12 @@ export function ConfirmDialog({
   busy?: boolean
   error?: string
   onConfirm: () => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
   return (
-    <Dialog>
-      <DialogTrigger className={triggerClassName ?? button}>{trigger}</DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger && <DialogTrigger className={triggerClassName ?? button}>{trigger}</DialogTrigger>}
       <DialogContent>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>

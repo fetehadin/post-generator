@@ -36,7 +36,16 @@ function Harness() {
 function renderBar() {
   routeApi({
     'GET /threads': () => ({
-      items: [{ id: 't9', title: 'Shipped the importer', platforms: ['x'], updated_at: '' }],
+      items: [
+        {
+          id: 't9',
+          title: 'Shipped the importer',
+          platforms: ['x'],
+          updated_at: '',
+          pinned: false,
+          archived: false,
+        },
+      ],
     }),
   })
   render(
