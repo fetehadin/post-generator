@@ -8,13 +8,13 @@ import { PlatformMark } from '../../components/PlatformMark'
 import { cn } from '../../lib/utils'
 import { loadGuest, saveGuest } from '../../lib/guest'
 import { LABEL, RULES } from '../../lib/platforms'
-import { Wordmark } from '../../components/Logo'
 import { Composer } from '../../components/Composer'
 import { ApiError } from '../../api/client'
 import { WritingCard } from '../Chat/AiStatus'
 import { starterLabel, startersFor } from '../../lib/starters'
-import { chip, chipOn, ghost, primary, secondary } from '../../lib/ui'
+import { chip, chipOn, secondary } from '../../lib/ui'
 import { HomeSections } from './HomeSections'
+import { HomeHeader, HomeIntro } from './HomeStatic'
 import { exampleFor, ROLES, type Role } from './roles'
 
 const QUICK = ['Shorter', 'Punchier', 'End with a question']
@@ -71,25 +71,9 @@ export function GuestPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b border-line bg-paper px-4 py-3 md:px-6">
-        <Wordmark className="h-5 w-auto text-ink" />
-        <nav className="flex items-center gap-1 text-sm">
-          <Link to="/login" className={ghost}>
-            Log in
-          </Link>
-          <Link to="/login" state={{ mode: 'signup' }} className={primary}>
-            Start free
-          </Link>
-        </nav>
-      </header>
+      <HomeHeader />
       <main className="mx-auto max-w-column px-4 pt-10 pb-6 md:px-6 md:pt-16">
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">
-          Posts for X, LinkedIn and Telegram, written in your own voice.
-        </h1>
-        <p className="mt-3 text-muted">
-          Say what you did today. Get a draft for each platform, edit it, and post it when you
-          approve.
-        </p>
+        <HomeIntro />
 
         <div role="group" aria-label="I am a" className="mt-6 flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted">I'm a</span>
