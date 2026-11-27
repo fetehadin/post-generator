@@ -193,7 +193,7 @@ flowchart LR
 
 | ID | Requirement | Priority | Test |
 |---|---|---|---|
-| FR-27 | Users sign up and log in through a managed login provider, and every API call is tied to the logged-in user. | Must | Call the API logged out; it returns 401. |
+| FR-27 | Users sign up and log in through a managed login provider, and every API call is tied to the logged-in user. Besides email and password, "Continue with Google" (added 27 Nov 2026) uses Google's own button on our domain and Supabase's ID-token sign-in with a nonce; a Google login for an email that already has an account signs in to that account. | Must | Call the API logged out; it returns 401. |
 | FR-28 | Anyone can sign up (decided 5 Nov 2026). An `INVITE_ONLY` setting brings back the invite gate: an invite code or an allow-listed email. | Must | Sign up with no code: admitted. With `INVITE_ONLY=true`: refused. |
 | FR-29 | A user can never read another user's posts, drafts, profile or uploads, through the app or the API. | Must | As user B, request user A's draft; 403 or 404. |
 | FR-30 | Each user has daily limits on drafts and embeddings, shown in the app. | Must | Pass the limit; a clear message, other users unaffected. |
