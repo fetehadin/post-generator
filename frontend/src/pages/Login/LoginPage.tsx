@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { authMessage, supabase } from '../../lib/auth'
 import { Wordmark } from '../../components/Logo'
 import { LegalLinks } from '../Legal/LegalLayout'
+import { GoogleButton, googleEnabled } from './GoogleButton'
 
 type Mode = 'login' | 'signup' | 'forgot'
 
@@ -119,6 +120,14 @@ export function LoginPage() {
     <main className="mx-auto max-w-md px-4 py-16">
       <Wordmark className="h-7 w-auto text-ink" />
       <h1 className="mt-6 text-2xl font-semibold tracking-tight">{title}</h1>
+      {!forgot && googleEnabled() && (
+        <div className="mt-8">
+          <GoogleButton signup={signup} onSignedIn={() => navigate('/', { replace: true })} />
+          <p className="mt-6 flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
+            or with email
+          </p>
+        </div>
+      )}
       <form
         className="mt-8 flex flex-col gap-3"
         onSubmit={(e) => {
