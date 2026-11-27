@@ -431,6 +431,20 @@ class ThreadRowOut(BaseModel):
     title: str
     platforms: list[Platform]
     updated_at: datetime
+    pinned: bool = Field(description="FR-55: kept at the top of the history")
+    archived: bool = Field(description="FR-55: folded under Archived")
+
+
+class ThreadPatchIn(BaseModel):
+    """FR-55: rename, pin or archive a chat. A field left out stays as it is."""
+
+    title: str | None = Field(None, min_length=1, max_length=120)
+    pinned: bool | None = None
+    archived: bool | None = None
+
+
+class ThreadDeletedOut(BaseModel):
+    kept_drafts: int = Field(description="Approved, scheduled or posted drafts that stay")
 
 
 class ThreadsOut(BaseModel):

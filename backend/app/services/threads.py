@@ -8,14 +8,14 @@ ordered list of messages; a message that points at a draft version is a card.
 
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 
 from sqlalchemy import delete, select
 
-from app.ai.client import AIClient, AIUnavailable, EmbeddingUnavailable
+from app.ai.client import AIClient, AIUnavailable, EmbeddingUnavailable, for_user
 from app.core.db import user_session
 from app.models import Checkin, Draft, DraftMessage, DraftVersion, Thread
-from app.services import library
+from app.services import library, usage
 from app.services.clock import local_today
 from app.services.drafting import PLATFORM_NAMES, DraftError, generate_draft, thread_title
 
@@ -75,7 +75,7 @@ def list_threads(user_id: uuid.UUID, limit: int = 50) -> list[ThreadRow]:
         threads = s.scalars(
             select(Thread)
             .where(Thread.user_id == user_id)
-            .order_by(Thread.updated_at.desc())
+            .order_by(Thread.pinned.desc(), Thread.updated_at.desc())
             .limit(limit)
         ).all()
         platforms: dict[uuid.UUID, list[str]] = {}
@@ -213,3 +213,112 @@ def convert(
             s.execute(delete(DraftMessage).where(DraftMessage.id == ask_id))
         raise
     return detail(user_id, d.thread_id)
+
+
+# Chat actions (FR-55): rename, regenerate the title, pin, archive, delete.
+
+KEEP = ("approved", "published")  # planned or posted: a deleted chat never takes these with it
+
+
+def _own(s, thread_id: uuid.UUID) -> Thread:
+    thread = s.get(Thread, thread_id)
+    if thread is None:  # RLS: another user's chat is simply not found (FR-29)
+        raise DraftError("not_found", "Not found.", 404)
+    return thread
+
+
+def update(
+    user_id: uuid.UUID,
+    thread_id: uuid.UUID,
+    *,
+    title: str | None = None,
+    pinned: bool | None = None,
+    archived: bool | None = None,
+) -> Thread:
+    """Rename, pin or archive a chat. None leaves that part as it is. Doesn't touch
+    updated_at, so a renamed chat keeps its place in the history."""
+    with user_session(user_id) as s:
+        thread = _own(s, thread_id)
+        if title is not None:
+            title = " ".join(title.split())
+            if not title:
+                raise DraftError("missing_title", "Give the chat a name.")
+            thread.title = title
+        if pinned is not None:
+            thread.pinned = pinned
+        if archived is not None:
+            thread.archived_at = (thread.archived_at or datetime.now(UTC)) if archived else None
+            if archived:
+                thread.pinned = False  # an archived chat is out of the way, not on top
+        s.flush()
+        s.expunge(thread)
+    return thread
+
+
+def platforms_of(user_id: uuid.UUID, thread_id: uuid.UUID) -> list[str]:
+    """The platforms a chat has drafts for, in the usual order."""
+    with user_session(user_id) as s:
+        found = set(
+            s.scalars(
+                select(Draft.platform).where(Draft.user_id == user_id, Draft.thread_id == thread_id)
+            ).all()
+        )
+    return [p for p in PLATFORM_NAMES if p in found]
+
+
+def delete_thread(user_id: uuid.UUID, thread_id: uuid.UUID) -> int:
+    """Delete a chat and its unapproved drafts. Approved, scheduled and posted drafts stay in
+    Drafts and the Calendar, no longer in a chat. Returns how many drafts were kept."""
+    with user_session(user_id) as s:
+        thread = _own(s, thread_id)
+        drafts = s.scalars(
+            select(Draft).where(Draft.user_id == user_id, Draft.thread_id == thread_id)
+        ).all()
+        kept = [d for d in drafts if d.status in KEEP or d.scheduled_for is not None]
+        gone = [d.id for d in drafts if d not in kept]
+        if gone:
+            s.execute(delete(Draft).where(Draft.user_id == user_id, Draft.id.in_(gone)))
+        s.delete(thread)  # its messages go with it (ON DELETE CASCADE); kept drafts lose thread_id
+    return len(kept)
+
+
+TITLE_PROMPT = """Name this chat in 2 to 6 words, like a chat title in a sidebar.
+Use only what the text says. No quotes, no emoji, no full stop at the end.
+Write it in the same language as the text.
+
+Text:
+{text}
+
+Title:"""
+
+
+def regenerate_title(user_id: uuid.UUID, thread_id: uuid.UUID, ai: AIClient) -> Thread:
+    """ "Regenerate title": a short name from the chat's check-in, written by the AI. Counts as
+    an AI call: refused when today's limit is used up and the user has no key of their own."""
+    with user_session(user_id) as s:
+        thread = _own(s, thread_id)
+        checkin = s.get(Checkin, thread.checkin_id) if thread.checkin_id else None
+        text = checkin.text if checkin else thread.title
+    try:
+        own_only = usage.check_drafts(user_id)
+    except usage.LimitReached as e:
+        raise DraftError("daily_limit", e.message, 429) from e
+    try:
+        result = for_user(ai, user_id, allow_default=not own_only).generate(
+            TITLE_PROMPT.format(text=text[:2000]), purpose="thread_title", temperature=0.3
+        )
+    except AIUnavailable as e:
+        raise DraftError("ai_unavailable", AI_BUSY, 503) from e
+    title = clean_title(result.text)
+    if not title:
+        raise DraftError("ai_unavailable", AI_BUSY, 503)
+    return update(user_id, thread_id, title=title)
+
+
+def clean_title(raw: str) -> str:
+    """The first line, without quotes, a "Title:" label or a full stop; 60 characters at most."""
+    line = next((ln.strip() for ln in raw.splitlines() if ln.strip()), "").replace("*", "")
+    if line.lower().startswith("title:"):
+        line = line[6:]
+    line = line.strip("\"'“”‘’# ").rstrip(".").strip("\"'“”‘’ ")
+    return line if len(line) <= 60 else line[:59].rstrip() + "…"

@@ -27,7 +27,16 @@ beforeEach(() => {
     }),
     'GET /me/notifications': () => ({ due, missed, checkin_reminder: false }),
     'GET /threads': () => ({
-      items: [{ id: 't1', title: 'Finished the importer', platforms: ['x'], updated_at: '' }],
+      items: [
+        {
+          id: 't1',
+          title: 'Finished the importer',
+          platforms: ['x'],
+          updated_at: '',
+          pinned: false,
+          archived: false,
+        },
+      ],
     }),
     'GET /platforms/telegram': () => ({ channel: null }),
   })

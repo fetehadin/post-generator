@@ -15,6 +15,36 @@ export function useThreads() {
   })
 }
 
+/**
+ * Chat actions (FR-55). PATCH /threads/{id} renames, pins or archives; POST …/title has the AI
+ * name the chat; DELETE removes it and its unapproved drafts (approved and scheduled ones stay,
+ * so the draft lists and the calendar refresh too).
+ */
+function useChatAction<I, O>(fn: (input: I) => Promise<O>) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ['threads'] })
+      void client.invalidateQueries({ queryKey: ['drafts'] })
+    },
+  })
+}
+
+export const useUpdateThread = () =>
+  useChatAction(
+    ({ id, ...change }: { id: string; title?: string; pinned?: boolean; archived?: boolean }) =>
+      api<ThreadRow>(`/threads/${id}`, json('PATCH', change)),
+  )
+
+export const useRetitleThread = () =>
+  useChatAction((id: string) => api<ThreadRow>(`/threads/${id}/title`, { method: 'POST' }))
+
+export const useDeleteThread = () =>
+  useChatAction((id: string) =>
+    api<{ kept_drafts: number }>(`/threads/${id}`, { method: 'DELETE' }),
+  )
+
 export function useThread(id: string | undefined) {
   return useQuery({
     queryKey: ['threads', 'one', id],

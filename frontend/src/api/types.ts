@@ -110,7 +110,16 @@ export type Checkin = {
 export type Length = { count: number; limit: number; over: boolean }
 
 /** A row of GET /threads: the sidebar's chat history, last touched first. */
-export type ThreadRow = { id: string; title: string; platforms: Platform[]; updated_at: string }
+export type ThreadRow = {
+  id: string
+  title: string
+  platforms: Platform[]
+  updated_at: string
+  /** FR-55: kept at the top of the history. */
+  pinned: boolean
+  /** FR-55: folded under Archived. */
+  archived: boolean
+}
 
 /** A draft version shown as a card in the thread. */
 export type ThreadCard = { version_id: string; number: number; text: string; length: Length }
