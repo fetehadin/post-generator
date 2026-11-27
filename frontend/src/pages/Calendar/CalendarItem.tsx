@@ -206,9 +206,10 @@ export function ItemDetails({
   return (
     <div className="flex flex-col gap-3 text-sm">
       <p className="flex flex-wrap items-center gap-2">
-        <PlatformMark platform={draft.platform} />
+        <PlatformMark platform={draft.platform} className="size-5" />
         <span className="font-semibold">
-          {LABEL[draft.platform]} · <span className="tabular-nums">{time}</span>
+          <span className="sr-only">{LABEL[draft.platform]} · </span>
+          <span className="tabular-nums">{time}</span>
         </span>
         <span className="ml-auto text-xs">
           <StatusTag state={state} bot={bot} />

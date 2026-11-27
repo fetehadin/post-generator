@@ -227,8 +227,8 @@ function GuestCard({ draft, onChange }: { draft: GuestDraft; onChange: (d: Guest
       className="rounded-panel border border-edge bg-surface p-4"
     >
       <header className="flex flex-wrap items-center gap-2 text-sm">
-        <PlatformMark platform={draft.platform} />
-        <span className="font-semibold">{LABEL[draft.platform]}</span>
+        <PlatformMark platform={draft.platform} className="size-5" />
+        <span className="sr-only">{LABEL[draft.platform]}</span>
         <span className="rounded-full border border-thread px-2 text-xs text-thread">AI draft</span>
         <span className="ml-auto">
           <LengthCounter

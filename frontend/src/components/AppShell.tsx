@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router'
 import { useMe, useNotifications, useSetTimezone } from '../api/me'
 import { useThreads } from '../api/threads'
 import { remember, remembered } from '../lib/storage'
+import { useMedia } from '../lib/useMedia'
 import { cn } from '../lib/utils'
 import { LABEL, PLATFORMS } from '../lib/platforms'
 import { applyTheme, nextTheme, savedTheme, type Theme } from '../lib/theme'
@@ -15,7 +16,8 @@ import { LogoMark, Wordmark } from './Logo'
 import { Kbd, Tooltip } from './ui/tooltip'
 import { CommandBar, MOD, useCommandShortcuts } from './CommandBar'
 
-const THEME_ICON: Record<Theme, IconName> = { light: 'sun', dark: 'moon' }
+// The icon shows where a click takes you: a moon in light mode, a sun in dark mode.
+const THEME_ICON: Record<Theme, IconName> = { light: 'moon', dark: 'sun' }
 const NEXT: Record<Theme, Theme> = { light: 'dark', dark: 'light' }
 const COLLAPSED_KEY = 'voxlace-sidebar-collapsed'
 const DRAFTS_OPEN_KEY = 'voxlace-drafts-open'
@@ -38,8 +40,9 @@ export function AppShell() {
   const [goOpen, setGoOpen] = useState(false)
   useCommandShortcuts(useCallback(() => setGoOpen((o) => !o), []))
 
-  const current: Theme =
-    theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+  // Follows the system theme live, so the icon is right after the OS switches too.
+  const systemDark = useMedia('(prefers-color-scheme: dark)')
+  const current: Theme = theme ?? (systemDark ? 'dark' : 'light')
   const name = (me.data?.email ?? '').split('@')[0] || 'You'
   const themeLabel = `Theme: ${current}. Switch to ${NEXT[current]}`
 
@@ -96,7 +99,7 @@ export function AppShell() {
     <div
       className={cn(
         'min-h-screen md:grid',
-        collapsed ? 'md:grid-cols-[64px_minmax(0,1fr)]' : 'md:grid-cols-[260px_minmax(0,1fr)]',
+        collapsed ? 'md:grid-cols-[88px_minmax(0,1fr)]' : 'md:grid-cols-[284px_minmax(0,1fr)]',
       )}
     >
       {/* Keyboard users jump past the sidebar (WCAG 2.4.1). */}
@@ -106,11 +109,12 @@ export function AppShell() {
       >
         Skip to content
       </a>
-      <aside className="sticky top-0 hidden h-screen bg-sidebar md:block">
-        <div className="flex h-full flex-col">
+      {/* A floating panel with rounded corners on the page, open or as an icon rail. */}
+      <aside className="sticky top-0 hidden h-screen bg-paper p-3 md:block">
+        <div className="flex h-full flex-col overflow-hidden rounded-[20px] border border-line bg-sidebar shadow-composer">
           <div
             className={cn(
-              'flex items-center px-3 pt-3 pb-1',
+              'flex items-center border-b border-line px-3 py-3',
               collapsed ? 'flex-col gap-2' : 'justify-between pl-4',
             )}
           >
@@ -124,7 +128,13 @@ export function AppShell() {
             </div>
           </div>
 
-          <nav aria-label="Main" className="flex min-h-0 flex-1 flex-col gap-0.5 px-2 py-2">
+          <nav
+            aria-label="Main"
+            className={cn(
+              'flex min-h-0 flex-1 flex-col gap-1 px-2 py-3',
+              collapsed && 'items-center',
+            )}
+          >
             <NavItem to="/" icon="plus" label="New chat" collapsed={collapsed} end />
             {!collapsed && <ThreadList />}
             <DraftsGroup collapsed={collapsed} />
@@ -132,18 +142,15 @@ export function AppShell() {
           </nav>
 
           <div
-            className={cn(
-              'flex gap-1 border-t border-line p-2',
-              collapsed ? 'flex-col items-center' : 'items-center',
-            )}
+            className={cn('flex gap-1 p-2', collapsed ? 'flex-col items-center' : 'items-center')}
           >
             <Tip content="Profile" show={collapsed}>
               <NavLink
                 to="/profile"
                 className={({ isActive }) =>
                   cn(
-                    'flex min-w-0 flex-1 items-center gap-3 rounded-control p-2',
-                    collapsed && 'justify-center',
+                    'flex min-w-0 flex-1 items-center gap-3 rounded-full p-1.5 transition-colors duration-(--duration) ease-(--ease)',
+                    collapsed ? 'justify-center' : 'bg-bubble pr-3',
                     isActive ? 'bg-sunken' : 'hover:bg-sunken',
                   )
                 }
@@ -239,8 +246,8 @@ function NavItem({
         end={end}
         className={({ isActive }) =>
           cn(
-            'flex min-h-9 flex-none items-center gap-3 rounded-control text-sm text-ink',
-            collapsed ? 'justify-center' : 'px-2.5',
+            'flex min-h-10 flex-none items-center gap-3 rounded-control text-md text-ink transition-colors duration-(--duration) ease-(--ease)',
+            collapsed ? 'size-10 justify-center' : 'px-3',
             isActive ? 'bg-sunken' : 'hover:bg-sunken',
           )
         }
@@ -299,7 +306,7 @@ function DraftsGroup({ collapsed }: { collapsed: boolean }) {
         <NavLink
           to="/drafts/x"
           className={cn(
-            'flex min-h-9 flex-none items-center justify-center rounded-control',
+            'flex size-10 flex-none items-center justify-center rounded-control',
             onDrafts ? 'bg-sunken' : 'hover:bg-sunken',
           )}
         >
@@ -319,7 +326,7 @@ function DraftsGroup({ collapsed }: { collapsed: boolean }) {
           setOpen(!open)
         }}
         className={cn(
-          'flex min-h-9 w-full items-center gap-3 rounded-control px-2.5 text-sm hover:bg-sunken',
+          'flex min-h-10 w-full items-center gap-3 rounded-control px-3 text-md hover:bg-sunken',
         )}
       >
         <Icon name="drafts" />
@@ -327,21 +334,24 @@ function DraftsGroup({ collapsed }: { collapsed: boolean }) {
         <Icon name={open ? 'chevron-down' : 'chevron-right'} className="ml-auto size-4" />
       </button>
       {open && (
-        <ul id="drafts-platforms" className="ml-5 border-l border-line pl-2">
+        <ul id="drafts-platforms" className="mt-1 ml-5 flex gap-1 border-l border-line pl-3">
           {PLATFORMS.map((p) => (
             <li key={p}>
-              <NavLink
-                to={`/drafts/${p}`}
-                className={({ isActive }) =>
-                  cn(
-                    'flex min-h-9 items-center gap-2 rounded-control px-2 text-sm',
-                    isActive ? 'bg-sunken' : 'hover:bg-sunken',
-                  )
-                }
-              >
-                <PlatformMark platform={p} />
-                {LABEL[p]}
-              </NavLink>
+              <Tooltip content={LABEL[p]}>
+                <NavLink
+                  to={`/drafts/${p}`}
+                  className={({ isActive }) =>
+                    cn(
+                      'grid size-10 place-items-center rounded-control transition-colors duration-(--duration) ease-(--ease)',
+                      isActive ? 'bg-sunken' : 'hover:bg-sunken',
+                    )
+                  }
+                >
+                  {/* The logo is the name (product owner, 27 Nov 2026); screen readers hear it. */}
+                  <PlatformMark platform={p} className="size-5" />
+                  <span className="sr-only">{LABEL[p]} drafts</span>
+                </NavLink>
+              </Tooltip>
             </li>
           ))}
         </ul>

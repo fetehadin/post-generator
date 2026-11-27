@@ -350,8 +350,8 @@ function DraftPanel({
               >
                 {live.map((d, i) => (
                   <TabsTrigger key={d.id} value={d.id} className="flex-none px-3">
-                    <PlatformMark platform={d.platform} />
-                    {LABEL[d.platform]}
+                    <PlatformMark platform={d.platform} className="size-5" />
+                    <span className="sr-only">{LABEL[d.platform]}</span>
                     {/* Two drafts for one platform: number the later ones. */}
                     {(() => {
                       const n = live.slice(0, i + 1).filter((x) => x.platform === d.platform).length

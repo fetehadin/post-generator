@@ -1,7 +1,7 @@
 import { type ReactNode, useId, useState } from 'react'
 import type { Platform } from '../api/types'
 import { LABEL, PLATFORMS } from '../lib/platforms'
-import { chip, chipOn, iconButton } from '../lib/ui'
+import { iconButton } from '../lib/ui'
 import { cn } from '../lib/utils'
 import { Icon } from './Icon'
 import { PlatformMark } from './PlatformMark'
@@ -234,17 +234,29 @@ export function PlatformChips({
       {PLATFORMS.map((p) => {
         const on = value.includes(p)
         return (
-          <button
-            key={p}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onChange(on ? value.filter((x) => x !== p) : [...value, p])}
-            className={cn(chip, 'min-h-8 px-2.5', on && chipOn)}
-          >
-            <PlatformMark platform={p} />
-            {/* Phones show the marks only; the name stays for screen readers. */}
-            <span className="max-sm:sr-only">{LABEL[p]}</span>
-          </button>
+          <Tooltip key={p} content={LABEL[p]}>
+            {/* The logo is the name (DESIGN.md §5): full colour when on, faded grey when off,
+                and a dot under it so "on" never rests on colour alone (WCAG 1.4.1). */}
+            <button
+              type="button"
+              aria-pressed={on}
+              aria-label={LABEL[p]}
+              onClick={() => onChange(on ? value.filter((x) => x !== p) : [...value, p])}
+              className={cn(
+                'relative grid size-9 place-items-center rounded-full transition-[opacity,filter] duration-(--duration) ease-(--ease) hover:bg-sunken',
+                on ? 'opacity-100' : 'opacity-40 grayscale hover:opacity-80',
+              )}
+            >
+              <PlatformMark platform={p} className="size-5" />
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'absolute bottom-0.5 size-1 rounded-full bg-ink transition-opacity',
+                  on ? 'opacity-100' : 'opacity-0',
+                )}
+              />
+            </button>
+          </Tooltip>
         )
       })}
     </div>
