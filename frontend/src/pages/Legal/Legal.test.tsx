@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { describe, expect, it } from 'vitest'
+import { render as prerender } from '../../prerender'
 import { CONTACT_EMAIL } from './LegalLayout'
 import { PrivacyPage } from './PrivacyPage'
 import { TermsPage } from './TermsPage'
@@ -35,5 +36,20 @@ describe('legal pages (FR-37)', () => {
       'href',
       `mailto:${CONTACT_EMAIL}`,
     )
+  })
+
+  it('the prerendered homepage names Voxlace, says what it does and links to privacy', () => {
+    // dist/index.html, which Google's OAuth branding check reads without running JavaScript.
+    const html = prerender('home')
+    const text = new DOMParser().parseFromString(html, 'text/html').body.textContent ?? ''
+    expect(text).toContain('Voxlace')
+    expect(text).toContain(
+      'Voxlace learns how you write from your own posts and drafts new ones for you.',
+    )
+    expect(text).toContain('Posts for X, LinkedIn and Telegram, written in your own voice.')
+    expect(html).toContain('href="/privacy"')
+    expect(html).toContain('href="/terms"')
+    expect(html).toContain('href="/login"')
+    expect(html).toContain('data-prerendered="home"')
   })
 })

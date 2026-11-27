@@ -26,6 +26,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // The build writes the logged-out homepage into #root (scripts/prerender.mjs) for
+      // visitors without JavaScript. Every other route gets this same file, and a logged-in
+      // visitor gets the app at /: empty it there before it paints, so it never flashes.
+      ;(function () {
+        var root = document.getElementById('root')
+        if (!root.querySelector('[data-prerendered="home"]')) return
+        var loggedIn = false
+        try {
+          for (var i = 0; i < localStorage.length; i++)
+            if (/^sb-.+-auth-token$/.test(localStorage.key(i) || '')) loggedIn = true
+        } catch (e) {}
+        if (location.pathname !== '/' || loggedIn) root.textContent = ''
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
