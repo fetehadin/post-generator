@@ -233,11 +233,7 @@ function Editor({ draft }: { draft: DraftDetail }) {
           ) : (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button type="button" className={primary} onClick={() => void handOff()}>
-                {draft.platform === 'x'
-                  ? 'Open in X'
-                  : draft.platform === 'linkedin'
-                    ? 'Copy and open LinkedIn'
-                    : 'Copy text'}
+                Send now
               </button>
               <button type="button" className={secondary} onClick={() => setPanel('move')}>
                 {draft.scheduled_for ? 'Change the time…' : 'Schedule…'}

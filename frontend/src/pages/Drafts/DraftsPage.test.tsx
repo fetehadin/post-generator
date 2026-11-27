@@ -80,7 +80,7 @@ test('a draft has Approve, Discard and Edit, but no hand-off before approval (ru
   expect(within(card).getByText('AI draft')).toBeInTheDocument()
   expect(within(card).getByText('Draft')).toBeInTheDocument()
   expect(within(card).getByRole('button', { name: 'Approve' })).toBeInTheDocument()
-  expect(within(card).queryByRole('button', { name: 'Open in X' })).not.toBeInTheDocument()
+  expect(within(card).queryByRole('button', { name: 'Send now' })).not.toBeInTheDocument()
   expect(within(card).getByRole('link', { name: 'Edit in chat' })).toBeInTheDocument()
 
   await userEvent.click(within(card).getByRole('button', { name: 'Discard' }))
@@ -98,7 +98,7 @@ test('approved posts get Copy now and Reschedule; edit opens the chat', async ()
   })
   renderPage('/drafts/x?status=approved')
   const card = await screen.findByRole('article', { name: /An approved X post/ })
-  expect(within(card).getByRole('button', { name: 'Open in X' })).toBeInTheDocument()
+  expect(within(card).getByRole('button', { name: 'Send now' })).toBeInTheDocument()
   expect(within(card).getByRole('button', { name: 'Change time' })).toBeInTheDocument()
   expect(within(card).getByRole('link', { name: 'Edit in chat' })).toHaveAttribute(
     'href',
@@ -180,4 +180,22 @@ test('over the limit, Approve is disabled and says why in words', async () => {
   const approve = await screen.findByRole('button', { name: 'Approve' })
   expect(approve).toBeDisabled()
   expect(approve).toHaveAccessibleDescription(/cut 20 characters/)
+})
+
+test('Approved lists missed posts first, under "Missed", then the ones coming up', async () => {
+  drafts.push(
+    row({
+      id: 'late',
+      platform: 'x',
+      status: 'approved',
+      text: 'A post whose time passed',
+      scheduled_for: new Date(Date.now() - 3 * 86_400_000).toISOString(),
+    }),
+  )
+  renderPage('/drafts/x?status=approved')
+  const missedHeading = await screen.findByRole('heading', { name: 'Missed (1)' })
+  const missedList = missedHeading.parentElement!
+  expect(within(missedList).getByText(/A post whose time passed/)).toBeInTheDocument()
+  expect(within(missedList).queryByText(/An approved X post/)).toBeNull()
+  expect(screen.getByRole('heading', { name: 'Coming up' })).toBeInTheDocument()
 })

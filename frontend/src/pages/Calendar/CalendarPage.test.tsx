@@ -20,26 +20,43 @@ const tue0900 = new Date(2026, 9, 20, 9, 0).toISOString() // passed yesterday: m
 
 let items: DraftRow[]
 let due: DraftRow[]
+let missed: DraftRow[]
+let bot: boolean
+const matchMediaStub = window.matchMedia.bind(window)
+
+/** A computer (768px and wider) or a phone. */
+function screenIs(kind: 'computer' | 'phone') {
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
+    ...matchMediaStub(query),
+    matches: kind === 'computer' && query === '(min-width: 1024px)',
+  }))
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'], now: NOW })
   vi.clearAllMocks()
-  localStorage.clear()
+  screenIs('computer')
   due = []
+  missed = []
+  bot = false
   items = [row({ id: 'd1', status: 'approved', scheduled_for: thu1830, text: 'Ship log' })]
   routeApi({
-    'GET /drafts': () => ({ items }),
+    // Answers like the API: only the asked status.
+    'GET /drafts': (_b, _i, path) => {
+      const status = new URLSearchParams(path!.split('?')[1]).get('status')
+      return { items: items.filter((d) => d.status === status) }
+    },
     'GET /me': () => ({ id: 'u', email: 'a@b', admitted: true, privacy_accepted: true }),
-    'GET /me/notifications': () => ({ due, missed: [], checkin_reminder: false }),
+    'GET /me/notifications': () => ({ due, missed, checkin_reminder: false }),
     'GET /platforms/:p': () => ({ channel: null }),
-    'GET /platforms/:p/best-hours': () => ({
-      platform: 'x',
-      timezone: 'UTC',
-      source: 'studies',
-      days: [{ date: '2026-10-22', scores: Array(24).fill(0.5), best: [9, 12] }],
+    'GET /telegram': () => ({
+      linked: bot,
+      channel: bot ? { title: 'My channel', username: 'mine', can_post: true } : null,
+      connect_url: null,
     }),
     'PATCH /drafts/:id': (b) => {
       const change = b as Partial<DraftRow>
-      items = items.map((d) => ({ ...d, ...change })).filter((d) => d.status === 'approved') // Posted leaves the calendar's query
+      items = items.map((d) => ({ ...d, ...change })).filter((d) => d.status !== 'draft')
       return { ...items[0], ...change, versions: [], messages: [] }
     },
   })
@@ -48,8 +65,6 @@ afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
 })
-
-const matchMediaStub = window.matchMedia.bind(window)
 
 function renderPage(path = '/calendar') {
   const client = new QueryClient({
@@ -64,8 +79,9 @@ function renderPage(path = '/calendar') {
   )
 }
 
-const slot = (container: HTMLElement, day: string, hour: number) =>
-  container.querySelector(`[data-drop-day="${day}"][data-drop-hour="${hour}"]`) as HTMLElement
+/** A cell of the week grid: a day and a two-hour row (18 = 18:00–20:00). */
+const slot = (container: HTMLElement, day: string, row: number) =>
+  container.querySelector(`[data-drop-day="${day}"][data-drop-hour="${row}"]`) as HTMLElement
 
 /** The time as the app writes it: 24-hour, e.g. "18:30". */
 const hm = (iso: string) =>
@@ -75,12 +91,12 @@ const hm = (iso: string) =>
     hourCycle: 'h23',
   }).format(new Date(iso))
 
-/** The post's chip in the week grid (the phone list holds a second copy in jsdom). */
-async function chip(container: HTMLElement, day = '2026-10-22', hour = 18, iso = thu1830) {
+/** The post's card in the week grid. */
+async function card(container: HTMLElement, day = '2026-10-22', row = 18, iso = thu1830) {
   const name = new RegExp(`Telegram at ${hm(iso)}`)
   return within(
     await vi.waitFor(() => {
-      const el = slot(container, day, hour)
+      const el = slot(container, day, row)
       if (!el) throw new Error('no slot yet')
       return el
     }),
@@ -95,38 +111,60 @@ function pointerDrag(from: HTMLElement, to: HTMLElement) {
   fireEvent.pointerUp(window, { clientX: 40, clientY: 80 })
 }
 
-test('asks for approved posts in this week, Monday to Monday, in UTC', async () => {
+test('asks for approved and posted posts in this week, Monday to Monday, in UTC', async () => {
   const { container } = renderPage()
-  await chip(container)
-  const weekCall = calls().find((c) => c.includes('scheduled_to'))!
-  const q = new URLSearchParams(weekCall.split('?')[1])
-  expect(q.get('status')).toBe('approved')
-  expect(q.get('scheduled_from')).toBe(new Date(2026, 9, 19).toISOString())
-  expect(q.get('scheduled_to')).toBe(new Date(2026, 9, 26).toISOString())
+  await card(container)
+  const week = calls()
+    .filter((c) => c.includes('scheduled_to'))
+    .map((c) => new URLSearchParams(c.split('?')[1]))
+  expect(week.map((q) => q.get('status')).sort()).toEqual(['approved', 'published'])
+  for (const q of week) {
+    expect(q.get('scheduled_from')).toBe(new Date(2026, 9, 19).toISOString())
+    expect(q.get('scheduled_to')).toBe(new Date(2026, 9, 26).toISOString())
+  }
 })
 
-test('shows the post at its day and hour, and in Up next', async () => {
+test('a post sits on its day in its two-hour row, with its text', async () => {
   const { container } = renderPage()
-  await chip(container)
+  await card(container)
   expect(within(slot(container, '2026-10-22', 18)).getByText('Ship log')).toBeInTheDocument()
-  expect(screen.getByRole('heading', { name: 'Up next' })).toBeInTheDocument()
+  expect(container.querySelectorAll('[data-drop-hour]')).toHaveLength(7 * 12)
 })
 
-test('dragging with the pointer moves it to the slot and keeps the minutes', async () => {
+test('no best-hours row and no month or day view', async () => {
   const { container } = renderPage()
-  const item = await chip(container)
-  pointerDrag(item.parentElement!, slot(container, '2026-10-23', 9))
+  await card(container)
+  expect(screen.queryByText(/Best hours/)).toBeNull()
+  expect(screen.queryByRole('button', { name: 'month' })).toBeNull()
+  expect(screen.getByRole('button', { name: 'today' })).toBeInTheDocument()
+})
+
+test('dropped on the same row of another day, it keeps its exact time', async () => {
+  const { container } = renderPage()
+  const item = await card(container)
+  pointerDrag(item.parentElement!, slot(container, '2026-10-23', 18))
   await vi.waitFor(() =>
     expect(sent('PATCH /drafts/d1')).toEqual([
-      { scheduled_for: new Date(2026, 9, 23, 9, 30).toISOString() },
+      { scheduled_for: new Date(2026, 9, 23, 18, 30).toISOString() },
+    ]),
+  )
+})
+
+test("dropped on another row, it starts at that row's hour", async () => {
+  const { container } = renderPage()
+  const item = await card(container)
+  pointerDrag(item.parentElement!, slot(container, '2026-10-23', 8))
+  await vi.waitFor(() =>
+    expect(sent('PATCH /drafts/d1')).toEqual([
+      { scheduled_for: new Date(2026, 9, 23, 8, 0).toISOString() },
     ]),
   )
 })
 
 test('a touch press on the post itself scrolls; only the grip drags', async () => {
   const { container } = renderPage()
-  const item = await chip(container)
-  document.elementFromPoint = () => slot(container, '2026-10-23', 9)
+  const item = await card(container)
+  document.elementFromPoint = () => slot(container, '2026-10-23', 8)
   fireEvent.pointerDown(item, { button: 0, pointerType: 'touch', clientX: 0, clientY: 0 })
   fireEvent.pointerMove(window, { clientX: 40, clientY: 80 })
   fireEvent.pointerUp(window, { clientX: 40, clientY: 80 })
@@ -137,19 +175,41 @@ test('a touch press on the post itself scrolls; only the grip drags', async () =
   await vi.waitFor(() => expect(sent('PATCH /drafts/d1')).toHaveLength(1))
 })
 
-test('the post opens a menu: "Posted" marks it published and clears it', async () => {
+test('a drop on a slot that has passed is refused and says why', async () => {
   const { container } = renderPage()
-  await userEvent.click(await chip(container))
+  const item = await card(container)
+  pointerDrag(item.parentElement!, slot(container, '2026-10-20', 8))
+  expect(await screen.findByText(/That time has passed/)).toBeInTheDocument()
+  expect(sent('PATCH /drafts/d1')).toEqual([])
+})
+
+test('a posted post stays in its week, marked Posted, and does not move', async () => {
+  const mon = new Date(2026, 9, 19, 9, 0).toISOString()
+  items.push(row({ id: 'p1', status: 'published', scheduled_for: mon, text: 'Went out' }))
+  const { container } = renderPage()
+  const done = await card(container, '2026-10-19', 8, mon)
+  expect(done).toHaveAccessibleName(/posted/)
+  expect(within(done).getByText('Posted')).toBeInTheDocument()
+  expect(done.parentElement!.querySelector('[data-grip]')).toBeNull()
+})
+
+test('the post opens a panel: "Posted" marks it published', async () => {
+  const { container } = renderPage()
+  await userEvent.click(await card(container))
   await userEvent.click(await screen.findByRole('button', { name: 'Posted' }))
-  await vi.waitFor(() =>
-    expect(within(slot(container, '2026-10-22', 18)).queryByRole('button')).toBeNull(),
-  )
-  expect(sent('PATCH /drafts/d1')).toEqual([{ status: 'published' }])
+  await vi.waitFor(() => expect(sent('PATCH /drafts/d1')).toEqual([{ status: 'published' }]))
+})
+
+test('"Back to drafts" takes it off the calendar', async () => {
+  const { container } = renderPage()
+  await userEvent.click(await card(container))
+  await userEvent.click(await screen.findByRole('button', { name: 'Back to drafts' }))
+  await vi.waitFor(() => expect(sent('PATCH /drafts/d1')).toEqual([{ status: 'draft' }]))
 })
 
 test('"Change time" works without dragging', async () => {
   const { container } = renderPage()
-  await userEvent.click(await chip(container))
+  await userEvent.click(await card(container))
   await userEvent.click(await screen.findByRole('button', { name: 'Change time' }))
   fireEvent.change(screen.getByLabelText('New time (your time)'), {
     target: { value: '2026-10-24T08:15' },
@@ -164,7 +224,7 @@ test('"Change time" works without dragging', async () => {
 
 test('Edit opens the draft (its chat)', async () => {
   const { container } = renderPage()
-  await userEvent.click(await chip(container))
+  await userEvent.click(await card(container))
   expect(await screen.findByRole('link', { name: 'Edit' })).toHaveAttribute('href', '/drafts/d1')
 })
 
@@ -173,93 +233,93 @@ test('a missed post is marked, and its hand-off copies it then asks if it was po
   Object.assign(navigator, { clipboard: { writeText } })
   items = [row({ id: 'd1', status: 'approved', scheduled_for: tue0900, text: 'Old news' })]
   const { container } = renderPage()
-  const missed = await chip(container, '2026-10-20', 9, tue0900)
-  expect(missed).toHaveAccessibleName(/missed/)
-  await userEvent.click(missed)
-  await userEvent.click(await screen.findByRole('button', { name: /^(Copy|Open in)/ }))
+  const late = await card(container, '2026-10-20', 8, tue0900)
+  expect(late).toHaveAccessibleName(/missed/)
+  await userEvent.click(late)
+  await userEvent.click(await screen.findByRole('button', { name: 'Send now' }))
   expect(writeText).toHaveBeenCalledWith('Old news')
   await userEvent.click(await screen.findByRole('button', { name: 'Yes, mark as posted' }))
   await vi.waitFor(() => expect(sent('PATCH /drafts/d1')).toEqual([{ status: 'published' }]))
 })
 
-test('the best hours of the chosen platform are shaded, and can be turned off', async () => {
-  // A desktop width: phones show the week as a list without shading, and don't fetch it.
-  vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({
-    ...matchMediaStub(query),
-    matches: query === '(min-width: 768px)',
-  }))
+test('a Telegram post the bot sends says so', async () => {
+  bot = true
   const { container } = renderPage()
-  await chip(container)
-  await vi.waitFor(() =>
-    expect(within(slot(container, '2026-10-22', 9)).getByText('Best hour for X.')).toBeTruthy(),
-  )
-  expect(calls().some((c) => c.includes('/platforms/x/best-hours?start=2026-10-19&days=7'))).toBe(
-    true,
-  )
-  await userEvent.click(screen.getByRole('button', { name: 'Off' }))
-  expect(within(slot(container, '2026-10-22', 9)).queryByText('Best hour for X.')).toBeNull()
+  const item = await card(container)
+  await vi.waitFor(() => expect(item).toHaveAccessibleName(/bot sends/))
 })
 
-test('the month view covers the whole month, and a day opens the day view', async () => {
+test('weeks go forward only: no going back before this week', async () => {
   renderPage()
-  await userEvent.click(screen.getByRole('button', { name: 'month' }))
+  expect(await screen.findByText(/This week/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Previous week' })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name: 'Next week' }))
+  expect(await screen.findByText(/Next week/)).toBeInTheDocument()
   await vi.waitFor(() =>
     expect(calls().at(-1)).toContain(
-      `scheduled_from=${encodeURIComponent(new Date(2026, 8, 28).toISOString())}`,
+      `scheduled_from=${encodeURIComponent(new Date(2026, 9, 26).toISOString())}`,
     ),
   )
-  expect(screen.getByText(/October 2026/)).toBeInTheDocument()
-  await userEvent.click(
-    screen.getByRole('button', { name: `Open ${new Date(2026, 9, 22).toDateString()}` }),
-  )
-  expect(await screen.findByText(/Thursday/)).toBeInTheDocument()
-  const dayCall = calls()
-    .filter((c) => c.includes('scheduled_to'))
-    .at(-1)!
-  const q = new URLSearchParams(dayCall.split('?')[1])
-  expect(q.get('scheduled_from')).toBe(new Date(2026, 9, 22).toISOString())
-  expect(q.get('scheduled_to')).toBe(new Date(2026, 9, 23).toISOString())
 })
 
-test('busy month days show "+N more"', async () => {
-  items = Array.from({ length: 5 }, (_, i) =>
-    row({
-      id: `d${i}`,
-      status: 'approved',
-      scheduled_for: new Date(2026, 9, 22, 8 + i).toISOString(),
-    }),
-  )
-  renderPage('/calendar?view=month&date=2026-10-21')
-  expect(await screen.findByRole('button', { name: '+2 more' })).toBeInTheDocument()
-})
-
-test('a drop on a slot that has passed is refused and says why', async () => {
-  const { container } = renderPage()
-  const item = await chip(container)
-  pointerDrag(item.parentElement!, slot(container, '2026-10-20', 9))
-  expect(await screen.findByText(/That time has passed/)).toBeInTheDocument()
-  expect(sent('PATCH /drafts/d1')).toEqual([])
-})
-
-test('on phones a month day names its posts and their state, not colour alone', async () => {
-  items = [
-    row({ id: 'd1', status: 'approved', scheduled_for: tue0900 }),
-    row({ id: 'd2', status: 'approved', scheduled_for: new Date(2026, 9, 20, 18).toISOString() }),
-  ]
-  renderPage('/calendar?view=month&date=2026-10-21')
-  expect(await screen.findByRole('button', { name: /: 2 posts, 2 missed$/ })).toBeInTheDocument()
-})
-
-test('a date in the address that is not a real day opens today instead of crashing', async () => {
+test('an earlier week, or a date that is not a real day, opens this week', async () => {
+  renderPage('/calendar?view=week&date=2026-09-01')
+  expect(await screen.findByText(/This week/)).toBeInTheDocument()
   renderPage('/calendar?view=week&date=2026-13-40')
-  expect(await screen.findByText(/19 Oct|Oct 19/)).toBeTruthy()
+  expect((await screen.findAllByText(/This week/)).length).toBe(2)
 })
 
-test('posts due now stay at the top, whatever range is on screen', async () => {
-  due = [
-    row({ id: 'due1', status: 'approved', scheduled_for: NOW.toISOString(), text: 'Due post' }),
+test('Today shows each of today’s posts in full, with its actions in view', async () => {
+  const wed1500 = new Date(2026, 9, 21, 15, 0).toISOString()
+  items = [
+    row({ id: 'd1', status: 'approved', scheduled_for: wed1500, text: 'Line one\nLine two' }),
   ]
-  renderPage('/calendar?view=month&date=2026-12-01')
-  const section = await screen.findByRole('region', { name: 'Due now' })
-  expect(within(section).getByText(/Due post/)).toBeTruthy()
+  renderPage('/calendar?view=today')
+  expect(await screen.findByText(/Today ·/)).toBeInTheDocument()
+  expect(await screen.findByText(/Line one\s+Line two/)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Change time' })).toBeInTheDocument()
+  const q = new URLSearchParams(
+    calls()
+      .find((c) => c.includes('scheduled_to'))!
+      .split('?')[1],
+  )
+  expect(q.get('scheduled_from')).toBe(new Date(2026, 9, 21).toISOString())
+  expect(q.get('scheduled_to')).toBe(new Date(2026, 9, 22).toISOString())
+})
+
+test('a phone opens on Today, and its week is a list by day with no dragging', async () => {
+  screenIs('phone')
+  const { container } = renderPage()
+  expect(await screen.findByText(/Today ·/)).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'week' }))
+  expect(await screen.findByRole('button', { name: /Telegram at 18:30/ })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: /22/ })).toBeInTheDocument()
+  expect(container.querySelector('[data-drop-day]')).toBeNull()
+  expect(container.querySelector('[data-grip]')).toBeNull()
+})
+
+test('an empty week says so and offers to write a post', async () => {
+  items = []
+  renderPage()
+  expect(await screen.findByText('Nothing planned this week.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Write a post' })).toHaveAttribute('href', '/')
+})
+
+test('"Needs you" holds missed and due posts, with Post now and Change time', async () => {
+  missed = [row({ id: 'm1', status: 'approved', scheduled_for: tue0900, text: 'Late one' })]
+  due = [row({ id: 'u1', status: 'approved', scheduled_for: NOW.toISOString(), text: 'Due one' })]
+  renderPage('/calendar?view=week&date=2026-11-30')
+  const section = await screen.findByRole('region', { name: 'Needs you' })
+  expect(within(section).getByText('Late one')).toBeInTheDocument()
+  expect(within(section).getByText('Due one')).toBeInTheDocument()
+  expect(within(section).getByText('Missed')).toBeInTheDocument()
+  expect(within(section).getByText('Due now')).toBeInTheDocument()
+  expect(within(section).getAllByRole('button', { name: 'Change time' })).toHaveLength(2)
+  expect(screen.queryByRole('heading', { name: 'Up next' })).toBeNull()
+})
+
+test('nothing due or missed: no "Needs you"', async () => {
+  const { container } = renderPage()
+  await card(container)
+  expect(screen.queryByRole('region', { name: 'Needs you' })).toBeNull()
 })

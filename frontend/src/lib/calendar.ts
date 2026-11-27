@@ -30,23 +30,25 @@ export function sameDay(a: Date, b: Date): boolean {
   )
 }
 
-/** A post dropped on `day` at `hour` keeps its minutes: 18:30 dropped on Thu 09:00 → Thu 09:30. */
-export function moveTo(iso: string, day: Date, hour: number): string {
-  const old = new Date(iso)
-  const out = new Date(day)
-  out.setHours(hour, old.getMinutes(), 0, 0)
-  return out.toISOString()
+/** The week grid's rows: 12 two-hour rows, 00:00 to 22:00 (DESIGN.md §4.3). */
+export const SLOT_HOURS = 2
+export const SLOTS = Array.from({ length: 24 / SLOT_HOURS }, (_, i) => i * SLOT_HOURS)
+
+/** The row an hour falls in: 09 → 08, 13 → 12. */
+export function slotOf(hour: number): number {
+  return hour - (hour % SLOT_HOURS)
 }
 
-/** The weeks (Mon–Sun) that cover the month holding `d`, for the month view. */
-export function monthWeeks(d: Date): Date[][] {
-  const first = new Date(d.getFullYear(), d.getMonth(), 1)
-  const weeks: Date[][] = []
-  for (let monday = startOfWeek(first); ; monday = addDays(monday, 7)) {
-    if (monday.getMonth() !== d.getMonth() && weeks.length && monday > first) break
-    weeks.push(weekDays(monday))
-  }
-  return weeks
+/**
+ * Where a post dropped on `day`, row `slot`, lands. The same row on another day keeps its exact
+ * time (Tue 09:40 → Thu 09:40); another row starts it at that row's hour (13:00 row → 13:00).
+ */
+export function dropTime(iso: string, day: Date, slot: number): string {
+  const old = new Date(iso)
+  const out = new Date(day)
+  if (slotOf(old.getHours()) === slot) out.setHours(old.getHours(), old.getMinutes(), 0, 0)
+  else out.setHours(slot, 0, 0, 0)
+  return out.toISOString()
 }
 
 /** "2026-10-22" for a local day: the key the drop targets and best hours use. */

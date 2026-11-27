@@ -102,6 +102,7 @@ function PostItem({ draft, kind }: { draft: DraftRow; kind: 'due' | 'missed' }) 
             type="button"
             disabled={hand.posting}
             onClick={() => void hand.post()}
+            title={hand.detail}
             className="min-h-9 rounded-full bg-primary px-3 font-semibold text-on-primary"
           >
             {hand.posting ? 'Posting…' : hand.label}

@@ -171,7 +171,7 @@ test('an approved X post opens X with its text, and "I posted it" marks it poste
   draft = detail({ platform: 'x', status: 'approved', scheduled_for: '2030-05-01T15:00:00Z' })
   const open = vi.spyOn(window, 'open').mockReturnValue(null)
   renderEditor()
-  await userEvent.click(await screen.findByRole('button', { name: 'Open in X' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Send now' }))
   expect(String(open.mock.calls[0][0])).toContain('https://x.com/intent/tweet?text=Small')
   await userEvent.click(screen.getByRole('button', { name: 'I posted it' }))
   expect(await screen.findByText('Posted', { selector: 'b' })).toBeInTheDocument()
