@@ -91,6 +91,10 @@
   --color-thread: var(--thread);
   --color-signal: var(--signal);
   --color-danger: var(--danger);
+  /* The platforms' own brand colours (their logos and the calendar's card edges). The same in
+     light and dark, as the brands use them; X has no colour of its own, so it uses --ink. */
+  --color-linkedin: #0a66c2;
+  --color-telegram: #26a5e4;
   /* Behind dialogs and sheets. */
   --color-scrim: var(--scrim);
   /* The one centred column (DESIGN.md §5) and the writing line-height. */
