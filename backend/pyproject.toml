@@ -19,6 +19,7 @@ dependencies = [
     "fastembed>=0.9,<1",  # local ONNX embeddings for the inspiration pool (FR-41)
     "pypdf>=6.0,<7",  # resume text from PDF (FR-20)
     "python-docx>=1.1,<2",  # resume text from DOCX (FR-20)
+    "pillow>=11,<14",  # re-encodes pictures on a draft without their hidden data (FR-58)
 ]
 
 [project.optional-dependencies]

@@ -6,6 +6,7 @@ from app.schemas import (
     GenerateFailureOut,
     GenerateNoticeOut,
     LengthOut,
+    PictureOut,
     ThreadMessageOut,
     ThreadOut,
 )
@@ -31,6 +32,17 @@ def row_out(r: library.DraftRow) -> DraftRowOut:
         updated_at=r.updated_at,
         thread_id=d.thread_id,
         bot_error=d.bot_error,
+        pictures=[
+            PictureOut(
+                id=p.id,
+                position=p.position,
+                content_type=p.content_type,
+                width=p.width,
+                height=p.height,
+                url=f"/drafts/{d.id}/pictures/{p.id}",
+            )
+            for p in r.pictures
+        ],
     )
 
 

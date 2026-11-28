@@ -72,6 +72,22 @@ class LengthOut(BaseModel):
     over: bool
 
 
+class PictureOut(BaseModel):
+    """A picture on a draft (FR-58). `url` is the API path that returns it, for the logged-in
+    owner only."""
+
+    id: uuid.UUID
+    position: int
+    content_type: str
+    width: int
+    height: int
+    url: str
+
+
+class PicturesOrderIn(BaseModel):
+    ids: list[uuid.UUID] = Field(max_length=10)
+
+
 class DraftOut(BaseModel):
     id: uuid.UUID
     platform: Platform
@@ -386,6 +402,7 @@ class DraftRowOut(BaseModel):
         default=None,
         description="Why the Telegram bot couldn't post it at its time (it's then missed)",
     )
+    pictures: list[PictureOut] = Field(default_factory=list, description="In posting order")
 
 
 class DraftsOut(BaseModel):
