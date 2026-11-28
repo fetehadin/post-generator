@@ -290,9 +290,13 @@ def _save(user_id: uuid.UUID, drafts: list[dict]) -> uuid.UUID:
         s.add(thread)
         s.flush()
         s.add(DraftMessage(user_id=user_id, thread_id=thread.id, role="user", text=topic))
-        for d in drafts:
+        start = datetime.now(UTC)
+        for i, d in enumerate(drafts):
             draft = Draft(
                 user_id=user_id,
+                # One transaction gives every row the same now(); a microsecond apart keeps the
+                # chat in the order the guest wrote them, whatever order Postgres returns ties.
+                created_at=start + timedelta(microseconds=i),
                 platform=d["platform"],
                 topic=d["topic"],
                 checkin_id=checkin.id,
