@@ -27,6 +27,7 @@ structure, the same for every candidate, and need the local model.
 import csv
 import json
 import random
+import time
 import uuid
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -67,6 +68,12 @@ SHEET_COLUMNS = (
     "notes",
 )
 MIN_LEAD = 0.5  # FR-56: how much better than the baseline the winner must be
+# A long Amharic draft can take a minute on a free model. The eval has no user waiting, so
+# each call gets longer than the app's 40 s deadline, and a busy or paused model is waited
+# for and tried again rather than written down as a failed draft.
+EVAL_DEADLINE_SECONDS = 180
+TRIES = 4
+WAIT_SECONDS = 65  # a little longer than the circuit breaker's usual pause
 
 
 @dataclass(frozen=True)
@@ -149,7 +156,31 @@ def _profile(user_id: uuid.UUID, platform: str) -> PlatformProfile:
 
 def _client_for(model: str) -> AIClient:
     """A client whose whole chain is this one model, on the app's keys."""
-    return AIClient(settings=get_settings().model_copy(update={"generation_models": model}))
+    update = {
+        "generation_models": model,
+        "generation_deadline_seconds": EVAL_DEADLINE_SECONDS,
+        "ai_timeout_seconds": EVAL_DEADLINE_SECONDS,
+    }
+    return AIClient(settings=get_settings().model_copy(update=update))
+
+
+def generate_patiently(
+    client: AIClient,
+    prompt: str,
+    sleep: Callable[[float], None] = time.sleep,
+    log: Callable[[str], None] = print,
+) -> str:
+    """One draft, tried up to TRIES times with a wait between: a timeout or a 429 then pauses
+    the model, and without waiting every later case would fail too. Raises the last error."""
+    for attempt in range(1, TRIES + 1):
+        try:
+            return clean_output(client.generate(prompt, purpose="draft").text)
+        except (AIUnavailable, EmbeddingUnavailable) as e:
+            if attempt == TRIES:
+                raise
+            log(f"  busy ({str(e)[:80]}), waiting {WAIT_SECONDS}s")
+            sleep(WAIT_SECONDS)
+    raise AssertionError("unreachable")
 
 
 def run(
@@ -159,6 +190,7 @@ def run(
     client_for: Callable[[str], AIClient] = _client_for,
     seed: int | None = None,
     log: Callable[[str], None] = print,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> Path:
     cands = candidates()
     clients = {c.model: client_for(c.model) for c in cands}
@@ -181,7 +213,7 @@ def run(
             cand = by_name[name]
             prompt = prompt_for_case(case, cand, profile, examples, about, voice)
             try:
-                text = clean_output(clients[cand.model].generate(prompt, purpose="draft").text)
+                text = generate_patiently(clients[cand.model], prompt, sleep, log)
             except (AIUnavailable, EmbeddingUnavailable) as e:
                 text = f"(not generated: {e})"
             length = post_length(text, profile.counting_rule)

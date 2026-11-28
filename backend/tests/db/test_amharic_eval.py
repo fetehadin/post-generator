@@ -38,7 +38,11 @@ def test_run_writes_a_blind_sheet_and_a_key_that_match(make_user, tmp_path, monk
     models = {"google:flash": FakeModel("flash"), "google:pro": FakeModel("pro", fail=True)}
     cases = [ae.Case("am-01", "amharic", "telegram", "ዛሬ ቦቱን ጨረስኩ።")]
 
-    out = ae.run(user, cases, tmp_path, client_for=models.__getitem__, seed=3, log=lambda _: None)
+    waits: list[float] = []
+    out = ae.run(
+        user, cases, tmp_path, client_for=models.__getitem__, seed=3, log=lambda _: None,
+        sleep=waits.append,
+    )  # fmt: skip
 
     key = json.loads((out / "key.json").read_text(encoding="utf-8"))
     with (out / "sheet.csv").open(encoding="utf-8-sig") as f:
@@ -49,6 +53,7 @@ def test_run_writes_a_blind_sheet_and_a_key_that_match(make_user, tmp_path, monk
     assert "base" not in sheet_text and "rules" not in sheet_text  # names stay hidden
     by_name = {key["am-01"][r["label"]]: r["draft"] for r in rows}
     assert by_name["pro+rules"].startswith("(not generated")  # one model down: the run goes on
+    assert waits == [ae.WAIT_SECONDS] * (ae.TRIES - 1)  # it was waited for first
     # Flash ran twice: once with today's prompt, once with the Amharic rules.
     with_rules = [p for p in models["google:flash"].prompts if "## Writing in Amharic" in p]
     assert len(models["google:flash"].prompts) == 2 and len(with_rules) == 1

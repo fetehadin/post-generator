@@ -42,7 +42,9 @@ class Settings(BaseSettings):
     generation_models: str = "google:gemini-flash-latest"
     # FR-56: the models the Amharic blind test compares (`python -m app.dev amharic-eval`).
     # The first one also runs with today's prompt as the baseline; each runs alone, no fallback.
-    amharic_eval_models: str = "google:gemini-flash-latest,google:gemini-pro-latest"
+    # Free models only: Gemini Pro's free-tier quota is 0 (checked 28 Nov 2026), so the second
+    # candidate is Groq's gpt-oss-120b, the free fallback that already writes when Gemini fails.
+    amharic_eval_models: str = "google:gemini-flash-latest,groq:openai/gpt-oss-120b"
     # Optional cheaper chain for small jobs (voice card, summary card); empty = the main chain.
     generation_models_light: str = ""
     # Gemini's thinking for writing calls: "" leaves the model's default; minimal, low, medium

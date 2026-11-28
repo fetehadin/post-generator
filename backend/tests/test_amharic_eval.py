@@ -142,3 +142,37 @@ def test_report_reads_the_run_folder_and_the_sheets(tmp_path, monkeypatch):
             w.writerow({"case": "c1", "label": label, **dict.fromkeys(ae.SCORES, g)})
     out = ae.report(tmp_path, [sheet])
     assert "Winner: x" in out
+
+
+class Flaky:
+    """Busy for the first `busy` calls, then writes."""
+
+    def __init__(self, busy):
+        self.busy, self.calls = busy, 0
+
+    def generate(self, prompt, purpose="draft"):
+        from app.ai.client import AIUnavailable, GenerationResult
+
+        self.calls += 1
+        if self.calls <= self.busy:
+            raise AIUnavailable("gemini-flash-latest paused 45s after failures")
+        return GenerationResult("ዛሬ ጨረስኩ።", "flash", "google", "flash")
+
+
+def test_a_paused_model_is_waited_for_not_written_down_as_a_failed_draft():
+    waits: list[float] = []
+    model = Flaky(busy=2)
+    text = ae.generate_patiently(model, "prompt", sleep=waits.append, log=lambda _: None)
+    assert text == "ዛሬ ጨረስኩ።"
+    assert model.calls == 3 and waits == [ae.WAIT_SECONDS, ae.WAIT_SECONDS]
+
+
+def test_a_model_still_down_after_every_try_raises():
+    import pytest
+
+    from app.ai.client import AIUnavailable
+
+    model = Flaky(busy=99)
+    with pytest.raises(AIUnavailable):
+        ae.generate_patiently(model, "prompt", sleep=lambda _: None, log=lambda _: None)
+    assert model.calls == ae.TRIES
