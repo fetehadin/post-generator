@@ -290,8 +290,12 @@ def _save(user_id: uuid.UUID, drafts: list[dict]) -> uuid.UUID:
         s.add(thread)
         s.flush()
         s.add(DraftMessage(user_id=user_id, thread_id=thread.id, role="user", text=topic))
-        for d in drafts:
+        # One transaction gives every row the same now(), so the chat's order (by created_at)
+        # would be random. A microsecond apart keeps the order the guest wrote them in.
+        start = datetime.now(UTC)
+        for i, d in enumerate(drafts):
             draft = Draft(
+                created_at=start + timedelta(microseconds=i),
                 user_id=user_id,
                 platform=d["platform"],
                 topic=d["topic"],
