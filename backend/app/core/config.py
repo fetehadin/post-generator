@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 768
     # Ordered fallback chain, comma-separated "provider:model" (FR-31). Providers: google, groq.
     generation_models: str = "google:gemini-flash-latest"
+    # FR-56: the models the Amharic blind test compares (`python -m app.dev amharic-eval`).
+    # The first one also runs with today's prompt as the baseline; each runs alone, no fallback.
+    amharic_eval_models: str = "google:gemini-flash-latest,google:gemini-pro-latest"
     # Optional cheaper chain for small jobs (voice card, summary card); empty = the main chain.
     generation_models_light: str = ""
     # Gemini's thinking for writing calls: "" leaves the model's default; minimal, low, medium
@@ -161,6 +164,10 @@ class Settings(BaseSettings):
             if provider_ == provider:
                 return model
         return ""
+
+    @property
+    def amharic_eval_chain(self) -> list[tuple[str, str]]:
+        return _chain(self.amharic_eval_models)
 
     def chain_for(self, purpose: str) -> list[tuple[str, str]]:
         """Small jobs use the light chain when one is set; writing always uses the main one."""

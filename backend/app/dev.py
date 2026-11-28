@@ -5,6 +5,8 @@
     python -m app.dev search "a topic" [--platform telegram]
     python -m app.dev draft "today's check-in" [--platform telegram] [--show-prompt]
     python -m app.dev eval [--platform telegram]   # the ten test topics
+    python -m app.dev amharic-eval [--cases FILE]   # FR-56 blind test: drafts + sheet
+    python -m app.dev amharic-score RUN_DIR SHEET.csv [SHEET.csv ...]   # names the winner
     python -m app.dev check-models                  # one tiny prompt per model (daily cron)
     python -m app.dev ai-report [--days 7]          # AI calls per day and purpose (as owner)
     python -m app.dev new-secret-key                # a key for AI_KEY_ENCRYPTION_KEYS
@@ -20,6 +22,7 @@ from pathlib import Path
 
 from sqlalchemy.dialects.postgresql import insert
 
+from app import amharic_eval
 from app.ai.client import default_client
 from app.core.auth import DEV_USER_ID
 from app.core.config import get_settings
@@ -88,6 +91,17 @@ def evaluate(platform: str) -> None:
     path = run_eval(DEV_USER_ID, platform)
     print(path.read_text(encoding="utf-8").splitlines()[2])
     print(f"report: {path}")
+
+
+def amharic_run(cases_path: Path) -> None:
+    if not cases_path.exists():
+        raise SystemExit(
+            f"No cases file at {cases_path}. Copy samples/amharic_eval_cases.example.json there "
+            "and write your 25 cases (10 amharic, 10 mixed, 5 rewrite)."
+        )
+    out = amharic_eval.run(DEV_USER_ID, amharic_eval.load_cases(cases_path), cases_path.parent)
+    print(f"done: {out}")
+    print("Each judge copies sheet.csv, reads drafts.md and scores 1-5; don't open key.json.")
 
 
 def check_models() -> None:
@@ -207,6 +221,11 @@ def main() -> None:
     drf.add_argument("--show-prompt", action="store_true")
     ev = sub.add_parser("eval", help="draft the ten test topics and write a report")
     ev.add_argument("--platform", default="telegram", choices=["telegram", "x", "linkedin"])
+    am = sub.add_parser("amharic-eval", help="FR-56 blind test: every candidate drafts each case")
+    am.add_argument("--cases", type=Path, default=amharic_eval.CASES)
+    sc = sub.add_parser("amharic-score", help="average the judges' sheets and name the winner")
+    sc.add_argument("run_dir", type=Path)
+    sc.add_argument("sheets", type=Path, nargs="+")
     sub.add_parser("check-models", help="send one tiny prompt to each model in the chain")
     rep = sub.add_parser("ai-report", help="AI calls per day, purpose and key (numbers only)")
     rep.add_argument("--days", type=int, default=7)
@@ -231,6 +250,10 @@ def main() -> None:
         draft(args.topic, args.platform, args.show_prompt)
     elif args.command == "eval":
         evaluate(args.platform)
+    elif args.command == "amharic-eval":
+        amharic_run(args.cases)
+    elif args.command == "amharic-score":
+        print(amharic_eval.report(args.run_dir, args.sheets))
     elif args.command == "check-models":
         check_models()
     elif args.command == "ai-report":
