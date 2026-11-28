@@ -15,7 +15,7 @@ from sqlalchemy import delete, select
 from app.ai.client import AIClient, AIUnavailable, EmbeddingUnavailable, for_user
 from app.core.db import user_session
 from app.models import Checkin, Draft, DraftMessage, DraftVersion, Thread
-from app.services import library, usage
+from app.services import library, pictures, usage
 from app.services.clock import local_today
 from app.services.drafting import PLATFORM_NAMES, DraftError, generate_draft, thread_title
 
@@ -117,6 +117,7 @@ def detail(user_id: uuid.UUID, thread_id: uuid.UUID) -> ThreadDetail:
             )
             .order_by(DraftVersion.created_at)
         ).all()
+        pics = pictures.of_drafts(s, [d.id for d in drafts])
         s.expunge_all()
 
     by_draft = {d.id: d for d in drafts}
@@ -133,10 +134,14 @@ def detail(user_id: uuid.UUID, thread_id: uuid.UUID) -> ThreadDetail:
         card = None
         if m.draft_version_id in numbered and m.draft_id in by_draft:
             number, v = numbered[m.draft_version_id]
-            row = library._row(by_draft[m.draft_id], v, rules, limits)
+            row = library._row(by_draft[m.draft_id], v, rules, limits, pics.get(m.draft_id, ()))
             card = Card(v.id, number, v.text, row.length)
         out.append((m, card))
-    rows = [library._row(d, latest[d.id], rules, limits) for d in drafts if d.id in latest]
+    rows = [
+        library._row(d, latest[d.id], rules, limits, pics.get(d.id, ()))
+        for d in drafts
+        if d.id in latest
+    ]
     return ThreadDetail(thread, checkin.text if checkin else thread.title, out, rows)
 
 
@@ -279,6 +284,8 @@ def delete_thread(user_id: uuid.UUID, thread_id: uuid.UUID) -> int:
         if gone:
             s.execute(delete(Draft).where(Draft.user_id == user_id, Draft.id.in_(gone)))
         s.delete(thread)  # its messages go with it (ON DELETE CASCADE); kept drafts lose thread_id
+    if gone:
+        pictures.prune(user_id)  # the deleted drafts' pictures (FR-58)
     return len(kept)
 
 

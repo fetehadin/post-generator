@@ -19,7 +19,16 @@ from sqlalchemy.orm import object_session
 
 from app.core.db import user_session
 from app.counting import post_length
-from app.models import Draft, DraftMessage, DraftVersion, PlatformProfile, SourcePost, Thread
+from app.models import (
+    Draft,
+    DraftMessage,
+    DraftPicture,
+    DraftVersion,
+    PlatformProfile,
+    SourcePost,
+    Thread,
+)
+from app.services import pictures as picture_files
 from app.services.drafting import DraftError
 from app.services.voice import effective_limit
 
@@ -43,6 +52,7 @@ class DraftRow:
     text: str
     length: Length
     updated_at: datetime
+    pictures: tuple[DraftPicture, ...]  # in posting order (FR-58)
 
 
 @dataclass(frozen=True)
@@ -95,13 +105,20 @@ def list_drafts(
         order = Draft.scheduled_for if scheduled_from or scheduled_to else Draft.created_at.desc()
         drafts = s.scalars(q.order_by(order).limit(limit)).all()
         latest = _latest_versions(s, [d.id for d in drafts])
+        pics = picture_files.of_drafts(s, [d.id for d in drafts])
         s.expunge_all()
-    return [_row(d, latest[d.id], rules, limits) for d in drafts if d.id in latest]
+    return [
+        _row(d, latest[d.id], rules, limits, pics.get(d.id, ())) for d in drafts if d.id in latest
+    ]
 
 
-def _row(d: Draft, v: DraftVersion, rules, limits) -> DraftRow:
-    count = post_length(v.text, rules[d.platform].counting_rule)
-    return DraftRow(d, v.text, Length(count, limits[d.platform]), v.created_at)
+def _row(d: Draft, v: DraftVersion, rules, limits, pics=()) -> DraftRow:
+    rule = rules[d.platform]
+    count = post_length(v.text, rule.counting_rule)
+    limit = limits[d.platform]
+    if pics and rule.media_char_limit:  # Telegram: a caption is at most 1,024 (FR-58)
+        limit = min(limit, rule.media_char_limit)
+    return DraftRow(d, v.text, Length(count, limit), v.created_at, tuple(pics))
 
 
 def detail(user_id: uuid.UUID, draft_id: uuid.UUID) -> DraftDetail:
@@ -120,10 +137,17 @@ def detail(user_id: uuid.UUID, draft_id: uuid.UUID) -> DraftDetail:
             .where(DraftMessage.draft_id == draft_id, DraftMessage.text != "")
             .order_by(DraftMessage.created_at)
         ).all()
+        pics = picture_files.of_drafts(s, [draft_id]).get(draft_id, ())
         s.expunge_all()
-    row = _row(d, versions[-1], rules, limits)
+    row = _row(d, versions[-1], rules, limits, pics)
     return DraftDetail(
-        row.draft, row.text, row.length, row.updated_at, list(versions), list(messages)
+        row.draft,
+        row.text,
+        row.length,
+        row.updated_at,
+        row.pictures,
+        list(versions),
+        list(messages),
     )
 
 
@@ -189,6 +213,8 @@ def update(user_id: uuid.UUID, draft_id: uuid.UUID, changes: dict) -> DraftDetai
                     raise DraftError("in_the_past", "Pick a time that hasn't passed yet.")
             d.scheduled_for = when
             d.bot_failed_at = d.bot_error = None  # a new time: the bot may try again
+    if current.pictures and status in ("published", "discarded"):
+        picture_files.prune(user_id)  # their rows went with the status change (FR-58)
     return detail(user_id, draft_id)
 
 
@@ -212,12 +238,14 @@ def _move(d: Draft, status: str, current: DraftDetail, new_text: str | None) -> 
         if d.status != "approved":
             raise DraftError("not_approved", "Approve the draft before marking it posted.", 409)
         d.published_at = datetime.now(UTC)
+        picture_files.drop_rows(object_session(d), d.id)  # posted: Voxlace keeps no copy
     elif status in ("draft", "discarded"):
         d.scheduled_for = None  # back to editing or thrown away: off the calendar
         d.bot_failed_at = d.bot_error = None
         if status == "discarded":  # FR-14: count discarded GitHub suggestions
             from app.services.github import count_discard
 
+            picture_files.drop_rows(object_session(d), d.id)  # FR-58
             count_discard(object_session(d), d.thread_id)
     d.status = status
 
@@ -247,6 +275,7 @@ def delete_forever(user_id: uuid.UUID, draft_id: uuid.UUID) -> None:
         if d.status != "discarded":
             raise DraftError("not_discarded", "Discard the draft first.", 409)
         s.delete(d)
+    picture_files.prune(user_id)
 
 
 def restore(user_id: uuid.UUID, draft_id: uuid.UUID, version_id: uuid.UUID) -> DraftDetail:
