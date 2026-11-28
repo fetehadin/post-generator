@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from 
 import { LogoMark, Wordmark } from './Logo'
 import { Kbd, Tooltip } from './ui/tooltip'
 import { CommandBar, MOD, useCommandShortcuts } from './CommandBar'
+import { DoneNotice } from './DoneNotice'
 
 // The icon shows where a click takes you: a moon in light mode, a sun in dark mode.
 const THEME_ICON: Record<Theme, IconName> = { light: 'moon', dark: 'sun' }
@@ -202,6 +203,7 @@ export function AppShell() {
         <Outlet />
       </main>
 
+      <DoneNotice />
       <MobileTabs />
       <CommandBar open={goOpen} onOpenChange={setGoOpen} onSwitchTheme={switchTheme} />
     </div>

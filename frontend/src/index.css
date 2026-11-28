@@ -152,6 +152,23 @@ samp {
   }
 }
 
+/* Text fields keep their one border and darken it on focus, like the message box, instead of
+   a second ring with a gap (product owner, 28 Nov 2026). Still a clear change for keyboard
+   users (WCAG 2.4.7): --edge to --ink is a big step in both themes. Un-layered so it beats a
+   field's border utility. */
+input:not(
+    [type='checkbox'],
+    [type='radio'],
+    [type='range'],
+    [type='file'],
+    [type='color']
+  ):focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--ink);
+}
+
 :root {
   /* Hover, color and small state changes. */
   --duration: 150ms;

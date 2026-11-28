@@ -164,9 +164,11 @@ def update(user_id: uuid.UUID, draft_id: uuid.UUID, changes: dict) -> DraftDetai
         if text is not None and not text.strip():
             raise DraftError("missing_text", "A post can't be empty.")
         if text is not None and text.strip() != current.text:
-            if d.status != "draft":
+            # An approved post stays approved and keeps its time: the owner's own edit is their
+            # approval of the new text (decided 28 Nov 2026). Posted and discarded posts are final.
+            if d.status not in ("draft", "approved"):
                 raise DraftError(
-                    "not_editable", "Move it back to draft before you change the text.", 409
+                    "not_editable", "Restore it as a draft before you change the text.", 409
                 )
             add_card(s, user_id, d, add_version(s, user_id, d, text.strip(), HAND_EDIT), HAND_EDIT)
 

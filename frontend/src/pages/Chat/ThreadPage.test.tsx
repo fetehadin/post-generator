@@ -311,3 +311,33 @@ test('Enter on typed text it cannot read approves nothing (FR-52)', async () => 
   expect(within(open).getByRole('button', { name: 'Approve for this time' })).toBeDisabled()
   expect(sent('POST /drafts/d1/schedule')).toHaveLength(0)
 })
+
+test('an approved post can be edited by hand; AI changes wait until it is a draft again', async () => {
+  const tomorrow = new Date(Date.now() + 24 * 3600_000).toISOString()
+  thread = makeThread([
+    row({ id: 'd1', platform: 'x', status: 'approved', scheduled_for: tomorrow }),
+  ])
+  renderThread()
+  const open = await screen.findByRole('article', { name: 'X draft, version 2' })
+  // AI changes and Undo would make text you haven't approved (rule 4): not offered here.
+  expect(within(open).queryByRole('group', { name: 'Quick changes' })).not.toBeInTheDocument()
+  await userEvent.click(within(open).getByRole('button', { name: 'Edit by hand' }))
+  const box = within(open).getByLabelText('Edit the X draft')
+  await userEvent.clear(box)
+  await userEvent.type(box, 'My own words')
+  await userEvent.click(within(open).getByRole('button', { name: 'Save edit' }))
+  await vi.waitFor(() => expect(sent('PATCH /drafts/d1')).toEqual([{ text: 'My own words' }]))
+})
+
+test('an approved post has Copy text: it puts the text on the clipboard and says Copied', async () => {
+  const tomorrow = new Date(Date.now() + 24 * 3600_000).toISOString()
+  thread = makeThread([
+    row({ id: 'd1', platform: 'x', status: 'approved', scheduled_for: tomorrow }),
+  ])
+  const user = userEvent.setup()
+  renderThread()
+  const open = await screen.findByRole('article', { name: 'X draft, version 2' })
+  await user.click(within(open).getByRole('button', { name: 'Copy text' }))
+  expect(await navigator.clipboard.readText()).toBe('Shorter one')
+  expect(within(open).getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+})

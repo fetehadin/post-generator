@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { announceDrafts } from '../lib/doneAlert'
 import { api, json } from './client'
 import type { Platform, ScheduleResult, Thread, ThreadRow } from './types'
 
@@ -89,7 +90,14 @@ export const useGenerateInThread = () =>
       threadId: string
       platforms: Platform[]
       signal?: AbortSignal
-    }) => api<Thread>(`/threads/${threadId}/generate`, { ...json('POST', { platforms }), signal }),
+    }) =>
+      api<Thread>(`/threads/${threadId}/generate`, { ...json('POST', { platforms }), signal }).then(
+        (thread) => {
+          // Here, not in the page: the request outlives the chat page if you move on.
+          announceDrafts(thread.id, platforms.length - (thread.failures?.length ?? 0))
+          return thread
+        },
+      ),
   )
 
 /** POST /drafts/{id}/convert: "Make an X version" as a new draft in the same thread. */

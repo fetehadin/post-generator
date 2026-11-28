@@ -42,7 +42,7 @@ export function ProfessionInput({
   const remove = (p: string) => onChange(chosen.filter((c) => c !== p).join(', '))
 
   return (
-    <div className="mt-1 flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-control border border-edge bg-surface px-2 py-1 focus-within:outline-2 focus-within:outline-primary">
+    <div className="mt-1 flex min-h-10 w-full flex-wrap items-center gap-1.5 rounded-control border border-edge bg-surface px-2 py-1 focus-within:border-ink">
       {chosen.map((p) => (
         <span
           key={p}

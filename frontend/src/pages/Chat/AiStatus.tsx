@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Platform } from '../../api/types'
 import { Icon } from '../../components/Icon'
 import { PlatformMark } from '../../components/PlatformMark'
+import { askToNotify, canAskToNotify, notifyAllowed } from '../../lib/doneAlert'
 import { copyText } from '../../lib/handoff'
 import { LABEL } from '../../lib/platforms'
 import { ghost, secondary } from '../../lib/ui'
@@ -38,10 +39,13 @@ export function WritingCard({
   platform,
   revising = false,
   onStop,
+  notify = false,
 }: {
   platform: Platform
   revising?: boolean
   onStop?: () => void
+  /** Offer a desktop notification when it's done (signed-in chats; lib/doneAlert). */
+  notify?: boolean
 }) {
   const seconds = useElapsed(true)
   const step = stepAt(revising ? REVISING : WRITING, seconds, platform)
@@ -72,9 +76,13 @@ export function WritingCard({
         ))}
       </div>
       {seconds >= 20 && (
-        <p className="mt-4 text-sm text-muted">
-          This is taking longer than usual. Your text is saved; you can leave and come back.
-        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted">
+          <p>
+            This is taking longer than usual. You can leave this page: Voxlace tells you when
+            it&rsquo;s ready.
+          </p>
+          {notify && <NotifyMe />}
+        </div>
       )}
     </div>
   )
@@ -126,5 +134,33 @@ export function ManualFallback({ checkin }: { checkin: string }) {
       </button>
       {copied === false && <span>Couldn't copy: select the text and copy it by hand.</span>}
     </p>
+  )
+}
+
+/**
+ * Asks the browser once, from a click (browsers refuse to ask without one). Hidden when the
+ * browser can't notify or was already asked; the tab title and in-app notice still work.
+ */
+function NotifyMe() {
+  const [state, setState] = useState<'ask' | 'on' | 'gone'>(() =>
+    canAskToNotify() ? 'ask' : notifyAllowed() ? 'on' : 'gone',
+  )
+  if (state === 'gone') return null
+  if (state === 'on')
+    return (
+      <span className="inline-flex items-center gap-1 text-thread">
+        <Icon name="bell" className="size-3.5" />
+        We&rsquo;ll notify you
+      </span>
+    )
+  return (
+    <button
+      type="button"
+      onClick={() => void askToNotify().then((ok) => setState(ok ? 'on' : 'gone'))}
+      className={cn(ghost, 'min-h-9 border border-line text-ink')}
+    >
+      <Icon name="bell" className="size-4" />
+      Notify me when it&rsquo;s done
+    </button>
   )
 }
