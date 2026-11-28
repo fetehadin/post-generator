@@ -366,7 +366,7 @@ A row plus the editor's data: `topic`, `checkin_id`, `versions` (`[{"id", "numbe
 
 `{"text"?, "status"?, "scheduled_for"?}`, any subset. Returns `GET /drafts/{id}`'s shape. The rules:
 
-- `text`: a hand edit becomes a new version (no change, no version). Only while `status` is `draft` → else `409 not_editable`.
+- `text`: a hand edit becomes a new version (no change, no version). Allowed while `status` is `draft` or `approved`; an approved post stays approved and keeps its `scheduled_for` (the owner's own edit is their approval, 28 Nov 2026). `published` or `discarded` → `409 not_editable`.
 - `status: "approved"`: refused while the text is over the limit → `409 over_limit` ("Cut N characters…").
 - `status: "draft"` or `"discarded"`: also takes it off the calendar (`scheduled_for` → null).
 - `status: "published"` (the calendar's **Posted** button): only from `approved` → else `409 not_approved`; sets `published_at`. Final: any later status change → `409 already_published`.

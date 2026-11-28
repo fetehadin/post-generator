@@ -433,7 +433,7 @@ function DraftPanel({
       )}
 
       {writing.map((p) => (
-        <WritingCard key={p} platform={p} onStop={writer.stop} />
+        <WritingCard key={p} platform={p} onStop={writer.stop} notify />
       ))}
 
       {writer.stopped && (

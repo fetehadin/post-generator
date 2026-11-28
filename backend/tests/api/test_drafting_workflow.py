@@ -189,10 +189,16 @@ def test_a_naive_time_is_refused(api, draft):
     assert r.status_code == 422  # times are UTC with an offset (CLAUDE.md rule 6)
 
 
-def test_approved_text_is_locked_until_moved_back_to_draft(api, ai, draft):
+def test_a_hand_edit_keeps_an_approved_post_approved_and_on_time(api, draft):
+    when = later()
+    api.patch(f"{API}/drafts/{draft}", json={"status": "approved", "scheduled_for": when})
+    d = api.patch(f"{API}/drafts/{draft}", json={"text": "Changed by hand"}).json()
+    assert d["text"] == "Changed by hand"
+    assert d["status"] == "approved" and d["scheduled_for"] is not None
+
+
+def test_ai_changes_to_an_approved_post_wait_until_it_is_a_draft_again(api, ai, draft):
     api.patch(f"{API}/drafts/{draft}", json={"status": "approved", "scheduled_for": later()})
-    r = api.patch(f"{API}/drafts/{draft}", json={"text": "Changed"})
-    assert (r.status_code, r.json()["error"]["code"]) == (409, "not_editable")
     r = api.post(f"{API}/drafts/{draft}/revise", json={"instruction": "Shorter"})
     assert r.status_code == 409
     d = api.patch(f"{API}/drafts/{draft}", json={"status": "draft"}).json()

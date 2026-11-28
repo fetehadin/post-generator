@@ -20,6 +20,7 @@ import { Tooltip } from '../../components/ui/tooltip'
 import { isMissed } from '../../lib/calendar'
 import { LABEL, PLATFORMS, RULES, STATUS_LABEL } from '../../lib/platforms'
 import { formatShort, formatWhen } from '../../lib/time'
+import { copyText } from '../../lib/handoff'
 import { useHandOff } from '../../lib/useHandOff'
 import { chip, ghost, iconButton, primary, secondary } from '../../lib/ui'
 import { cn } from '../../lib/utils'
@@ -114,7 +115,16 @@ export function DraftCard({
   const label = `${LABEL[draft.platform]} draft`
   const textRef = useRef<HTMLParagraphElement>(null)
   const reveal = useReveal(card.text, fresh)
+  // Your own edit works on an approved post too and keeps it approved and on time (API.md,
+  // 28 Nov 2026). AI changes and Undo make text you haven't approved: drafts only.
   const editable = draft.status === 'draft' || draft.status === 'approved'
+  const revisable = draft.status === 'draft'
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    if (!(await copyText(card.text))) return
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   // A selection inside the draft scopes the next change (§4.1); mouse, keyboard or touch.
   useEffect(() => {
@@ -159,6 +169,21 @@ export function DraftCard({
           </span>
         )}
         <div className="ml-auto flex items-center gap-0.5">
+          {/* Copy only once approved (CLAUDE.md rule 4) and within the limit; the copy button
+              sits here, beside Preview and Edit, on every approved card. */}
+          {(draft.status === 'approved' || draft.status === 'published') && (
+            <Tooltip content={copied ? 'Copied' : 'Copy text'}>
+              <button
+                type="button"
+                aria-label={copied ? 'Copied' : 'Copy text'}
+                disabled={over}
+                onClick={() => void copy()}
+                className={iconButton}
+              >
+                <Icon name={copied ? 'check' : 'copy'} />
+              </button>
+            </Tooltip>
+          )}
           <Tooltip
             content={mode === 'preview' ? 'Show the text' : 'Preview on ' + LABEL[draft.platform]}
           >
@@ -284,7 +309,7 @@ export function DraftCard({
         </span>
       </footer>
 
-      {editable && mode !== 'edit' && (
+      {revisable && mode !== 'edit' && (
         <div role="group" aria-label="Quick changes" className="mt-4 flex flex-wrap gap-1.5">
           {QUICK.map((q) => (
             <button
@@ -496,20 +521,6 @@ function Approved({
           >
             {hand.posting ? 'Posting…' : hand.label}
           </button>
-          {/* Only when the main button also opens a site; else it already just copies. */}
-          {(viaBot || !hand.detail.startsWith('Copy text')) && (
-            <Tooltip content="Copy the text only">
-              <button
-                type="button"
-                aria-label="Copy text"
-                disabled={over}
-                onClick={() => void hand.copy()}
-                className={iconButton}
-              >
-                <Icon name="copy" />
-              </button>
-            </Tooltip>
-          )}
           <button
             type="button"
             aria-expanded={mode === 'time'}

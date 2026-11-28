@@ -112,7 +112,7 @@ export function Composer({
       )}
       <form
         className={cn(
-          'rounded-composer border border-line bg-composer shadow-composer transition-colors duration-(--duration) focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-thread',
+          'rounded-composer border border-line bg-composer shadow-composer transition-colors duration-(--duration) focus-within:border-edge',
           inline ? 'flex items-end gap-2 py-1.5 pr-1.5 pl-3' : 'px-3 pt-2.5 pb-2',
         )}
         onSubmit={(e) => {

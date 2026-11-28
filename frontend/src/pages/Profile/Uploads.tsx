@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { primary, secondary } from '../../lib/ui'
+import { cn } from '../../lib/utils'
 import {
   type Upload,
   useAddPortfolio,
@@ -10,8 +12,8 @@ import {
 
 const input =
   'mt-1 block min-h-10 w-full rounded-control border border-edge bg-surface px-3 text-sm'
-const button =
-  'inline-flex min-h-10 items-center rounded-full border border-edge px-4 text-sm disabled:text-muted'
+/** Never wraps to two lines next to a field ("Read page"), and keeps its size in a row. */
+const button = cn(secondary, 'flex-none whitespace-nowrap')
 
 /** "Removed 1 email and 2 phone numbers", so the user sees what was taken out (FR-21). */
 export function removedNote(removed: Upload['removed']): string {
@@ -58,7 +60,7 @@ export function Uploads() {
               }
               e.target.value = ''
             }}
-            className="mt-1 block w-full text-sm"
+            className="mt-1 block w-full text-sm text-muted file:mr-3 file:inline-flex file:min-h-10 file:cursor-pointer file:items-center file:rounded-full file:border file:border-edge file:bg-transparent file:px-4 file:text-sm file:text-ink hover:file:bg-sunken"
           />
         </label>
         <form
@@ -83,7 +85,11 @@ export function Uploads() {
               placeholder="yoursite.com"
               className={`${input} mt-0`}
             />
-            <button type="submit" disabled={portfolio.isPending || !url.trim()} className={button}>
+            <button
+              type="submit"
+              disabled={portfolio.isPending || !url.trim()}
+              className={cn(primary, 'flex-none whitespace-nowrap')}
+            >
               {portfolio.isPending ? 'Reading…' : 'Read page'}
             </button>
           </div>
