@@ -1,6 +1,6 @@
 """The Amharic blind test (FR-56): which free model and prompt write the best Amharic.
 
-    python -m app.dev amharic-eval [--cases samples/private/amharic-eval/cases.json]
+    python -m app.dev amharic-eval [--cases FILE] [--resume RUN_DIR]
     python -m app.dev amharic-score RUN_DIR SHEET.csv [SHEET.csv ...]
 
 `amharic-eval` writes one draft per case for every candidate, in the dev user's voice:
@@ -32,6 +32,7 @@ import uuid
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 
 from app.ai.client import AIClient, AIUnavailable, EmbeddingUnavailable
@@ -172,15 +173,43 @@ def generate_patiently(
 ) -> str:
     """One draft, tried up to TRIES times with a wait between: a timeout or a 429 then pauses
     the model, and without waiting every later case would fail too. Raises the last error."""
+    return _patiently(
+        lambda: clean_output(client.generate(prompt, purpose="draft").text), sleep, log
+    )
+
+
+def _patiently(call: Callable[[], object], sleep, log) -> object:
+    """Any AI call (an embedding too), tried TRIES times with a wait between."""
     for attempt in range(1, TRIES + 1):
         try:
-            return clean_output(client.generate(prompt, purpose="draft").text)
+            return call()
         except (AIUnavailable, EmbeddingUnavailable) as e:
             if attempt == TRIES:
                 raise
             log(f"  busy ({str(e)[:80]}), waiting {WAIT_SECONDS}s")
             sleep(WAIT_SECONDS)
     raise AssertionError("unreachable")
+
+
+def _write(out: Path, cases: list[Case]) -> None:
+    """sheet.csv, drafts.md and key.json from every finished case, in the cases file's order."""
+    rows, key, md = [], {}, [f"# Amharic blind test · {out.name}", ""]
+    for case in cases:
+        path = out / "cases" / f"{case.id}.json"
+        if not path.exists():
+            continue
+        done = json.loads(path.read_text(encoding="utf-8"))
+        key[case.id] = done["labels"]
+        md += [f"## {case.id} · {case.kind} · {case.platform}", f"> {case.topic}", ""]
+        for row in done["rows"]:
+            rows.append(row)
+            md += [f"### {row['label']}", "```text", row["draft"], "```", row["length"], ""]
+    with (out / "sheet.csv").open("w", encoding="utf-8-sig", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=SHEET_COLUMNS)
+        w.writeheader()
+        w.writerows(rows)
+    (out / "drafts.md").write_text("\n".join(md), encoding="utf-8")
+    (out / "key.json").write_text(json.dumps(key, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def run(
@@ -191,55 +220,62 @@ def run(
     seed: int | None = None,
     log: Callable[[str], None] = print,
     sleep: Callable[[float], None] = time.sleep,
-) -> Path:
+    resume: Path | None = None,
+) -> tuple[Path, int]:
+    """Draft every case not done yet; returns (run folder, cases still left).
+
+    Each case is saved in `cases/<id>.json` as soon as all its drafts exist, and the sheet is
+    rewritten after it. When a model is still down after every try (a daily quota, the
+    network), the run stops there; `resume` with the same folder carries on later. The free
+    Gemini tier allows about 20 drafts a day, so a full run takes several days."""
     cands = candidates()
     clients = {c.model: client_for(c.model) for c in cands}
+    by_name = {c.name: c for c in cands}
     rng = random.Random(seed)
     about = get_profile(user_id)
-    stamp = datetime.now(UTC).strftime("%Y-%m-%d-%H%M")
-    out = out_root / stamp
-    out.mkdir(parents=True, exist_ok=True)
-    rows, key, md = [], {}, [f"# Amharic blind test · {stamp} UTC", ""]
+    out = resume or out_root / datetime.now(UTC).strftime("%Y-%m-%d-%H%M")
+    (out / "cases").mkdir(parents=True, exist_ok=True)
+    todo = [c for c in cases if not (out / "cases" / f"{c.id}.json").exists()]
 
-    for case in cases:
-        profile = _profile(user_id, case.platform)
-        examples = find_examples(user_id, case.platform, case.topic, ai=clients[cands[0].model])
-        voice = voice_card(user_id, case.platform)
-        labels = blind([c.name for c in cands], rng)
-        key[case.id] = labels
-        by_name = {c.name: c for c in cands}
-        md += [f"## {case.id} · {case.kind} · {case.platform}", f"> {case.topic}", ""]
-        for label, name in labels.items():
-            cand = by_name[name]
-            prompt = prompt_for_case(case, cand, profile, examples, about, voice)
-            try:
+    for n, case in enumerate(todo):
+        try:
+            profile = _profile(user_id, case.platform)
+            first = clients[cands[0].model]
+            find = partial(find_examples, user_id, case.platform, case.topic, ai=first)
+            examples = _patiently(find, sleep, log)
+            voice = voice_card(user_id, case.platform)
+            labels = blind([c.name for c in cands], rng)
+            rows = []
+            for label, name in labels.items():
+                cand = by_name[name]
+                prompt = prompt_for_case(case, cand, profile, examples, about, voice)
                 text = generate_patiently(clients[cand.model], prompt, sleep, log)
-            except (AIUnavailable, EmbeddingUnavailable) as e:
-                text = f"(not generated: {e})"
-            length = post_length(text, profile.counting_rule)
-            facts = f"{case.topic}\n{about.summary_card}\n{case.draft}"
-            numbers = ", ".join(invented_numbers(text, facts))
-            rows.append(
-                {
-                    "case": case.id,
-                    "kind": case.kind,
-                    "platform": case.platform,
-                    "label": label,
-                    "draft": text,
-                    "length": f"{length}/{profile.char_limit}",
-                    "auto_numbers_not_in_topic": numbers,
-                }
-            )
-            md += [f"### {label}", "```text", text, "```", f"{length}/{profile.char_limit}", ""]
+                length = post_length(text, profile.counting_rule)
+                facts = f"{case.topic}\n{about.summary_card}\n{case.draft}"
+                rows.append(
+                    {
+                        "case": case.id,
+                        "kind": case.kind,
+                        "platform": case.platform,
+                        "label": label,
+                        "draft": text,
+                        "length": f"{length}/{profile.char_limit}",
+                        "auto_numbers_not_in_topic": ", ".join(invented_numbers(text, facts)),
+                    }
+                )
+        except (AIUnavailable, EmbeddingUnavailable) as e:
+            log(f"stopped at {case.id}: {str(e)[:160]}")
+            _write(out, cases)
+            return out, len(todo) - n
+        done = {"labels": labels, "rows": rows}
+        (out / "cases" / f"{case.id}.json").write_text(
+            json.dumps(done, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        _write(out, cases)
         log(f"{case.id}: {len(labels)} drafts")
 
-    with (out / "sheet.csv").open("w", encoding="utf-8-sig", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=SHEET_COLUMNS)
-        w.writeheader()
-        w.writerows(rows)
-    (out / "drafts.md").write_text("\n".join(md), encoding="utf-8")
-    (out / "key.json").write_text(json.dumps(key, indent=2, ensure_ascii=False), encoding="utf-8")
-    return out
+    _write(out, cases)
+    return out, 0
 
 
 # --- scoring -------------------------------------------------------------------------------
