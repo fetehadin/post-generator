@@ -70,3 +70,6 @@ ux-audit/
 !.claude/skills/pr-check/
 !.claude/skills/run-voxlace/
 !.claude/skills/slice/
+
+# Pictures on drafts, stored locally (FR-58)
+backend/var/

@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     telegram_webhook_secret: str = ""  # sent back by Telegram in X-Telegram-Bot-Api-Secret-Token
     telegram_link_minutes: int = 15  # how long a "link your account" token lasts
     telegram_send_seconds: int = 60  # how often the bot posts drafts that are due; 0 = off
+    # Pictures on a draft (FR-58, ADR 0002): files live here as <user_id>/<file>, never at a
+    # public address, and are deleted once the draft is posted. Production mounts a volume.
+    pictures_dir: str = "var/pictures"
     github_suggest_hour: int = 19  # suggestions appear at this hour, the user's own clock
     # Stage 1 (no LLM): weights per signal and the score a day/week needs to reach the LLM.
     github_score_weights: str = (

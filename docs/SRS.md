@@ -323,7 +323,7 @@ erDiagram
 | `platform_settings` | user_id, platform, x_premium, audience_places (JSON: time zone + share), audience_profession, goal, posts_per_week, channel | Who each audience is and where it lives; the Telegram channel name for hand-off. |
 | `posting_curves` | platform, audience, weekday, hours (24 scores), source | Study-based activity by local weekday and hour, per platform and audience profession (FR-16, FR-34). Shared seed data. |
 | `uploads` | id, user_id, kind (resume, portfolio), source, cleaned_text, removed (JSON counts), reviewed_at, created_at, updated_at | Cleaned text only; the raw text is never stored. Only reviewed text reaches the AI (FR-21). |
-| `platform_profiles` | platform, char_limit, counting_rule, tone_notes, structure_notes, updated_at | Shared, editable platform rules. |
+| `platform_profiles` | platform, char_limit, media_char_limit (with pictures; Telegram 1,024), counting_rule, tone_notes, structure_notes, updated_at | Shared, editable platform rules. |
 | `exemplar_posts` | id, platform, post_type, position, text, source (template, creator), author, text_hash, hook_type, structure, tone, goal, source_profession, tagged_at, embedding `vector(384)`, structure_embedding `vector(384)`, embedding_model, created_at | The shared inspiration pool per platform (FR-41): the team's templates and creators' posts, for structure only. Never shown to users. HNSW cosine indexes on both vectors. |
 | `invites` | code, email, used_by, created_at | Who may sign up. |
 | `provider_usage` | id, user_id, provider, model, purpose, status, created_at | Limits and fallback debugging. |

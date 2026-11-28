@@ -16,6 +16,7 @@ from app.models import (
     Checkin,
     Draft,
     DraftMessage,
+    DraftPicture,
     DraftVersion,
     PlatformSettings,
     Profile,
@@ -27,6 +28,7 @@ from app.models import (
     UserAIKey,
     VoiceCard,
 )
+from app.services import pictures
 from app.services.profile import FIELDS
 
 
@@ -54,6 +56,11 @@ def export_all(user_id: uuid.UUID) -> dict:
                 messages.setdefault(m.draft_id, []).append(line)
             elif m.thread_id is not None:
                 thread_notes.setdefault(m.thread_id, []).append(line)
+        draft_pictures: dict[uuid.UUID, list] = {}  # what was attached, not the files (FR-58)
+        for pic in mine(DraftPicture):
+            draft_pictures.setdefault(pic.draft_id, []).append(
+                {"content_type": pic.content_type, "bytes": pic.bytes}
+            )
         reminder = s.get(ReminderSettings, user_id)
         return {
             "exported_at": datetime.now(UTC).isoformat(),
@@ -144,6 +151,7 @@ def export_all(user_id: uuid.UUID) -> dict:
                     "created_at": _iso(d.created_at),
                     "versions": versions.get(d.id, []),
                     "messages": messages.get(d.id, []),
+                    "pictures": draft_pictures.get(d.id, []),
                 }
                 for d in mine(Draft)
             ],
@@ -155,3 +163,4 @@ def delete_all(user_id: uuid.UUID) -> None:
         user = s.get(User, user_id)
         if user is not None:
             s.delete(user)  # ON DELETE CASCADE removes every user-owned row
+    pictures.delete_all(user_id)  # and every picture file (FR-38, FR-58)

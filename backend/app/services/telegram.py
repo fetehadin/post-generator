@@ -25,7 +25,7 @@ from sqlalchemy import delete, select, text
 from app.core.config import get_settings
 from app.core.db import get_engine, user_session
 from app.models import Draft, TelegramAccount, TelegramChannel, TelegramLinkToken
-from app.services import library
+from app.services import library, pictures
 from app.services.drafting import DraftError
 from app.services.telegram_api import TelegramAPI, TelegramError
 
@@ -315,8 +315,21 @@ def _send(s, user_id: uuid.UUID, d: Draft, current: library.DraftDetail, api: Te
             "channel's admin settings.",
             409,
         )
+    photos = []
+    for pic in current.pictures:
+        try:
+            photos.append((pictures.path_of(pic).read_bytes(), pic.content_type))
+        except OSError:
+            raise DraftError(
+                "picture_missing",
+                "A picture of this post is missing. Remove it and add it again.",
+                409,
+            ) from None
     try:
-        api.send_message(channel.chat_id, current.text)
+        if photos:
+            api.send_photos(channel.chat_id, current.text, photos)
+        else:
+            api.send_message(channel.chat_id, current.text)
     except TelegramError as e:
         if e.code == 0:
             raise DraftError(
@@ -341,6 +354,8 @@ def post_draft(user_id: uuid.UUID, draft_id: uuid.UUID, api: TelegramAPI) -> lib
     current = library.detail(user_id, draft_id)  # 404 first
     with user_session(user_id) as s:
         _send(s, user_id, s.get(Draft, draft_id, with_for_update=True), current, api)
+    if current.pictures:
+        pictures.prune(user_id)  # posted: the files go too (ADR 0002)
     logger.info("telegram: draft posted")
     return library.detail(user_id, draft_id)
 
@@ -383,6 +398,8 @@ def send_due(api: TelegramAPI) -> int:
                 d.bot_failed_at = datetime.now(UTC)
                 d.bot_error = e.message[:300]
                 logger.info("telegram: scheduled post refused (%s)", e.code)
+        if current.pictures:
+            pictures.prune(user_id)  # files of what was just posted (ADR 0002)
     if posted:
         logger.info("telegram: %d scheduled post(s) sent", posted)
     return posted
