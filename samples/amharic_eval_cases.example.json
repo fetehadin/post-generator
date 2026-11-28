@@ -1,0 +1,24 @@
+{
+  "_readme": "Template for the FR-56 Amharic blind test. Copy to samples/private/amharic-eval/cases.json (git-ignored) and write 25 cases: 10 amharic, 10 mixed, 5 rewrite, spread over telegram, x and linkedin. topic = the check-in, written the way you would really write it. For a rewrite, topic holds the facts and draft holds the English draft to write again in Amharic.",
+  "cases": [
+    {
+      "id": "am-01",
+      "kind": "amharic",
+      "platform": "telegram",
+      "topic": "ዛሬ የቴሌግራም ቦቴን ጨረስኩ። አሁን የፈቀድኳቸውን ፖስቶች በያዝኩላቸው ሰዓት ራሱ ይለጥፋል።"
+    },
+    {
+      "id": "mx-01",
+      "kind": "mixed",
+      "platform": "x",
+      "topic": "ዛሬ app ላይ dark mode ጨመርኩ፤ colors ማስተካከሉ ግን ብዙ ጊዜ ወሰደብኝ።"
+    },
+    {
+      "id": "rw-01",
+      "kind": "rewrite",
+      "platform": "linkedin",
+      "topic": "Finished the new login page today: Continue with Google, and password reset works now.",
+      "draft": "Shipped a cleaner login page today. You can now continue with Google, and resetting your password finally works."
+    }
+  ]
+}

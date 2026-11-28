@@ -40,9 +40,10 @@ from app.services.retrieval import (
     structure_examples,
 )
 from app.services.usage import LimitReached, check_drafts
-from app.services.voice import effective_limit, voice_card
+from app.services.voice import ETHIOPIC, effective_limit, voice_card
 
 TEMPLATE = Template((Path(__file__).parents[1] / "ai" / "prompts" / "draft.md").read_text())
+AMHARIC_RULES = (Path(__file__).parents[1] / "ai" / "prompts" / "amharic.md").read_text().strip()
 PLATFORM_NAMES = {"telegram": "Telegram", "x": "X", "linkedin": "LinkedIn"}
 COUNTING_NOTES = {
     "plain": "every character counts as one",
@@ -120,6 +121,26 @@ def build_prompt(
             count=1,
         )
     return prompt
+
+
+def with_amharic_rules(prompt: str) -> str:
+    """FR-56: add the Amharic writing rules just before the output instruction, so they are
+    the last thing the model reads about how to write."""
+    head, sep, tail = prompt.rpartition("\n## Output")
+    if not sep:
+        return f"{prompt}\n\n{AMHARIC_RULES}"
+    return f"{head}\n{AMHARIC_RULES}\n{sep}{tail}"
+
+
+def amharic_first(examples: list[Example]) -> list[Example]:
+    """FR-56: the user's posts with the most Amharic script first, as voice examples for an
+    Amharic draft. The order stays the same among equals (sorted is stable)."""
+
+    def share(e: Example) -> float:
+        letters = [c for c in e.text if c.isalpha()]
+        return sum(1 for c in letters if ETHIOPIC.match(c)) / len(letters) if letters else 0.0
+
+    return sorted(examples, key=share, reverse=True)
 
 
 def _inspiration(platform: str, pool: list[str]) -> str:
