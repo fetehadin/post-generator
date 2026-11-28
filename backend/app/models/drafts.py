@@ -69,6 +69,8 @@ class PlatformProfile(Base):
 
     platform: Mapped[str] = mapped_column(String(16), primary_key=True)
     char_limit: Mapped[int] = mapped_column(Integer)
+    # The limit when the post carries pictures (Telegram's caption: 1,024), NULL = the same.
+    media_char_limit: Mapped[int | None] = mapped_column(Integer)
     counting_rule: Mapped[str] = mapped_column(String(16))  # "plain" or "x_weighted"
     tone_notes: Mapped[str] = mapped_column(Text)
     structure_notes: Mapped[str] = mapped_column(Text)
@@ -113,6 +115,28 @@ class Draft(CreatedAt, Base):
     # Saved from a guest receipt (FR-47): its id, unique across all accounts, so a receipt is
     # saved once. A retried save finds the draft instead of making a second copy.
     guest_receipt_id: Mapped[str | None] = mapped_column(String(32), unique=True)
+
+
+class DraftPicture(CreatedAt, Base):
+    """A picture on one draft (FR-58, ADR 0002). The file lives in the picture folder as
+    `<user_id>/<file_name>`; row and file are deleted once the draft is Posted, discarded or
+    deleted."""
+
+    __tablename__ = "draft_pictures"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    draft_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("drafts.id", ondelete="CASCADE"), index=True
+    )
+    position: Mapped[int] = mapped_column(SmallInteger)
+    file_name: Mapped[str] = mapped_column(String(64))
+    content_type: Mapped[str] = mapped_column(String(32))
+    bytes: Mapped[int] = mapped_column(Integer)
+    width: Mapped[int] = mapped_column(Integer)
+    height: Mapped[int] = mapped_column(Integer)
 
 
 class Thread(CreatedAt, Base):
