@@ -187,6 +187,7 @@ flowchart LR
 | FR-42 | The user sets daily check-in reminders (days and a local time). From that time the app shows the reminder in its notification panel, and stops for the day once there is a check-in. | Must | Set a reminder for the next minute; it shows within 2 minutes, and disappears after a check-in. |
 | FR-43 | Replying to a reminder in the Telegram bot saves the reply as that day's check-in and offers a draft back in the same chat. | Later (after V1) | Reply to the bot; the check-in appears on the chat board. |
 | FR-36 | A user connects a Telegram channel to the app's bot in Telegram: "Connect Telegram" pairs the accounts through a one-time link, then one tap opens Telegram's channel picker with the admin rights filled in; the channel connects by itself, with no typing. At an approved Telegram draft's planned time the bot posts it (at most 30 minutes late, else it is missed), and "Post to Telegram now" sends it at once; either way it is marked Posted, exactly once. The app says when the bot can't post (no "Post messages" right, or removed), and that draft shows as missed with the reason. | Should (V1, since 23 Nov 2026) | Connect a channel; approve a draft for in two minutes; it appears once, on time. Remove the bot's post right; the next one is missed and says what to turn on. |
+| FR-58 | **Pictures on a draft** (28 Nov 2026, ADR 0002): an X, LinkedIn or Telegram draft can carry up to 4 pictures (JPEG, PNG or WebP, at most 10 MB each), added with a button, by dragging or by pasting, and removed or reordered while the draft is not yet Posted. The draft card previews them as the platform shows them. Each upload is re-encoded, which drops hidden data such as GPS location. Pictures are private: only their owner can open them, the AI never sees them and guests can't add them. **Telegram:** the bot posts the pictures and the text together in one message (album for 2–4) with the text as the caption, so a Telegram draft with pictures is limited to 1,024 characters. **X:** "Open in X" also copies the first picture and says "Press Ctrl+V to add your picture"; each picture has Copy and Download. **LinkedIn:** the text is copied as now; each picture has Copy and Download. Telegram without the bot works the same way. The pictures are deleted from the server when the draft is Posted, discarded or deleted, or the account is deleted. | Should | Attach 2 pictures to a Telegram draft and post it: one album with the caption arrives, and the pictures' files are gone. Attach one to an X draft: Open in X copies it and Ctrl+V pastes it. As user B, open A's picture: 404. Type 1,100 characters on a Telegram draft with a picture: over the limit. |
 | FR-16 | The app ranks each day's hours per platform by audience activity: the audience's places (time zones with shares) and profession, a study-based curve per platform, and only hours the user can post. Times are shown in the user's own zone with a one-line reason. | Must | Change the audience place on Profile; the best hours shift. |
 | FR-45 | Approving a draft asks only for the **day**. The app picks the hour: the first post on that platform that day gets the best hour, the second the next best that keeps a minimum gap, and so on. The user can change the time. | Must | Approve two X drafts for the same day; they get the best and second-best hours, at least 2 hours apart. |
 | FR-34 | Posting-time suggestions start from study-based defaults and blend in the user's own archive data once they have at least 50 posts with engagement numbers on that platform. | Must | Import 60 posts with likes; the suggestion cites the user's own data. |
@@ -288,6 +289,7 @@ erDiagram
     users ||--o{ drafts : owns
     drafts ||--o{ draft_versions : has
     drafts ||--o{ prompt_logs : logs
+    drafts ||--o{ draft_pictures : shows
     users ||--|| profiles : has
     users ||--o{ uploads : has
     users ||--o{ platform_settings : sets
@@ -328,6 +330,7 @@ erDiagram
 | `telegram_link_tokens` | token_hash (SHA-256), user_id, expires_at, used_at, created_at | One-time links that pair a Voxlace account with a Telegram account (FR-36). |
 | `telegram_accounts` | user_id, tg_user_id (unique), tg_username, created_at | Which Telegram user this account is (FR-36). |
 | `telegram_channels` | user_id, chat_id (unique), title, username, can_post, created_at | The channel the bot may post to, one per account (FR-36). |
+| `draft_pictures` | id, user_id, draft_id, position, file_name, content_type, bytes, width, height, created_at | Pictures on a draft (FR-58, ADR 0002). The file lives in the server's picture folder, never at a public address; row and file are deleted once the draft is Posted, discarded or deleted. |
 
 **Indexing:** start with no vector index. pgvector's exact search is fast enough for a few thousand rows per user. Use B-tree indexes on `(user_id, platform)`. Query shape: `ORDER BY embedding <=> :q LIMIT :n`.
 
@@ -341,7 +344,7 @@ Seed values for `platform_profiles`, as of October 2026.
 |---|---|---|---|
 | X | 280 (25,000 with Premium) | Weighted (twitter-text v3): each URL = 23; Ethiopic (Amharic), CJK and emoji characters = 2 | Pre-filled compose link |
 | LinkedIn | 3,000 | Plain count; ~210 characters show before "see more" | Copy + open composer |
-| Telegram | 4,096 | Plain count | Copy + open the user's channel |
+| Telegram | 4,096 (1,024 with a picture: Telegram's caption limit, FR-58) | Plain count | Copy + open the user's channel |
 
 ---
 
@@ -402,6 +405,7 @@ Seed values for `platform_profiles`, as of October 2026.
 | 1.9 | 24 Nov 2026 | New FR-53: profile strength percentage; several professions. |
 | 1.10 | 27 Nov 2026 | New FR-55: chat actions (rename, regenerate title, pin, archive, delete). FR-54 is held for the weekly plan. |
 | 1.11 | 27 Nov 2026 | New FR-56: Amharic quality, Write it in Amharic / English on a draft, and the blind model test that picks the Amharic model. |
+| 1.12 | 28 Nov 2026 | New FR-58: pictures on a draft, posted by the bot on Telegram and copied for the X and LinkedIn hand-off, deleted once posted (ADR 0002). New table `draft_pictures`. FR-57 is held for the admin view. |
 | 1.2 | 17 Oct 2026 | Added FR-40 (chat panel on each draft), FR-41 (inspiration picked by post type), FR-42 (daily check-in reminders), FR-43 (reply to the bot = check-in), FR-44 (excluded hashtags, best-1,000 import cap). New tables `imports`, `draft_messages`, `inspiration_posts`, `reminder_settings`; `source_posts` gains `origin`, `import_id`, `embedding_model`. Decisions behind them: OPEN_QUESTIONS Q2, Q3, Q5, Q24–Q27. |
 | 1.1 | 14 Oct 2026 | Hosting moved to the team's Contabo VPS: always-on worker replaces the external cron; Supabase used for login only; added NFR-17 (backups) and NFR-18 (server hardening). |
 | 1.0 | 13 Oct 2026 | First locked V1. Built from the Pre-Build Plan. Clarified: Telegram is sent by the app at the due time because bots cannot schedule natively (FR-12, FR-35); NFR-6 reworded to "never without explicit approval"; NFR-11 reworded for a hosted app; added NFR-15, NFR-16 and a priority column. |

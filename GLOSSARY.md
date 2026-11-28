@@ -44,6 +44,10 @@ _Avoid_: Network, account, channel
 The user's own Telegram channel that the Voxlace bot may post to.
 _Avoid_: Using "channel" for X or LinkedIn
 
+**Picture**:
+An image the user adds to one draft, posted with it and deleted from Voxlace once the draft is Posted.
+_Avoid_: Attachment, media, image (in the app), file
+
 **Approved**:
 A draft the user signed off, with a plan for when it goes out: now or at a set time.
 _Avoid_: Scheduled (as a separate state), ready, confirmed

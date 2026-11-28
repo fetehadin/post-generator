@@ -544,6 +544,21 @@ When a draft becomes `published`, its text is also saved as one of the user's ow
 
 ---
 
+## Pictures on a draft (FR-58, ADR 0002)
+
+Every draft row (`GET /drafts`, `GET /drafts/{id}`) gains `pictures`: `[{"id", "position", "content_type", "width", "height", "url"}]`, in posting order (empty normally). `url` is the API path below; it needs the login, so the app loads it with the token, never as a public link. With pictures, a Telegram draft's `length.limit` is 1,024 (Telegram's caption limit).
+
+| Method and path | Body | Answer |
+|---|---|---|
+| `POST /drafts/{id}/pictures` → `201` | `multipart/form-data`, one `file` | The draft (`GET /drafts/{id}`'s shape). JPEG, PNG or WebP only, checked from the file's bytes, not its name (`415 not_a_picture`); at most 10 MB (`413 too_big`) and 4 per draft (`409 too_many_pictures`); re-encoded without its hidden data. Only while `draft` or `approved` → else `409 not_editable`. A Telegram draft over 1,024 characters can still take a picture, and then shows as over the limit |
+| `GET /drafts/{id}/pictures/{picture_id}` | | The picture's bytes with its `Content-Type`, `Cache-Control: private`. Another user's picture, or one already deleted → `404 not_found` |
+| `PUT /drafts/{id}/pictures/order` | `{"ids": [picture_id, …]}` | The draft; the new order. The list must hold exactly the draft's pictures → else `400 wrong_pictures` |
+| `DELETE /drafts/{id}/pictures/{picture_id}` | | `204` |
+
+- **Deleted for good** (row and file) when the draft becomes `published` (bot send, "Post to Telegram now" or `PATCH status: published`), `discarded`, is deleted with its chat, or the account is deleted (`DELETE /me`). A background sweep removes files that have no row.
+- **Telegram:** `POST /drafts/{id}/publish` and the background sender upload the pictures with the text as the caption in one call (`sendPhoto` for one, `sendMediaGroup` for 2–4). Approving or posting a draft over 1,024 characters with pictures → `409 over_limit`.
+- **Guests** can't add pictures (`POST /guest/drafts` takes none). `GET /me/export` lists each picture's draft and size, not the bytes.
+
 ## GitHub → daily dev drafts (FR-14)
 
 Optional; off on a server without `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` (`enabled: false`).
